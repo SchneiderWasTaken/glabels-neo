@@ -238,6 +238,81 @@
     </message>
 </context>
 <context>
+    <name>FillView</name>
+    <message>
+        <source>Start at position:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Add Row</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Remove</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Clear</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import CSV</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import Excel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export CSV</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export Excel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preview:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Selected row</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Checked rows (what will print)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>All rows</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Destination:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Print</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Use system print dialog...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Page</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>of</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>nn</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>Frame</name>
     <message>
         <source>%1 x %2 (%3 per sheet)</source>
@@ -1320,6 +1395,133 @@
     </message>
 </context>
 <context>
+    <name>glabels::DeployView</name>
+    <message>
+        <source>Deploy</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Build a standalone fill-and-print kiosk from the current project. The employee gets a simplified Fill table + preview; the label layout and locked fields are baked in.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Application name:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>(blank = no PIN)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Admin PIN:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>(system default)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Browse...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Printer:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>(optional: Excel/CSV to pre-fill rows)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Data source:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>(e.g. &quot;Price Tag&quot;)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Embedded label name:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Locked fields (pre-filled from source, read-only to employee):</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Path to glabels-fill.exe</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Base kiosk executable:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Build kiosk...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select data source</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Excel/CSV (*.xlsx *.csv);;All files (*)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>(System default)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select printer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>OK</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select glabels-fill.exe</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Executables (*.exe);;All files (*)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>No project is open.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Base kiosk executable not found:
+%1
+
+Build the glabels-fill target first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Save kiosk as</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Executable (*.exe)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not copy %1 to %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not write config to %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Kiosk built successfully:
+%1</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>glabels::EditVariableDialog</name>
     <message>
         <source>Default</source>
@@ -1373,6 +1575,96 @@
     </message>
 </context>
 <context>
+    <name>glabels::FillJobModel</name>
+    <message>
+        <source>Qty</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Print</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>glabels::FillView</name>
+    <message>
+        <source>Fill</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Product: %1  (%2 per sheet)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Will print %1 item(s) on 1 page.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Will print %1 item(s) on %2 pages.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import CSV</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>CSV files (*.csv);;All files (*)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not open file %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Import Excel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Excel import is not available in this build. Use CSV instead.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Excel files (*.xlsx);;All files (*)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not read %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export CSV</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>CSV files (*.csv)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Could not write %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Export Excel</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Excel export is not available in this build. Use CSV instead.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Excel files (*.xlsx)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Print to file (PDF)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>PDF files (*.pdf);;All files (*)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>glabels::LabelEditor</name>
     <message>
         <source>Move</source>
@@ -1415,6 +1707,14 @@
     </message>
     <message>
         <source>Print</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Fill</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Deploy</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1482,11 +1782,27 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&amp;Fill</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Select project Fill mode</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>&amp;Print</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <source>Select project Print mode</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Deploy</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Build a kiosk deployment</source>
         <translation type="unfinished"></translation>
     </message>
     <message>

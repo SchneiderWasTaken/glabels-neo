@@ -112,11 +112,22 @@ if (MINGW)
    string (REPLACE "/g++.exe" "" MINGW_BIN_DIR  ${CMAKE_CXX_COMPILER})
    string (REPLACE "/bin"     "" MINGW_BASE_DIR ${MINGW_BIN_DIR})
 
-   # Make sure we can find MINGW libraries, e.g. zlib
-   set (CMAKE_PREFIX_PATH ${MINGW_BASE_DIR} )
+   # MINGW library paths (e.g. zlib) are found via the compiler's built-in
+   # search paths.  We do NOT overwrite CMAKE_PREFIX_PATH here, so a
+   # user-specified prefix (e.g. static Qt) survives.
 endif ()
 
-find_package (Qt6 6.2 REQUIRED COMPONENTS Concurrent Core Gui Widgets PrintSupport Xml Svg LinguistTools Test)
+# GuiPrivate is only needed for QXlsx; omit it for the static (no-Xlsx) build.
+option( GLABELS_USE_XLSX "Enable Excel (.xlsx) support via QXlsx" ON )
+if( GLABELS_USE_XLSX )
+    set( GLABELS_QT_GUI_PRIVATE_COMPONENT GuiPrivate )
+else()
+    set( GLABELS_QT_GUI_PRIVATE_COMPONENT "" )
+endif()
+
+find_package (Qt6 6.2 REQUIRED COMPONENTS Concurrent Core Gui ${GLABELS_QT_GUI_PRIVATE_COMPONENT} Widgets PrintSupport Xml Svg LinguistTools Test)
+
+find_package (QXlsxQt6 QUIET)
 
 if (WIN32)
    # Locate Qt directories
@@ -176,6 +187,7 @@ add_subdirectory (backends)
 add_subdirectory (model)
 add_subdirectory (glabels)
 add_subdirectory (glabels-batch)
+add_subdirectory (glabels-fill)
 add_subdirectory (templates)
 add_subdirectory (user-docs)
 add_subdirectory (translations)

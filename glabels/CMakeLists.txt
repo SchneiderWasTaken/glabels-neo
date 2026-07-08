@@ -4,7 +4,6 @@ project (glabels LANGUAGES CXX)
 # Sources
 #=======================================
 set (glabels_sources
-  main.cpp
   AboutDialog.cpp
   BarcodeMenu.cpp
   BarcodeMenuButton.cpp
@@ -15,9 +14,14 @@ set (glabels_sources
   ColorPaletteItem.cpp
   ColorSwatch.cpp
   Cursors.cpp
+  DeployView.cpp
   EditVariableDialog.cpp
   FieldButton.cpp
   File.cpp
+  FillConfig.cpp
+  FillJobModel.cpp
+  FillMerge.cpp
+  FillView.cpp
   Help.cpp
   LabelEditor.cpp
   MainWindow.cpp
@@ -53,9 +57,14 @@ set (glabels_qobject_headers
   ColorHistory.hpp
   ColorPaletteDialog.hpp
   ColorPaletteItem.hpp
+  DeployView.hpp
   EditVariableDialog.hpp
   FieldButton.hpp
   File.hpp
+  FillConfig.hpp
+  FillJobModel.hpp
+  FillMerge.hpp
+  FillView.hpp
   LabelEditor.hpp
   MainWindow.hpp
   MergeTableModel.hpp
@@ -79,6 +88,7 @@ set (glabels_qobject_headers
 set (glabels_forms
   ui/AboutDialog.ui
   ui/EditVariableDialog.ui
+  ui/FillView.ui
   ui/MergeView.ui
   ui/ObjectEditor.ui
   ui/PreferencesDialog.ui
@@ -120,28 +130,60 @@ if (WIN32)
 endif ()
 
 #=====================================
-# Target
+# Resources (OBJECT library -- compiled once, object files directly
+# included in each exe that links it, so resource registrations are
+# never stripped by the linker).
 #=====================================
-add_executable (glabels-qt WIN32
+add_library (glabels_resources OBJECT ${glabels_qrc_sources})
+target_compile_features (glabels_resources PRIVATE cxx_std_20)
+
+#=====================================
+# Shared library (used by glabels-qt and the glabels-fill kiosk)
+#=====================================
+add_library (glabels_lib STATIC
   ${glabels_sources}
   ${glabels_moc_sources}
-  ${glabels_qrc_sources}
   ${glabels_forms_headers}
-  ${glabels_win_rc}
 )
 
-target_compile_features (glabels-qt
+target_compile_features (glabels_lib
   PUBLIC cxx_std_20
 )
 
-target_include_directories (glabels-qt
-  PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
+target_include_directories (glabels_lib
+  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR}
+          ${CMAKE_CURRENT_SOURCE_DIR}/qxlsx_compat
 )
 
-target_link_libraries (glabels-qt
+option( GLABELS_USE_XLSX "Enable Excel (.xlsx) import/export via QXlsx" ON )
+if( GLABELS_USE_XLSX )
+    find_package( QXlsxQt6 QUIET )
+    if( QXlsxQt6_FOUND )
+        target_link_libraries (glabels_lib PUBLIC QXlsx::QXlsx)
+    endif()
+else()
+    target_compile_definitions( glabels_lib PUBLIC GLABELS_FILL_NO_XLSX=1 )
+endif()
+
+target_link_libraries (glabels_lib
+  PUBLIC
   Model
   Qt6::Concurrent
   Qt6::Widgets
+)
+
+#=====================================
+# glabels-qt executable (full designer)
+#=====================================
+add_executable (glabels-qt WIN32
+  main.cpp
+  ${glabels_win_rc}
+)
+
+# Resources must be linked DIRECTLY to the executable (OBJECT libraries
+# do not propagate transitively through STATIC libraries).
+target_link_libraries (glabels-qt
+  PRIVATE glabels_lib glabels_resources
 )
 
 #=======================================

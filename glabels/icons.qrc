@@ -107,7 +107,9 @@
 	<file>icons/glabels-flat/24x24/actions/glabels-valign-text-top.svg</file>
 
 	<!-- flat: 32 x 32 -->
+	<file>icons/glabels-flat/32x32/actions/glabels-fill.svg</file>
 	<file>icons/glabels-flat/32x32/actions/glabels-collated.svg</file>
+	<file>icons/glabels-flat/32x32/actions/glabels-deploy.svg</file>
 	<file>icons/glabels-flat/32x32/actions/glabels-file-new.svg</file>
 	<file>icons/glabels-flat/32x32/actions/glabels-file-open.svg</file>
 	<file>icons/glabels-flat/32x32/actions/glabels-file-recent.svg</file>
@@ -123,6 +125,8 @@
 
 	<!-- flat: 48 x 48 -->
 	<file>icons/glabels-flat/48x48/actions/glabels-edit.svg</file>
+	<file>icons/glabels-flat/48x48/actions/glabels-deploy.svg</file>
+	<file>icons/glabels-flat/48x48/actions/glabels-fill.svg</file>
 	<file>icons/glabels-flat/48x48/actions/glabels-merge.svg</file>
 	<file>icons/glabels-flat/48x48/actions/glabels-print.svg</file>
 	<file>icons/glabels-flat/48x48/actions/glabels-properties.svg</file>

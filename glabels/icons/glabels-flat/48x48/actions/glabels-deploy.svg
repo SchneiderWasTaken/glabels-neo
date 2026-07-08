@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="48" height="48" >
+
+  <!-- Box body -->
+  <rect
+     style="fill:#fafafa;fill-opacity:1;stroke:#333333;stroke-width:1.5;stroke-opacity:1"
+     height="26" width="34" x="7" y="15" rx="1" ry="1" />
+
+  <!-- Box top flaps -->
+  <path
+     style="fill:#e0e0e0;stroke:#333333;stroke-width:1.5;stroke-linejoin:round"
+     d="M 7,15 L 14,7 L 34,7 L 41,15" />
+
+  <!-- Center tape line -->
+  <line
+     style="stroke:#999999;stroke-width:1.5;stroke-opacity:1"
+     x1="24" y1="7" x2="24" y2="41" />
+
+  <!-- Outgoing arrow (deploy) -->
+  <path
+     style="fill:#333333;fill-opacity:1;stroke:none"
+     d="M 30,24 L 44,24 L 44,20 L 48,26 L 44,32 L 44,28 L 30,28 Z" />
+
+</svg>

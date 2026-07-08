@@ -48,10 +48,12 @@ namespace glabels
         class LabelEditor;
         class MergeView;
         class ObjectEditor;
+        class FillView;
         class PrintView;
         class PropertiesView;
         class StartupView;
         class VariablesView;
+        class DeployView;
 
 
         ///
@@ -103,7 +105,9 @@ namespace glabels
                 void fileShowPropertiesPage();
                 void fileShowMergePage();
                 void fileShowVariablesPage();
+                void fileShowFillPage();
                 void fileShowPrintPage();
+                void fileShowDeployPage();
                 void fileTemplateDesigner();
                 void fileClose();
                 void fileExit();
@@ -184,7 +188,9 @@ namespace glabels
                 QWidget* createPropertiesPage();
                 QWidget* createMergePage();
                 QWidget* createVariablesPage();
+                QWidget* createFillPage();
                 QWidget* createPrintPage();
+                QWidget* createDeployPage();
 
                 void manageActions();
 
@@ -238,14 +244,18 @@ namespace glabels
                 QToolButton*         mPropertiesButton;
                 QToolButton*         mMergeButton;
                 QToolButton*         mVariablesButton;
+                QToolButton*         mFillButton;
                 QToolButton*         mPrintButton;
+                QToolButton*         mDeployButton;
 
                 QAction*             mWelcomeAction;
                 QAction*             mEditorAction;
                 QAction*             mPropertiesAction;
                 QAction*             mMergeAction;
                 QAction*             mVariablesAction;
+                QAction*             mFillAction;
                 QAction*             mPrintAction;
+                QAction*             mDeployAction;
 
                 QStackedWidget*      mPages;
                 StartupView*         mWelcomeView;
@@ -255,7 +265,9 @@ namespace glabels
                 PropertiesView*      mPropertiesView;
                 MergeView*           mMergeView;
                 VariablesView*       mVariablesView;
+                FillView*            mFillView;
                 PrintView*           mPrintView;
+                DeployView*          mDeployView;
 
                 QLabel*   zoomInfoLabel;
                 QLabel*   cursorInfoLabel;
@@ -267,8 +279,10 @@ namespace glabels
                 QAction*  fileShowEditorPageAction;
                 QAction*  fileShowPropertiesPageAction;
                 QAction*  fileShowMergePageAction;
-                QAction*  fileShowVariablesPageAction;
-                QAction*  fileShowPrintPageAction;
+                QAction*             fileShowVariablesPageAction;
+                QAction*             fileShowFillPageAction;
+                QAction*             fileShowPrintPageAction;
+                QAction*             fileShowDeployPageAction;
                 QAction*  fileTemplateDesignerAction;
                 QAction*  fileCloseAction;
                 QAction*  fileExitAction;

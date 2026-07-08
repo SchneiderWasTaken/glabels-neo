@@ -1,89 +1,134 @@
 >[!IMPORTANT]
->This repo is for *glabels-qt*, NOT the legacy *glabels-3* version (which I have not maintained since 2018).
+>This is a fork of [glabels-qt](https://github.com/j-evins/glabels-qt) by Jaye Evins, extending it with an interactive Fill page, a Deploy tab for building standalone kiosk deployments, and CSV/Excel data-source support.
 
-![gLabels Label Designer](glabels/images/glabels-label-designer.png)
-
-![Cover Image](docs/images/cover-image.png)
-
-[![Multi-Platform Build Tests](https://github.com/j-evins/glabels-qt/actions/workflows/build-tests.yml/badge.svg?branch=master&event=push)](https://github.com/j-evins/glabels-qt/actions/workflows/build-tests.yml)
+![gLabels-neo](glabels/images/glabels-label-designer.png)
 
 *******************************************************************************
 
-## What is gLabels-qt?
+## What is gLabels-neo?
 
-gLabels-qt is the development version of the next major version of gLabels (a.k.a. glabels-4).
+gLabels-neo is a fork of gLabels-qt — a Qt6-based label designer that lets you
+design and print labels, business cards, and barcodes.  It adds three major
+features on top of the original:
+
+- **Fill page** — an interactive batch-fill table with live preview, CSV/Excel
+  import/export, and a "Print/No Print" checkbox column for staging rows.
+- **Deploy tab** — build a standalone, single-file kiosk executable from the
+  designer: the current label layout is embedded, selected fields are locked,
+  and the result is a self-extracting `.exe` that runs on any Windows machine
+  with no install.
+- **Data-source model** — pre-fill locked columns from an Excel/CSV file while
+  the employee enters only the per-day values (e.g. names from a spreadsheet,
+  price typed in at the terminal).
 
 
-## What's new in gLabels 4?
+## What's new in gLabels-neo (vs. glabels-qt)
 
-- A complete rewrite, based on the Qt6 framework.
-- A new UI layout based on common activities.
-- Cross-platform support
-- User-defined variables
-- Support for continuous-roll labels
-- Many new product templates
+- **Fill page** (Ctrl+5): a batch table where each row is one print job with
+  a Qty, a Print checkbox, and one column per `${FieldName}` in your label.
+  Live sheet preview reflects the checked rows.  CSV/Excel round-trip.
+- **Deploy tab**: configure branding, admin PIN, locked printer, data source,
+  and locked fields, then click "Build kiosk…" to produce a single `.exe`.
+- **Kiosk mode** (`glabels-fill`): a stripped-down app with only the Fill
+  table + preview + print — no editor, no template designer.  The label is
+  embedded in the executable; an admin PIN (Ctrl+Shift+A) allows reconfiguration.
+- **Single-file SFX**: the kiosk ships as one ~44 MB `.exe` (static Qt,
+  self-extracting to `%TEMP%`).  No install, no DLLs, no external files.
+- **CSV/Excel import/export** in the Fill table.
+- **Per-column locking**: mark fields as read-only (pre-filled from source)
+  vs. employee-entered.
+- **Portable build**: the full designer also ships as a no-install portable
+  folder.
+
+All features from the original glabels-qt are preserved.
 
 
 ## Download
 
-### Latest Release
+Pre-built Windows binaries are available on the [Releases](../../releases) page:
 
-There are currently no official releases of gLabels 4.
+| Package | Description |
+|:--------|:------------|
+| `glabels-neo-portable.zip` | Full designer, no-install portable folder (~35 MB) |
+| `glabels-neo-kiosk.exe` | A sample kiosk build (configure via the Deploy tab) |
 
-### Continuous Integration Snapshots
-
-Currently there are no self-hosted binary snapshot releases available.  I plan to make these available again once 4.0 is more imminent.  In the mean time, I encourage you to try building the code yourself.
-
-Some third-party packages may be available:
-
-
-| Platform  | Files                                                                                | Notes                                                         |
-|:----------|:-------------------------------------------------------------------------------------|:--------------------------------------------------------------|
-| Archlinux | [Archlinux User Repository Page](https://aur.archlinux.org/packages/glabels-qt-git/) | Maintained by [Maud Spierings](https://github.com/SpieringsAE) |
-| Ubuntu    | [PPA Page](https://code.launchpad.net/~krisives/+archive/ubuntu/glabels-qt)          | Maintained by [Kristopher Ives](https://github.com/krisives)  |
-| Fedora    | [Copr Repository Page](https://copr.fedorainfracloud.org/coprs/mariobl/glabels-qt/)  | Maintained by [Mario Blättermann](https://github.com/mariobl) |
-
-
+To build a kiosk for your own label, download the designer, open your label,
+go to the Deploy tab, and click "Build kiosk…".
 
 ## Build Instructions
 
-- [Linux Build Instructions](docs/BUILD-INSTRUCTIONS-LINUX.md)
-- [Windows Build Instructions](docs/BUILD-INSTRUCTIONS-WINDOWS.md)
-- [Mac Build Instructions](docs/BUILD-INSTRUCTIONS-MACOS.md)
+### Windows (MSYS2 / MinGW)
 
+Prerequisites: [MSYS2](https://www.msys2.org/)
 
-## Help Needed
+From an MSYS2 UCRT64 shell:
 
-Please see [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md).
+```bash
+pacman -S --needed mingw-w64-ucrt-x86_64-toolchain cmake ninja \
+  mingw-w64-ucrt-x86_64-qt6-base mingw-w64-ucrt-x86_64-qt6-svg \
+  mingw-w64-ucrt-x86_64-qt6-tools mingw-w64-ucrt-x86_64-qt6-declarative \
+  mingw-w64-ucrt-x86_64-qrencode mingw-w64-ucrt-x86_64-zint \
+  mingw-w64-ucrt-x86_64-qxlsx
+```
+
+```bash
+git clone https://github.com/<your-org>/glabels-neo.git
+cd glabels-neo
+cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j
+```
+
+The designer is at `build/glabels/glabels-qt.exe`; the kiosk at
+`build/glabels-fill/glabels-fill.exe`.
+
+### Building the single-file kiosk (SFX)
+
+Requires the static Qt package:
+
+```bash
+pacman -S --needed mingw-w64-ucrt-x86_64-qt6-static \
+  mingw-w64-ucrt-x86_64-libwebp mingw-w64-ucrt-x86_64-libtiff
+```
+
+```bash
+cmake -B build-static -G Ninja \
+  -DCMAKE_PREFIX_PATH="C:/msys64/ucrt64/qt6-static" \
+  -DQt6_DIR="C:/msys64/ucrt64/qt6-static/lib/cmake/Qt6" \
+  -DCMAKE_FIND_LIBRARY_SUFFIXES=".a" \
+  -DGLABELS_FILL_STATIC=ON -DGLABELS_USE_XLSX=OFF \
+  -DCMAKE_BUILD_TYPE=Release
+cmake --build build-static --target glabels-fill -j
+```
+
+Then assemble the SFX using the PowerShell script `scripts/build-sfx.ps1`.
+
+See [docs/FILL-AND-DEPLOY.md](docs/FILL-AND-DEPLOY.md) for full details.
 
 
 ## License
 
-gLabels-qt is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+gLabels-neo is free software licensed under the **GNU General Public License
+v3** (inherited from glabels-qt).  You are free to use, modify, and
+redistribute it, provided derivative works are also GPLv3 and source is
+available.
 
-gLabels-qt is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+This fork is based on [glabels-qt](https://github.com/j-evins/glabels-qt) by
+Jaye Evins.  See [CREDITS.md](CREDITS.md) for the full list of contributors.
 
-See [LICENSE](LICENSE) in this directory.
+Bundled third-party components:
 
-The following sub-components are also made available under less
-restrictive licensing:
+| Component | License |
+|:----------|:--------|
+| Qt6 | LGPL v3 (open-source build) |
+| glbarcode (bundled) | LGPL v3 |
+| QXlsx (Excel I/O) | MIT |
+| libzint (barcodes) | BSD-3-Clause |
+| libqrencode | LGPL v2.1 |
+| zlib | zlib license |
+| Template database | MIT/X |
 
-### Glbarcode
 
-   gLabels-qt currently includes a version of the glbarcode++ library, located in
-   the "glbarcode/" subdirectory.  It is licensed under the GNU LESSER GENERAL
-   PUBLIC LICENSE (LGPL); either version 3 of the License, or (at your option)
-   any later version.  See [glbarcode/LICENSE](glbarcode/LICENSE).
+## Contributing
 
-### Template Database
-
-   The XML files in the "templates/" subdirectory constitute the glabels
-   label database.  No copyright is claimed on the facts contained within
-   the database and can be used for any purpose.  The files themselves are
-   licensed using the MIT/X license.  See [templates/LICENSE](templates/LICENSE).
+Pull requests welcome.  See [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) and
+[docs/CODING-STYLE.md](docs/CODING-STYLE.md).

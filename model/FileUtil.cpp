@@ -45,7 +45,22 @@ namespace glabels::model
         {
                 QDir dir;
 
-                // First, try finding templates directory relative to application path
+                // First, try a Qt resource path (used by the static single-exe
+                // kiosk build, which embeds the template database as a .qrc).
+                if ( QDir( ":/templates" ).exists() )
+                {
+                        return QDir( ":/templates" );
+                }
+
+                // Next, try a "portable" layout: templates/ next to the executable.
+                // This lets the app run from an extracted folder with no install.
+                dir.cd( QApplication::applicationDirPath() );
+                if ( dir.cd( "templates" ) )
+                {
+                        return dir;
+                }
+
+                // Next, try the standard install layout: <appdir>/../share/glabels-qt/templates
                 dir.cd( QApplication::applicationDirPath() );
                 if ( (dir.dirName() == "bin") &&
                      dir.cdUp() && dir.cd( "share" ) && dir.cd( "glabels-qt" ) && dir.cd( "templates" ) )
@@ -89,7 +104,14 @@ namespace glabels::model
         {
                 QDir dir;
 
-                // First, try finding translations directory relative to application path
+                // First, try a "portable" layout: translations/ next to the executable.
+                dir.cd( QApplication::applicationDirPath() );
+                if ( dir.cd( "translations" ) )
+                {
+                        return dir;
+                }
+
+                // Next, try the standard install layout.
                 dir.cd( QApplication::applicationDirPath() );
                 if ( (dir.dirName() == "bin") &&
                      dir.cdUp() && dir.cd( "share" ) && dir.cd( "glabels-qt" ) && dir.cd( "translations" ) )
@@ -97,13 +119,13 @@ namespace glabels::model
                         return dir;
                 }
 
-                // Next, try running out of the source directory.
+                // Next, try running out of the build directory.
                 if ( dir.cd( Config::PROJECT_BUILD_DIR ) && dir.cd( "translations" ) )
                 {
                         return dir;
                 }
 
-                qFatal( "Cannot locate system template directory!" );
+                qFatal( "Cannot locate translations directory!" );
                 return QDir("/");
         }
 

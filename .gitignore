@@ -1,14 +1,17 @@
-# My cmake build directory
+# My cmake build directories
 /build
+/build-static
 
 # Compiled Object files
 *.slo
 *.lo
 *.o
+*.obj
 
 # Compiled Dynamic libraries
 *.so
 *.dylib
+*.dll
 
 # Compiled Static libraries
 *.lai
@@ -17,6 +20,11 @@
 
 # Compiled translation files
 *.qm
+
+# SFX / portable build output
+glabels-fill-sfx.exe
+glabels-neo-portable/
+glabels-neo-portable.zip
 
 # Sphinx-build artifacts
 /user-docs/_build/doctrees

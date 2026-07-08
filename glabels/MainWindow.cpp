@@ -22,6 +22,8 @@
 #include "MainWindow.hpp"
 
 #include "File.hpp"
+#include "FillView.hpp"
+#include "DeployView.hpp"
 #include "Help.hpp"
 #include "LabelEditor.hpp"
 #include "MergeView.hpp"
@@ -53,6 +55,8 @@ namespace
                 MERGE_PAGE_INDEX      = 3,
                 VARIABLES_PAGE_INDEX  = 4,
                 PRINT_PAGE_INDEX      = 5,
+                FILL_PAGE_INDEX       = 6,
+                DEPLOY_PAGE_INDEX     = 7,
         };
 }
 
@@ -79,6 +83,8 @@ namespace glabels
                 QWidget* mergePage = createMergePage();
                 QWidget* variablesPage = createVariablesPage();
                 QWidget* printPage = createPrintPage();
+                QWidget* fillPage = createFillPage();
+                QWidget* deployPage = createDeployPage();
 
                 // Table of contents widget
                 mContents = new QToolBar();
@@ -167,6 +173,30 @@ namespace glabels
                 mPrintAction = mContents->addWidget( mPrintButton );
                 group->addButton( mPrintButton );
 
+                // Add "Fill" page
+                mPages->addWidget( fillPage );
+                mFillButton = new QToolButton( this );
+                mFillButton->setIcon( QIcon::fromTheme( "glabels-fill" ) );
+                mFillButton->setText( tr("Fill") );
+                mFillButton->setToolButtonStyle( Qt::ToolButtonTextUnderIcon );
+                mFillButton->setCheckable( true );
+                mFillButton->setSizePolicy( QSizePolicy::MinimumExpanding,
+                                             QSizePolicy::Preferred );
+                mFillAction = mContents->addWidget( mFillButton );
+                group->addButton( mFillButton );
+
+                // Add "Deploy" page
+                mPages->addWidget( deployPage );
+                mDeployButton = new QToolButton( this );
+                mDeployButton->setIcon( QIcon::fromTheme( "glabels-deploy" ) );
+                mDeployButton->setText( tr("Deploy") );
+                mDeployButton->setToolButtonStyle( Qt::ToolButtonTextUnderIcon );
+                mDeployButton->setCheckable( true );
+                mDeployButton->setSizePolicy( QSizePolicy::MinimumExpanding,
+                                             QSizePolicy::Preferred );
+                mDeployAction = mContents->addWidget( mDeployButton );
+                group->addButton( mDeployButton );
+
                 // Set initial page selection
                 mWelcomeButton->setChecked( true );
                 mPages->setCurrentIndex( WELCOME_PAGE_INDEX );
@@ -191,6 +221,8 @@ namespace glabels
                 connect( mMergeButton, SIGNAL(toggled(bool)), this, SLOT(changePage(bool)));
                 connect( mVariablesButton, SIGNAL(toggled(bool)), this, SLOT(changePage(bool)));
                 connect( mPrintButton, SIGNAL(toggled(bool)), this, SLOT(changePage(bool)));
+                connect( mFillButton, SIGNAL(toggled(bool)), this, SLOT(changePage(bool)));
+                connect( mDeployButton, SIGNAL(toggled(bool)), this, SLOT(changePage(bool)));
                 connect( mLabelEditor, SIGNAL(zoomChanged()), this, SLOT(onZoomChanged()) );
                 connect( model::Settings::instance(), SIGNAL(changed()), this, SLOT(onSettingsChanged()) );
                 connect( QApplication::clipboard(), SIGNAL(dataChanged()), this, SLOT(clipboardChanged()) );
@@ -226,7 +258,9 @@ namespace glabels
                 mObjectEditor->setModel( mModel.get(), mUndoRedoModel.get() );
                 mMergeView->setModel( mModel.get(), mUndoRedoModel.get() );
                 mVariablesView->setModel( mModel.get(), mUndoRedoModel.get() );
+                mFillView->setModel( mModel.get() );
                 mPrintView->setModel( mModel.get() );
+                mDeployView->setModel( mModel.get() );
 
                 mEditorButton->setChecked( true );
                 mPages->setCurrentIndex( EDITOR_PAGE_INDEX );
@@ -328,10 +362,19 @@ namespace glabels
                 fileShowVariablesPageAction->setStatusTip( tr("Select project Variables mode") );
                 connect( fileShowVariablesPageAction, SIGNAL(triggered()), this, SLOT(fileShowVariablesPage()) );
 
+                fileShowFillPageAction = new QAction( tr("&Fill") , this );
+                fileShowFillPageAction->setShortcut( QKeySequence( Qt::CTRL | Qt::Key_5 ) );
+                fileShowFillPageAction->setStatusTip( tr("Select project Fill mode") );
+                connect( fileShowFillPageAction, SIGNAL(triggered()), this, SLOT(fileShowFillPage()) );
+
                 fileShowPrintPageAction = new QAction( tr("&Print") , this );
                 fileShowPrintPageAction->setShortcut( QKeySequence::Print );
                 fileShowPrintPageAction->setStatusTip( tr("Select project Print mode") );
                 connect( fileShowPrintPageAction, SIGNAL(triggered()), this, SLOT(fileShowPrintPage()) );
+
+                fileShowDeployPageAction = new QAction( tr("&Deploy") , this );
+                fileShowDeployPageAction->setStatusTip( tr("Build a kiosk deployment") );
+                connect( fileShowDeployPageAction, SIGNAL(triggered()), this, SLOT(fileShowDeployPage()) );
 
                 fileTemplateDesignerAction = new QAction( tr("Product Template &Designer..."), this );
                 fileTemplateDesignerAction->setStatusTip( tr("Create custom templates") );
@@ -622,7 +665,9 @@ namespace glabels
                 fileMenu->addAction( fileShowPropertiesPageAction );
                 fileMenu->addAction( fileShowMergePageAction );
                 fileMenu->addAction( fileShowVariablesPageAction );
+                fileMenu->addAction( fileShowFillPageAction );
                 fileMenu->addAction( fileShowPrintPageAction );
+                fileMenu->addAction( fileShowDeployPageAction );
                 fileMenu->addSeparator();
                 fileMenu->addAction( fileTemplateDesignerAction );
                 fileMenu->addSeparator();
@@ -859,6 +904,28 @@ namespace glabels
 
 
         ///
+        /// Create Fill Page
+        ///
+        QWidget* MainWindow::createFillPage()
+        {
+                mFillView = new FillView();
+
+                return mFillView;
+        }
+
+
+        ///
+        /// Create Deploy Page
+        ///
+        QWidget* MainWindow::createDeployPage()
+        {
+                mDeployView = new DeployView();
+
+                return mDeployView;
+        }
+
+
+        ///
         /// Manage enabled/visibility state of actions
         ///
         void MainWindow::manageActions()
@@ -872,7 +939,9 @@ namespace glabels
                 bool isPropertiesPage = mPropertiesButton->isChecked();
                 bool isMergePage      = mMergeButton->isChecked();
                 bool isVariablesPage  = mVariablesButton->isChecked();
+                bool isFillPage       = mFillButton->isChecked();
                 bool isPrintPage      = mPrintButton->isChecked();
+                bool isDeployPage     = mDeployButton->isChecked();
 
                 // What is the current selection state?
                 bool hasSelection = hasModel && !mModel->isSelectionEmpty();
@@ -885,7 +954,9 @@ namespace glabels
                 mPropertiesAction->setVisible( !isWelcomePage );
                 mMergeAction->setVisible( !isWelcomePage );
                 mVariablesAction->setVisible( !isWelcomePage );
+                mFillAction->setVisible( !isWelcomePage );
                 mPrintAction->setVisible( !isWelcomePage );
+                mDeployAction->setVisible( !isWelcomePage );
 
                 // Recent file actions
                 QStringList recentFileList = model::Settings::recentFileList();
@@ -911,7 +982,9 @@ namespace glabels
                 fileShowPropertiesPageAction->setEnabled( !isWelcomePage && !isPropertiesPage );
                 fileShowMergePageAction->setEnabled( !isWelcomePage && !isMergePage );
                 fileShowVariablesPageAction->setEnabled( !isWelcomePage && !isVariablesPage );
+                fileShowFillPageAction->setEnabled( !isWelcomePage && !isFillPage );
                 fileShowPrintPageAction->setEnabled( !isWelcomePage && !isPrintPage );
+                fileShowDeployPageAction->setEnabled( !isWelcomePage && !isDeployPage );
                 fileTemplateDesignerAction->setEnabled( true );
                 fileCloseAction->setEnabled( true );
                 fileExitAction->setEnabled( true );
@@ -1144,9 +1217,17 @@ namespace glabels
                         {
                                 mPages->setCurrentIndex( VARIABLES_PAGE_INDEX );
                         }
+                        else if ( mFillButton->isChecked() )
+                        {
+                                mPages->setCurrentIndex( FILL_PAGE_INDEX );
+                        }
                         else if ( mPrintButton->isChecked() )
                         {
                                 mPages->setCurrentIndex( PRINT_PAGE_INDEX );
+                        }
+                        else if ( mDeployButton->isChecked() )
+                        {
+                                mPages->setCurrentIndex( DEPLOY_PAGE_INDEX );
                         }
 
                         manageActions();
@@ -1255,6 +1336,24 @@ namespace glabels
         void MainWindow::fileShowPrintPage()
         {
                 mPrintButton->setChecked( true );
+        }
+
+
+        ///
+        /// File->Show Fill Page
+        ///
+        void MainWindow::fileShowFillPage()
+        {
+                mFillButton->setChecked( true );
+        }
+
+
+        ///
+        /// File->Show Deploy Page
+        ///
+        void MainWindow::fileShowDeployPage()
+        {
+                mDeployButton->setChecked( true );
         }
 
 

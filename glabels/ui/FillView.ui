@@ -1,0 +1,501 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>FillView</class>
+ <widget class="QWidget" name="FillView">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1100</width>
+    <height>874</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string notr="true">Form</string>
+  </property>
+  <layout class="QHBoxLayout" name="rootLayout" stretch="1,0,1">
+   <item>
+    <layout class="QVBoxLayout" name="leftLayout">
+     <property name="spacing">
+      <number>9</number>
+     </property>
+     <property name="leftMargin">
+      <number>12</number>
+     </property>
+     <property name="topMargin">
+      <number>12</number>
+     </property>
+     <property name="rightMargin">
+      <number>12</number>
+     </property>
+     <property name="bottomMargin">
+      <number>12</number>
+     </property>
+     <item>
+      <widget class="QLabel" name="titleLabel">
+       <property name="text">
+        <string notr="true">&lt;span style=&quot; font-size:18pt;&quot;&gt;Fill&lt;/span&gt;</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="productLabel">
+       <property name="text">
+        <string notr="true">Product: </string>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="toolbarLayout">
+       <item>
+        <widget class="QToolButton" name="addRowButton">
+         <property name="text">
+          <string>Add Row</string>
+         </property>
+         <property name="toolButtonStyle">
+          <enum>Qt::ToolButtonTextBesideIcon</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QToolButton" name="removeRowButton">
+         <property name="text">
+          <string>Remove</string>
+         </property>
+         <property name="toolButtonStyle">
+          <enum>Qt::ToolButtonTextBesideIcon</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QToolButton" name="clearButton">
+         <property name="text">
+          <string>Clear</string>
+         </property>
+         <property name="toolButtonStyle">
+          <enum>Qt::ToolButtonTextBesideIcon</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QToolButton" name="importCsvButton">
+         <property name="text">
+          <string>Import CSV</string>
+         </property>
+         <property name="toolButtonStyle">
+          <enum>Qt::ToolButtonTextBesideIcon</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QToolButton" name="importExcelButton">
+         <property name="text">
+          <string>Import Excel</string>
+         </property>
+         <property name="toolButtonStyle">
+          <enum>Qt::ToolButtonTextBesideIcon</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QToolButton" name="exportCsvButton">
+         <property name="text">
+          <string>Export CSV</string>
+         </property>
+         <property name="toolButtonStyle">
+          <enum>Qt::ToolButtonTextBesideIcon</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QToolButton" name="exportExcelButton">
+         <property name="text">
+          <string>Export Excel</string>
+         </property>
+         <property name="toolButtonStyle">
+          <enum>Qt::ToolButtonTextBesideIcon</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="toolbarSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="viewModeLayout">
+       <item>
+        <widget class="QLabel" name="viewModeLabel">
+         <property name="text">
+          <string>Preview:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QComboBox" name="viewModeCombo">
+         <item>
+          <property name="text">
+           <string>Selected row</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>Checked rows (what will print)</string>
+          </property>
+         </item>
+         <item>
+          <property name="text">
+           <string>All rows</string>
+          </property>
+         </item>
+        </widget>
+       </item>
+       <item>
+        <spacer name="viewModeSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="QTableView" name="jobsTable">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>1</horstretch>
+         <verstretch>1</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>420</width>
+         <height>200</height>
+        </size>
+       </property>
+       <property name="alternatingRowColors">
+        <bool>true</bool>
+       </property>
+       <property name="selectionBehavior">
+        <enum>QAbstractItemView::SelectRows</enum>
+       </property>
+       <property name="selectionMode">
+        <enum>QAbstractItemView::ExtendedSelection</enum>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="destinationLayout">
+       <item>
+        <widget class="QLabel" name="destinationLabel">
+         <property name="text">
+          <string>Destination:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QComboBox" name="destinationCombo">
+         <property name="iconSize">
+          <size>
+           <width>32</width>
+           <height>32</height>
+          </size>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="destinationSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="startLayout">
+       <item>
+        <widget class="QLabel" name="startPositionLabel">
+         <property name="text">
+          <string>Start at position:</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QSpinBox" name="startPositionSpin">
+         <property name="minimum">
+          <number>1</number>
+         </property>
+         <property name="value">
+          <number>1</number>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="startSpacer">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </item>
+     <item>
+      <widget class="QPushButton" name="printButton">
+       <property name="styleSheet">
+        <string notr="true">text-align:left; padding:3px;</string>
+       </property>
+       <property name="text">
+        <string>Print</string>
+       </property>
+       <property name="icon">
+        <iconset theme="glabels-print">
+         <normaloff>.</normaloff>.</iconset>
+       </property>
+       <property name="iconSize">
+        <size>
+         <width>32</width>
+         <height>32</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLabel" name="printDescriptionLabel">
+       <property name="text">
+        <string notr="true">(Will print a total of xxxx items on nnn pages.)</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignCenter</set>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="systemDialogButton">
+       <property name="text">
+        <string>Use system print dialog...</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="Line" name="line">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QVBoxLayout" name="previewLayout">
+     <item>
+      <widget class="glabels::Preview" name="preview" native="true">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <horstretch>1</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="minimumSize">
+        <size>
+         <width>400</width>
+         <height>520</height>
+        </size>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <layout class="QHBoxLayout" name="pageNavLayout">
+       <property name="bottomMargin">
+        <number>16</number>
+       </property>
+       <item>
+        <spacer name="pageSpacer1">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <widget class="QLabel" name="pageLabel">
+         <property name="text">
+          <string>Page</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QSpinBox" name="pageSpin">
+         <property name="value">
+          <number>1</number>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="ofLabel">
+         <property name="text">
+          <string>of</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="nPagesLabel">
+         <property name="text">
+          <string>nn</string>
+         </property>
+       </widget>
+       </item>
+       <item>
+        <spacer name="pageSpacer2">
+         <property name="orientation">
+          <enum>Qt::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>40</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <customwidgets>
+  <customwidget>
+   <class>glabels::Preview</class>
+   <extends>QWidget</extends>
+   <header>Preview.hpp</header>
+   <container>1</container>
+  </customwidget>
+ </customwidgets>
+ <resources>
+  <include location="../icons.qrc"/>
+ </resources>
+ <connections>
+  <connection>
+   <sender>addRowButton</sender>
+   <signal>clicked()</signal>
+   <receiver>FillView</receiver>
+   <slot>onAddRowClicked()</slot>
+  </connection>
+  <connection>
+   <sender>removeRowButton</sender>
+   <signal>clicked()</signal>
+   <receiver>FillView</receiver>
+   <slot>onRemoveRowClicked()</slot>
+  </connection>
+  <connection>
+   <sender>clearButton</sender>
+   <signal>clicked()</signal>
+   <receiver>FillView</receiver>
+   <slot>onClearClicked()</slot>
+  </connection>
+  <connection>
+   <sender>importCsvButton</sender>
+   <signal>clicked()</signal>
+   <receiver>FillView</receiver>
+   <slot>onImportCsvClicked()</slot>
+  </connection>
+  <connection>
+   <sender>importExcelButton</sender>
+   <signal>clicked()</signal>
+   <receiver>FillView</receiver>
+   <slot>onImportExcelClicked()</slot>
+  </connection>
+  <connection>
+   <sender>exportCsvButton</sender>
+   <signal>clicked()</signal>
+   <receiver>FillView</receiver>
+   <slot>onExportCsvClicked()</slot>
+  </connection>
+  <connection>
+   <sender>exportExcelButton</sender>
+   <signal>clicked()</signal>
+   <receiver>FillView</receiver>
+   <slot>onExportExcelClicked()</slot>
+  </connection>
+  <connection>
+   <sender>viewModeCombo</sender>
+   <signal>currentIndexChanged(int)</signal>
+   <receiver>FillView</receiver>
+   <slot>onViewModeChanged()</slot>
+  </connection>
+  <connection>
+   <sender>startPositionSpin</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>FillView</receiver>
+   <slot>onFormChanged()</slot>
+  </connection>
+  <connection>
+   <sender>pageSpin</sender>
+   <signal>valueChanged(int)</signal>
+   <receiver>FillView</receiver>
+   <slot>onFormChanged()</slot>
+  </connection>
+  <connection>
+   <sender>printButton</sender>
+   <signal>clicked()</signal>
+   <receiver>FillView</receiver>
+   <slot>onPrintButtonClicked()</slot>
+  </connection>
+  <connection>
+   <sender>systemDialogButton</sender>
+   <signal>clicked()</signal>
+   <receiver>FillView</receiver>
+   <slot>onSystemDialogButtonClicked()</slot>
+  </connection>
+ </connections>
+ <slots>
+  <slot>onAddRowClicked()</slot>
+  <slot>onRemoveRowClicked()</slot>
+  <slot>onClearClicked()</slot>
+  <slot>onImportCsvClicked()</slot>
+  <slot>onImportExcelClicked()</slot>
+  <slot>onExportCsvClicked()</slot>
+  <slot>onExportExcelClicked()</slot>
+  <slot>onViewModeChanged()</slot>
+  <slot>onFormChanged()</slot>
+  <slot>onPrintButtonClicked()</slot>
+  <slot>onSystemDialogButtonClicked()</slot>
+ </slots>
+</ui>

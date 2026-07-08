@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" width="32" height="32" >
+
+  <rect
+     style="fill:#fafafa;fill-opacity:1;stroke:#333333;stroke-width:1.5;stroke-opacity:1"
+     height="26" width="24" x="4" y="3" rx="2" ry="2" />
+
+  <rect style="fill:#333333;fill-opacity:1;stroke:none" height="5" width="6" x="7"  y="6"  rx="1" ry="1" />
+  <rect style="fill:#333333;fill-opacity:1;stroke:none" height="5" width="6" x="14" y="6"  rx="1" ry="1" />
+  <rect style="fill:#fafafa;fill-opacity:1;stroke:#999999;stroke-width:1;stroke-opacity:1" height="5" width="6" x="21" y="6"  rx="1" ry="1" />
+
+  <rect style="fill:#333333;fill-opacity:1;stroke:none" height="5" width="6" x="7"  y="13" rx="1" ry="1" />
+  <rect style="fill:#fafafa;fill-opacity:1;stroke:#999999;stroke-width:1;stroke-opacity:1" height="5" width="6" x="14" y="13" rx="1" ry="1" />
+  <rect style="fill:#fafafa;fill-opacity:1;stroke:#999999;stroke-width:1;stroke-opacity:1" height="5" width="6" x="21" y="13" rx="1" ry="1" />
+
+  <rect style="fill:#fafafa;fill-opacity:1;stroke:#999999;stroke-width:1;stroke-opacity:1" height="5" width="6" x="7"  y="20" rx="1" ry="1" />
+  <rect style="fill:#fafafa;fill-opacity:1;stroke:#999999;stroke-width:1;stroke-opacity:1" height="5" width="6" x="14" y="20" rx="1" ry="1" />
+  <rect style="fill:#fafafa;fill-opacity:1;stroke:#999999;stroke-width:1;stroke-opacity:1" height="5" width="6" x="21" y="20" rx="1" ry="1" />
+
+</svg>

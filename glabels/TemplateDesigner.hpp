@@ -36,6 +36,7 @@
 #include "ui_TemplateDesignerOneLayoutPage.h"
 #include "ui_TemplateDesignerTwoLayoutPage.h"
 #include "ui_TemplateDesignerApplyPage.h"
+#include "ui_TemplateDesignerThermalPage.h"
 
 #include "model/Template.hpp"
 
@@ -67,6 +68,7 @@ namespace glabels
                 friend class TemplateDesignerOneLayoutPage;
                 friend class TemplateDesignerTwoLayoutPage;
                 friend class TemplateDesignerApplyPage;
+                friend class TemplateDesignerThermalPage;
 
 
                 /////////////////////////////////
@@ -74,6 +76,9 @@ namespace glabels
                 /////////////////////////////////
         public:
                 TemplateDesigner( QWidget *parent = nullptr );
+
+                /// Open the wizard pre-loaded with an existing template for editing.
+                void editTemplate( const model::Template& tmplate );
 
 
                 /////////////////////////////////
@@ -91,6 +96,8 @@ namespace glabels
                 void printTestSheet();
                 void loadFromTemplate( const model::Template& tmplate );
                 bool isBasedOnCopy();
+                model::Template mEditTemplate;
+                bool mIsEditing{ false };
 
 
                 /////////////////////////////////
@@ -100,6 +107,7 @@ namespace glabels
                 bool mIsBasedOnCopy{false};
                 bool mIsTemplatePathBased{false};
                 bool mIsTemplateContinuousBased{false};
+                bool mIsThermalPath{false};
         };
 
 
@@ -118,6 +126,7 @@ namespace glabels
         private slots:
                 void onCopyButtonClicked();
                 void onNewButtonClicked();
+                void onThermalButtonClicked();
         };
 
 
@@ -250,6 +259,27 @@ namespace glabels
                 TemplateDesignerContinuousPage( QWidget* parent = nullptr );
 
                 bool isComplete() const override;
+        };
+
+
+        //
+        // Thermal Page
+        //
+        class TemplateDesignerThermalPage : public QWizardPage, public Ui::TemplateDesignerThermalPage
+        {
+                Q_OBJECT
+        public:
+                TemplateDesignerThermalPage( QWidget* parent = nullptr );
+
+                void initializePage() override;
+                void cleanupPage() override;
+
+        private slots:
+                void onShapeChanged();
+                void onDimensionChanged();
+
+        private:
+                void updatePreview();
         };
 
 

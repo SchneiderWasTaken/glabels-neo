@@ -296,6 +296,10 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>Send to Zebra</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>Use system print dialog...</source>
         <translation type="unfinished"></translation>
     </message>
@@ -966,6 +970,14 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <source>&amp;Custom...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>&amp;Edit...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <source>&amp;Cancel</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1117,6 +1129,14 @@
     </message>
     <message>
         <source>Create a new product template from scratch</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>New Thermal / Roll Label</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Create a label for thermal printers (Zebra, Rollo, Dymo, etc.)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -1301,6 +1321,49 @@
     </message>
     <message>
         <source>CD/DVD (including credit card CDs)</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>TemplateDesignerThermalPage</name>
+    <message>
+        <source>Shape</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Rectangle</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Circle</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Dimensions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Width:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Height:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Corner radius:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Margin:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Each row in the Fill table will print as a separate label.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Preview</source>
         <translation type="unfinished"></translation>
     </message>
 </context>
@@ -1529,7 +1592,7 @@
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <source>Path to glabels-fill.exe</source>
+        <source>Path to kiosk base .exe</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
@@ -2800,6 +2863,17 @@ Build the glabels-fill target first.</source>
     </message>
     <message>
         <source>Please select the basic product shape.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>glabels::TemplateDesignerThermalPage</name>
+    <message>
+        <source>Label Size</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <source>Set the dimensions of your thermal label. Each row in the Fill table will print as a separate label.</source>
         <translation type="unfinished"></translation>
     </message>
 </context>

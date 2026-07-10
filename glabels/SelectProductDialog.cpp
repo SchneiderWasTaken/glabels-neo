@@ -22,6 +22,7 @@
 #include "SelectProductDialog.hpp"
 
 #include "NotebookUtil.hpp"
+#include "TemplateDesigner.hpp"
 #include "TemplatePickerItem.hpp"
 
 #include "model/Db.hpp"
@@ -87,6 +88,9 @@ namespace glabels
                 }
 
                 onModeTabChanged();
+
+                connect( customButton, &QPushButton::clicked, this, &SelectProductDialog::onCustomButtonClicked );
+                connect( editButton, &QPushButton::clicked, this, &SelectProductDialog::onEditButtonClicked );
         }
 
 
@@ -234,8 +238,12 @@ namespace glabels
                 {
                         productInfoWidget->setVisible( false );
                         selectButton->setEnabled( false );
+                        editButton->setEnabled( false );
                         return;
                 }
+
+                // Enable "Edit..." only for user-defined templates
+                editButton->setEnabled( tmplate.isUserDefined() );
 
                 auto frame = tmplate.frame();
 
@@ -288,6 +296,48 @@ namespace glabels
         void SelectProductDialog::onCancelButtonClicked()
         {
                 close();
+        }
+
+
+        ///
+        /// Custom Button Clicked Slot -- opens the Template Designer
+        ///
+        void SelectProductDialog::onCustomButtonClicked()
+        {
+                TemplateDesigner designer( this );
+                designer.exec();
+
+                // If the designer created and registered a template, refresh the list.
+                auto tmplates = model::Db::templates();
+                templatePicker->setTemplates( tmplates );
+
+                // Switch to the Search tab so the new template is visible.
+                modeNotebook->setCurrentIndex(0);
+                onModeTabChanged();
+        }
+
+
+        ///
+        /// Edit Button Clicked Slot -- opens the Template Designer with the
+        /// selected user-defined template pre-loaded for editing.
+        ///
+        void SelectProductDialog::onEditButtonClicked()
+        {
+                auto tmplate = templatePicker->selectedTemplate();
+                if ( tmplate.isNull() || !tmplate.isUserDefined() )
+                {
+                        return;
+                }
+
+                TemplateDesigner designer( this );
+                designer.editTemplate( tmplate );
+                designer.exec();
+
+                // Refresh the list after editing.
+                auto tmplates = model::Db::templates();
+                templatePicker->setTemplates( tmplates );
+                modeNotebook->setCurrentIndex(0);
+                onModeTabChanged();
         }
 
 

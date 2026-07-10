@@ -48,6 +48,7 @@ set (glabels_sources
   TemplatePickerItem.cpp
   UndoRedoModel.cpp
   VariablesView.cpp
+  ZplRenderer.cpp
 )
 
 set (glabels_qobject_headers
@@ -86,6 +87,7 @@ set (glabels_qobject_headers
   TemplatePicker.hpp
   UndoRedoModel.hpp
   VariablesView.hpp
+  ZplRenderer.hpp
 )
 
 set (glabels_forms
@@ -114,6 +116,7 @@ set (glabels_forms
   ui/TemplateDesignerOneLayoutPage.ui
   ui/TemplateDesignerTwoLayoutPage.ui
   ui/TemplateDesignerApplyPage.ui
+  ui/TemplateDesignerThermalPage.ui
   ui/VariablesView.ui
 )
 
@@ -173,7 +176,12 @@ target_link_libraries (glabels_lib
   Model
   Qt6::Concurrent
   Qt6::Widgets
+  Qt6::Network
 )
+
+if(WIN32)
+  target_link_libraries(glabels_lib PUBLIC winspool)
+endif()
 
 #=====================================
 # glabels-qt executable (full designer)

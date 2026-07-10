@@ -1,8 +1,8 @@
 # Fill and Deploy Guide
 
-This document covers the three major features gLabels-neo adds to the
-original glabels-qt: the **Fill page**, the **Deploy tab**, and the
-**kiosk build**.
+This document covers the features gLabels-neo adds to the original
+glabels-qt: the **Fill page**, **Deploy tab**, **kiosk build**, **thermal
+printer support**, and **custom label templates**.
 
 
 ## Fill Page
@@ -159,3 +159,77 @@ See `scripts/build-portable.ps1` (coming soon) or build manually:
 2. Run `windeployqt` on the exe.
 3. Copy the `templates/` folder next to the exe.
 4. Copy the runtime DLLs (see `scripts/bundle-deps.ps1`).
+
+
+## Thermal Printer Support (Zebra / ZDesigner)
+
+gLabels-neo includes a graphics-mode ZPL renderer that bypasses the Windows
+print driver and sends raw ZPL directly to Zebra thermal printers. This
+avoids the blank-output and page-size mismatch issues common with the
+ZDesigner Windows driver.
+
+### How it works
+
+1. **Auto-detection**: When you click Print, the app checks if the selected
+   printer is a Zebra/ZDesigner by name pattern ("zebra", "zdesigner",
+   "GK420", "ZD4", etc.) and driver make/model. If detected, it routes
+   through the ZPL renderer instead of QPrinter.
+2. **DPI auto-detection**: The printer's DPI (203/300/600) is read from
+   the driver and cached in settings. Each label is rendered at the exact
+   printer resolution.
+3. **Rendering**: The label is rendered to a full-color QImage (with
+   antialiasing), then thresholded to monochrome and packed into ZPL
+   `^GFA` image data.
+4. **Transport**: ZPL data is sent via:
+   - **USB**: Windows raw print spooler (`WritePrinter` with `RAW` datatype)
+   - **Network**: Raw TCP socket to port 9100 (standard Zebra print port)
+   - The app tries the preferred transport; if it fails, falls back to
+     the other. If both fail, falls back to QPrinter.
+5. **Preview dialog**: Before sending, a preview shows the exact rendered
+   bitmap at printer DPI, with USB/Network radio buttons. The user's
+   transport choice is saved per-printer.
+6. **"Send to Zebra" button**: Also available in the Fill page as a manual
+   override (bypasses auto-detection).
+
+### Supported printers
+
+Any Zebra/ZDesigner printer that accepts ZPL II commands, including:
+- GK420d / GK420t / GK888
+- ZD410 / ZD420 / ZD620
+- ZT230 / ZT410 / ZT420
+- And any printer with "Zebra" or "ZDesigner" in the name or driver
+
+Non-Zebra printers (Canon, HP, PDF, etc.) use the normal Windows print
+path unchanged.
+
+
+## Custom Label Templates
+
+### Creating custom templates
+
+1. **File → New…** → click **Custom…** in the product dialog
+2. The Template Designer wizard opens with three options:
+   - **Copy existing product** — base a new template on an existing one
+   - **New from scratch** — standard sheet-label wizard
+   - **New Thermal / Roll Label** — for thermal printers (Zebra, Dymo, etc.)
+3. For thermal labels: set width, height, corner radius, and margin
+4. Complete the wizard → the template is registered and available
+
+### Custom template tags
+
+User-defined templates show a **[Custom]** badge in the product picker
+(list mode) and a `*` suffix (icon mode).
+
+### Editing custom templates
+
+1. **File → New…** → select a custom template
+2. Click **Edit…** (enabled only for user-defined templates)
+3. The Template Designer opens pre-loaded with the template's dimensions
+4. Modify and apply — the template is updated in place
+
+### Thermal label behavior
+
+Thermal templates create a 1-label-per-page layout (page size = label
+size). In the Fill table, each row prints as a separate page — exactly
+what thermal printers need. Each copy is one physical label fed through
+the printer.

@@ -133,6 +133,7 @@ namespace glabels
         ///
         void TemplatePicker::setTemplates( const QList<model::Template>& tmplates )
         {
+                mModel->clear();
                 auto mode = model::Settings::templatePickerMode();
                 for ( auto& tmplate : tmplates )
                 {

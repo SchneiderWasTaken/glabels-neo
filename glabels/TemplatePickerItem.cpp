@@ -59,11 +59,11 @@ namespace glabels
                 {
 
                 case QListView::IconMode:
-                        setText( mTmplate.name() );
+                        setText( mTmplate.isUserDefined() ? (mTmplate.name() + " *") : mTmplate.name() );
                         break;
 
                 case QListView::ListMode:
-                        setText( "<b>" + mTmplate.name() + "</b><br/>" +
+                        setText( "<b>" + mTmplate.name() + (mTmplate.isUserDefined() ? " &nbsp;<span style='color:#0066cc;'>[Custom]</span></b>" : "</b>") + "<br/>" +
                                  mTmplate.description() + "<br/>" +
                                  frame->sizeDescription( model::Settings::units() ) + "<br/>" +
                                  frame->layoutDescription() );

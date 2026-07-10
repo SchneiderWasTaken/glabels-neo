@@ -94,9 +94,13 @@ namespace glabels
                 // Kiosk exe source
                 auto* fillExeForm = new QFormLayout();
                 mFillExeEdit = new QLineEdit( this );
-                mFillExeEdit->setPlaceholderText( tr("Path to glabels-fill.exe") );
-                // Default: look next to this exe.
-                QString defaultFill = QCoreApplication::applicationDirPath() + "/glabels-fill.exe";
+                mFillExeEdit->setPlaceholderText( tr("Path to kiosk base .exe") );
+                // Default: look for the SFX base next to this exe, then fall
+                // back to the dynamic glabels-fill.exe.
+                QString appDir = QCoreApplication::applicationDirPath();
+                QString sfxPath = appDir + "/glabels-fill-sfx.exe";
+                QString dynPath = appDir + "/glabels-fill.exe";
+                QString defaultFill = QFileInfo::exists( sfxPath ) ? sfxPath : dynPath;
                 mFillExeEdit->setText( defaultFill );
                 auto* fillBrowse = new QPushButton( tr("Browse..."), this );
                 auto* fillRow = new QHBoxLayout();

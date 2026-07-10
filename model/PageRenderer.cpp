@@ -230,8 +230,18 @@ namespace glabels::model
         ///
         void PageRenderer::print( QPrinter* printer ) const
         {
-                QSizeF pageSize( mModel->tmplate().pageWidth().pt(), mModel->tmplate().pageHeight().pt() );
-                printer->setPageSize( QPageSize(pageSize, QPageSize::Point) );
+                // For thermal/roll printers (which report a "User defined" page
+                // size from the driver), do NOT override the page size -- let
+                // the driver use its configured stock.  Otherwise, set the page
+                // size from the template as before.
+                QRectF driverPaper = printer->paperRect( QPrinter::Point );
+                if ( driverPaper.width() < 1 || driverPaper.height() < 1 )
+                {
+                        // Driver reports no paper size -- set it from the template.
+                        QSizeF pageSize( mModel->tmplate().pageWidth().pt(), mModel->tmplate().pageHeight().pt() );
+                        printer->setPageSize( QPageSize(pageSize, QPageSize::Point) );
+                }
+
                 printer->setFullPage( true );
                 printer->setPageMargins( QMarginsF(0, 0, 0, 0), QPageLayout::Point );
 

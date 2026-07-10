@@ -22,6 +22,7 @@
 #include "PrintView.hpp"
 
 #include "PrinterMonitor.hpp"
+#include "ZplRenderer.hpp"
 
 #include "model/Settings.hpp"
 
@@ -214,17 +215,32 @@ namespace glabels
         void PrintView::onPrintButtonClicked()
         {
                 auto printerName = destinationCombo->currentText();
+
+                if ( ZplRenderer::isZebraPrinter( printerName ) )
+                {
+                        if ( ZplRenderer::print( mModel, printerName,
+                                                mRenderer.nItems(), true ) )
+                        {
+                                model::Settings::setRecentPrinter( printerName );
+                        }
+                        return;
+                }
+
                 auto printerInfo = QPrinterInfo::printerInfo( printerName );
                 bool isPrinter = !printerInfo.isNull();
 
-                QPrinter printer( QPrinter::HighResolution );
-                printer.setColorMode( QPrinter::Color );
+                QPrinter* printer;
 
                 if ( isPrinter )
                 {
-                        printer.setPrinterName( printerName );
-                        mRenderer.print( &printer );
+                        // Construct WITH printerInfo so the driver's page size,
+                        // resolution, and properties are picked up correctly
+                        // (critical for thermal printers like Zebra GK420d).
+                        printer = new QPrinter( printerInfo, QPrinter::HighResolution );
+                        printer->setColorMode( QPrinter::Color );
+                        mRenderer.print( printer );
                         model::Settings::setRecentPrinter( printerName );
+                        delete printer;
                 }
                 else
                 {
@@ -253,9 +269,11 @@ namespace glabels
                                         }
                                 }
 
-                                printer.setOutputFileName( fileName );
-                                printer.setOutputFormat( QPrinter::PdfFormat );
-                                mRenderer.print( &printer );
+                                QPrinter pdfPrinter( QPrinter::HighResolution );
+                                pdfPrinter.setColorMode( QPrinter::Color );
+                                pdfPrinter.setOutputFileName( fileName );
+                                pdfPrinter.setOutputFormat( QPrinter::PdfFormat );
+                                mRenderer.print( &pdfPrinter );
                         }
                 }
         }
@@ -266,9 +284,10 @@ namespace glabels
         ///
         void PrintView::onSystemDialogButtonClicked()
         {
-                QPrinter printer( QPrinter::HighResolution );
+                auto printerInfo = QPrinterInfo::printerInfo( destinationCombo->currentText() );
+                QPrinter printer( printerInfo.isNull() ? QPrinterInfo() : printerInfo,
+                                  QPrinter::HighResolution );
                 printer.setColorMode( QPrinter::Color );
-                printer.setPrinterName( destinationCombo->currentText() );
 
                 QPrintDialog printDialog( &printer, this );
                 printDialog.setOption( QAbstractPrintDialog::PrintToFile,        true );

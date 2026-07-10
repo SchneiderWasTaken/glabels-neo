@@ -22,6 +22,7 @@
 #include "FillView.hpp"
 
 #include "PrinterMonitor.hpp"
+#include "ZplRenderer.hpp"
 
 #include "model/Model.hpp"
 #include "model/ModelTextObject.hpp"
@@ -31,6 +32,7 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QHeaderView>
+#include <QLineEdit>
 #include <QMessageBox>
 #include <QPrinter>
 #include <QPrinterInfo>
@@ -656,20 +658,30 @@ namespace glabels
                 mBlocked = false;
 
                 auto printerName = destinationCombo->currentText();
+
+                // Zebra printers: auto-route through ZPL.
+                if ( ZplRenderer::isZebraPrinter( printerName ) )
+                {
+                        ZplRenderer::print( mModel, printerName, 1, true );
+                        model::Settings::setRecentPrinter( printerName );
+                        onFormChanged();
+                        return;
+                }
+
                 auto printerInfo = QPrinterInfo::printerInfo( printerName );
                 bool isPrinter = !printerInfo.isNull();
 
-                QPrinter printer( QPrinter::HighResolution );
-                printer.setColorMode( QPrinter::Color );
-
                 if ( isPrinter )
                 {
-                        printer.setPrinterName( printerName );
+                        QPrinter printer( printerInfo, QPrinter::HighResolution );
+                        printer.setColorMode( QPrinter::Color );
                         mRenderer.print( &printer );
                         model::Settings::setRecentPrinter( printerName );
                 }
                 else
                 {
+                        QPrinter printer( QPrinter::HighResolution );
+                        printer.setColorMode( QPrinter::Color );
                         QString fileName = QFileDialog::getSaveFileName( this, tr("Print to file (PDF)"),
                               defaultPdf(), tr("PDF files (*.pdf);;All files (*)"), nullptr,
                               QFileDialog::DontConfirmOverwrite );
@@ -704,9 +716,10 @@ namespace glabels
                 mRenderer.setNCopies( 1 );
                 mBlocked = false;
 
-                QPrinter printer( QPrinter::HighResolution );
+                auto printerInfo = QPrinterInfo::printerInfo( destinationCombo->currentText() );
+                QPrinter printer( printerInfo.isNull() ? QPrinterInfo() : printerInfo,
+                                  QPrinter::HighResolution );
                 printer.setColorMode( QPrinter::Color );
-                printer.setPrinterName( destinationCombo->currentText() );
 
                 QPrintDialog printDialog( &printer, this );
                 printDialog.setOption( QAbstractPrintDialog::PrintToFile, true );
@@ -726,8 +739,30 @@ namespace glabels
 
 
         ///
-        /// Load available printers
+        /// Send to Zebra -- bypasses the Windows print spooler and sends
+        /// ZPL directly to the printer via raw TCP or USB.
         ///
+        void FillView::onZplButtonClicked()
+        {
+                if ( !mModel ) return;
+
+                installFillMerge();
+                auto* fm = dynamic_cast<FillMerge*>( mModel->merge() );
+                if ( !fm ) return;
+
+                mBlocked = true;
+                fm->setRecords( mJobsModel.fieldNames(), buildRecords( checkedJobs() ) );
+                mBlocked = false;
+
+                auto printerName = destinationCombo->currentText();
+                if ( printerName == tr("Print to file (PDF)") )
+                {
+                        printerName.clear();
+                }
+
+                ZplRenderer::print( mModel, printerName, 1, true );
+                onFormChanged();
+        }
         void FillView::loadDestinations( const QStringList& printers )
         {
                 destinationCombo->blockSignals( true );

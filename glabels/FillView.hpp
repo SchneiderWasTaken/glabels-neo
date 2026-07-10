@@ -99,6 +99,7 @@ namespace glabels
 
                 void onPrintButtonClicked();
                 void onSystemDialogButtonClicked();
+                void onZplButtonClicked();
 
 
                 /////////////////////////////////

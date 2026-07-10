@@ -1,4 +1,4 @@
-cmake_minimum_required (VERSION 3.22)
+﻿cmake_minimum_required (VERSION 3.22)
 
 ###############################################################################
 # gLabels Label Designer Project
@@ -125,7 +125,7 @@ else()
     set( GLABELS_QT_GUI_PRIVATE_COMPONENT "" )
 endif()
 
-find_package (Qt6 6.2 REQUIRED COMPONENTS Concurrent Core Gui ${GLABELS_QT_GUI_PRIVATE_COMPONENT} Widgets PrintSupport Xml Svg LinguistTools Test)
+find_package (Qt6 6.2 REQUIRED COMPONENTS Concurrent Core Gui ${GLABELS_QT_GUI_PRIVATE_COMPONENT} Widgets PrintSupport Xml Svg LinguistTools Test Network)
 
 find_package (QXlsxQt6 QUIET)
 
@@ -250,4 +250,4 @@ message (STATUS "")
 # foreach (_variableName ${_variableNames})
 #   message(STATUS "${_variableName}=${${_variableName}}")
 # endforeach()
-  
+ 

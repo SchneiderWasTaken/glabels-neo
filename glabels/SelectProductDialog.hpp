@@ -62,6 +62,8 @@ namespace glabels
                 void onTemplatePickerSelectionChanged();
                 void onSelectButtonClicked();
                 void onCancelButtonClicked();
+                void onCustomButtonClicked();
+                void onEditButtonClicked();
 
 
                 /////////////////////////////////

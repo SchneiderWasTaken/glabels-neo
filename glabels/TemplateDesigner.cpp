@@ -68,7 +68,8 @@ namespace
                 NLayoutsPageId,
                 OneLayoutPageId,
                 TwoLayoutPageId,
-                ApplyPageId
+                ApplyPageId,
+                ThermalPageId
         };
 
 
@@ -104,6 +105,10 @@ namespace
         const model::Distance defaultCdR2      = model::Distance::in(0.8125);
         const model::Distance defaultCdClip    = model::Distance::in(0);
 
+        const model::Distance defaultThermalW   = model::Distance::in(4.0);
+        const model::Distance defaultThermalH   = model::Distance::in(6.0);
+        const model::Distance defaultThermalR   = model::Distance::in(0.125);
+
 }
 
 
@@ -136,6 +141,20 @@ namespace glabels
                 setPage( OneLayoutPageId,  new TemplateDesignerOneLayoutPage() );
                 setPage( TwoLayoutPageId,  new TemplateDesignerTwoLayoutPage() );
                 setPage( ApplyPageId,      new TemplateDesignerApplyPage() );
+                setPage( ThermalPageId,    new TemplateDesignerThermalPage() );
+        }
+
+
+        ///
+        /// Open pre-loaded with an existing template for editing.
+        ///
+        void TemplateDesigner::editTemplate( const model::Template& tmplate )
+        {
+                mIsEditing = true;
+                mEditTemplate = tmplate;
+                loadFromTemplate( tmplate );
+                // Skip the intro page -- start at the name page.
+                setStartId( NamePageId );
         }
 
 
@@ -162,7 +181,14 @@ namespace glabels
                         }
 
                 case NamePageId:
+                        if ( mIsThermalPath )
+                        {
+                                return ThermalPageId;
+                        }
                         return PageSizePageId;
+
+                case ThermalPageId:
+                        return ApplyPageId;
 
                 case PageSizePageId:
                         return ShapePageId;
@@ -378,6 +404,42 @@ namespace glabels
                 QString brand = field( "name.brand" ).toString();
                 QString part = field( "name.part" ).toString();
                 QString description = field( "name.description" ).toString();
+
+                //
+                // Thermal path: PageSize == LabelSize, 1x1 layout
+                //
+                if ( mIsThermalPath )
+                {
+                        model::Distance labelW( field( "thermal.w" ).toDouble(), units );
+                        model::Distance labelH( field( "thermal.h" ).toDouble(), units );
+                        model::Distance labelR( field( "thermal.r" ).toDouble(), units );
+                        model::Distance margin( field( "thermal.margin" ).toDouble(), units );
+                        bool isCircle = field( "thermal.circle" ).toBool();
+
+                        auto t = model::Template( brand, part, description, "Other", labelW, labelH, model::Distance(0), "", true );
+
+                        if ( isCircle )
+                        {
+                                model::Distance r = labelW / 2;
+                                model::FrameRound frame( r, model::Distance(0) );
+                                frame.addMarkup( model::MarkupMargin( margin ) );
+                                frame.addLayout( model::Layout( 1, 1, model::Distance(0), model::Distance(0), model::Distance(0), model::Distance(0) ) );
+                                t.addFrame( frame );
+                        }
+                        else
+                        {
+                                model::FrameRect frame( labelW, labelH, labelR, model::Distance(0), model::Distance(0) );
+                                frame.addMarkup( model::MarkupMargin( margin, margin ) );
+                                frame.addLayout( model::Layout( 1, 1, model::Distance(0), model::Distance(0), model::Distance(0), model::Distance(0) ) );
+                                t.addFrame( frame );
+                        }
+
+                        return t;
+                }
+
+                //
+                // Standard sheet/roll path
+                //
                 QString paperId = model::Db::lookupPaperIdFromName( field( "pageSize.pageSize" ).toString() );
                 model::Distance pageW( field( "pageSize.w" ).toDouble(), units );
                 model::Distance pageH( field( "pageSize.h" ).toDouble(), units );
@@ -524,7 +586,7 @@ namespace glabels
                 model::Units units = model::Settings::units();
 
                 setField( "name.brand",       tmplate.brand() );
-                setField( "name.part",        tmplate.part() + QString(" (%1)").arg( tr("Copy") ) );
+                setField( "name.part",        mIsEditing ? tmplate.part() : tmplate.part() + QString(" (%1)").arg( tr("Copy") ) );
                 setField( "name.description", tmplate.description() );
 
                 setField( "pageSize.pageSize", model::Db::lookupPaperNameFromId( tmplate.paperId() ) );
@@ -635,6 +697,7 @@ namespace glabels
 
                 connect( copyButton, &QCommandLinkButton::clicked, this, &TemplateDesignerIntroPage::onCopyButtonClicked );
                 connect( newButton, &QCommandLinkButton::clicked, this, &TemplateDesignerIntroPage::onNewButtonClicked );
+                connect( thermalButton, &QCommandLinkButton::clicked, this, &TemplateDesignerIntroPage::onThermalButtonClicked );
 
                 QVBoxLayout* layout = new QVBoxLayout;
                 layout->addWidget( widget );
@@ -681,6 +744,20 @@ namespace glabels
 
         void TemplateDesignerIntroPage::onNewButtonClicked()
         {
+                if ( auto td = dynamic_cast<TemplateDesigner*>( wizard() ) )
+                {
+                        td->mIsThermalPath = false;
+                }
+                wizard()->next();
+        }
+
+
+        void TemplateDesignerIntroPage::onThermalButtonClicked()
+        {
+                if ( auto td = dynamic_cast<TemplateDesigner*>( wizard() ) )
+                {
+                        td->mIsThermalPath = true;
+                }
                 wizard()->next();
         }
 
@@ -1225,6 +1302,126 @@ namespace glabels
         {
                 // Must "Cancel" or "Back" from this page
                 return false;
+        }
+
+
+        ///
+        /// Thermal Label Page
+        ///
+        TemplateDesignerThermalPage::TemplateDesignerThermalPage( QWidget* parent ) : QWizardPage(parent)
+        {
+                setTitle( tr("Label Size") );
+                setSubTitle( tr("Set the dimensions of your thermal label. Each row in the Fill table will print as a separate label.") );
+
+                QWidget* widget = new QWidget;
+                setupUi( widget );
+
+                wSpin->setSuffix( " " + model::Settings::units().toTrName() );
+                wSpin->setDecimals( model::Settings::units().resolutionDigits() );
+                wSpin->setSingleStep( model::Settings::units().resolution() );
+                wSpin->setMaximum( maxPageSize[ model::Settings::units().toEnum() ] );
+
+                hSpin->setSuffix( " " + model::Settings::units().toTrName() );
+                hSpin->setDecimals( model::Settings::units().resolutionDigits() );
+                hSpin->setSingleStep( model::Settings::units().resolution() );
+                hSpin->setMaximum( maxPageSize[ model::Settings::units().toEnum() ] );
+
+                rSpin->setSuffix( " " + model::Settings::units().toTrName() );
+                rSpin->setDecimals( model::Settings::units().resolutionDigits() );
+                rSpin->setSingleStep( model::Settings::units().resolution() );
+                rSpin->setMaximum( maxPageSize[ model::Settings::units().toEnum() ] / 2.0 );
+
+                marginSpin->setSuffix( " " + model::Settings::units().toTrName() );
+                marginSpin->setDecimals( model::Settings::units().resolutionDigits() );
+                marginSpin->setSingleStep( model::Settings::units().resolution() );
+                marginSpin->setMaximum( maxPageSize[ model::Settings::units().toEnum() ] / 4.0 );
+
+                registerField( "thermal.rect",   rectRadio );
+                registerField( "thermal.circle", circleRadio );
+                registerField( "thermal.w",      wSpin,      "value" );
+                registerField( "thermal.h",      hSpin,      "value" );
+                registerField( "thermal.r",      rSpin,      "value" );
+                registerField( "thermal.margin", marginSpin, "value" );
+
+                connect( rectRadio,   &QRadioButton::toggled, this, &TemplateDesignerThermalPage::onShapeChanged );
+                connect( circleRadio, &QRadioButton::toggled, this, &TemplateDesignerThermalPage::onShapeChanged );
+
+                connect( wSpin,      QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &TemplateDesignerThermalPage::onDimensionChanged );
+                connect( hSpin,      QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &TemplateDesignerThermalPage::onDimensionChanged );
+                connect( rSpin,      QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &TemplateDesignerThermalPage::onDimensionChanged );
+                connect( marginSpin, QOverload<double>::of(&QDoubleSpinBox::valueChanged), this, &TemplateDesignerThermalPage::onDimensionChanged );
+
+                QVBoxLayout* layout = new QVBoxLayout;
+                layout->addWidget( widget );
+                setLayout( layout );
+        }
+
+
+        void TemplateDesignerThermalPage::initializePage()
+        {
+                // Set defaults on first visit
+                static bool alreadyInitialized = false;
+                if ( !alreadyInitialized )
+                {
+                        alreadyInitialized = true;
+
+                        wSpin->setValue( defaultThermalW.inUnits( model::Settings::units() ) );
+                        hSpin->setValue( defaultThermalH.inUnits( model::Settings::units() ) );
+                        rSpin->setValue( defaultThermalR.inUnits( model::Settings::units() ) );
+                        marginSpin->setValue( defaultMargin.inUnits( model::Settings::units() ) );
+                }
+
+                onShapeChanged();
+                updatePreview();
+        }
+
+
+        void TemplateDesignerThermalPage::cleanupPage()
+        {
+                // Leave current settings alone
+        }
+
+
+        void TemplateDesignerThermalPage::onShapeChanged()
+        {
+                bool isCircle = circleRadio->isChecked();
+
+                hLabel->setEnabled( !isCircle );
+                hSpin->setEnabled( !isCircle );
+                rLabel->setEnabled( !isCircle );
+                rSpin->setEnabled( !isCircle );
+
+                if ( isCircle )
+                {
+                        // For circles, height = width (diameter)
+                        hSpin->setValue( wSpin->value() );
+                        rSpin->setValue( 0 );
+                }
+
+                updatePreview();
+        }
+
+
+        void TemplateDesignerThermalPage::onDimensionChanged()
+        {
+                if ( circleRadio->isChecked() )
+                {
+                        // Keep height in sync with width for circles
+                        hSpin->blockSignals( true );
+                        hSpin->setValue( wSpin->value() );
+                        hSpin->blockSignals( false );
+                }
+
+                updatePreview();
+        }
+
+
+        void TemplateDesignerThermalPage::updatePreview()
+        {
+                if ( auto td = dynamic_cast<TemplateDesigner*>( wizard() ) )
+                {
+                        preview->setTemplate( td->buildTemplate() );
+                }
         }
 
 

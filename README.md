@@ -34,6 +34,13 @@ features on top of the original:
   embedded in the executable; an admin PIN (Ctrl+Shift+A) allows reconfiguration.
 - **Single-file SFX**: the kiosk ships as one ~44 MB `.exe` (static Qt,
   self-extracting to `%TEMP%`).  No install, no DLLs, no external files.
+- **Thermal printer support**: built-in ZPL renderer for Zebra/ZDesigner
+  printers (GK420, ZD4, ZT series, etc.).  Auto-detects the printer, renders
+  at native DPI, sends raw ZPL via USB or network TCP.  Bypasses the Windows
+  driver entirely for reliable label output.
+- **Custom label templates**: create custom-sized labels for thermal printers
+  via the Template Designer wizard ("New Thermal / Roll Label" path).  Edit
+  and tag custom templates in the product picker.
 - **CSV/Excel import/export** in the Fill table.
 - **Per-column locking**: mark fields as read-only (pre-filled from source)
   vs. employee-entered.

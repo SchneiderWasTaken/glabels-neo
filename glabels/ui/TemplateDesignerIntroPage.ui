@@ -39,19 +39,6 @@
      </property>
     </widget>
    </item>
-   <item row="3" column="0">
-    <spacer name="verticalSpacer">
-     <property name="orientation">
-      <enum>Qt::Vertical</enum>
-     </property>
-     <property name="sizeHint" stdset="0">
-      <size>
-       <width>20</width>
-       <height>40</height>
-      </size>
-     </property>
-    </spacer>
-   </item>
    <item row="1" column="0">
     <widget class="QCommandLinkButton" name="copyButton">
      <property name="text">
@@ -71,6 +58,29 @@
       <string>Create a new product template from scratch</string>
      </property>
     </widget>
+   </item>
+   <item row="3" column="0">
+    <widget class="QCommandLinkButton" name="thermalButton">
+     <property name="text">
+      <string>New Thermal / Roll Label</string>
+     </property>
+     <property name="description">
+      <string>Create a label for thermal printers (Zebra, Rollo, Dymo, etc.)</string>
+     </property>
+    </widget>
+   </item>
+   <item row="4" column="0">
+    <spacer name="verticalSpacer">
+     <property name="orientation">
+      <enum>Qt::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>40</height>
+      </size>
+     </property>
+    </spacer>
    </item>
   </layout>
  </widget>

@@ -490,6 +490,23 @@
       </widget>
      </item>
      <item>
+      <widget class="QPushButton" name="customButton">
+       <property name="text">
+        <string>&amp;Custom...</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="editButton">
+       <property name="text">
+        <string>&amp;Edit...</string>
+       </property>
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
       <spacer name="horizontalSpacer">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>

@@ -292,6 +292,13 @@
       </widget>
      </item>
      <item>
+      <widget class="QPushButton" name="zplButton">
+       <property name="text">
+        <string>Send to Zebra</string>
+       </property>
+      </widget>
+     </item>
+     <item>
       <widget class="QLabel" name="printDescriptionLabel">
        <property name="text">
         <string notr="true">(Will print a total of xxxx items on nnn pages.)</string>
@@ -484,6 +491,12 @@
    <receiver>FillView</receiver>
    <slot>onSystemDialogButtonClicked()</slot>
   </connection>
+  <connection>
+   <sender>zplButton</sender>
+   <signal>clicked()</signal>
+   <receiver>FillView</receiver>
+   <slot>onZplButtonClicked()</slot>
+  </connection>
  </connections>
  <slots>
   <slot>onAddRowClicked()</slot>
@@ -497,5 +510,6 @@
   <slot>onFormChanged()</slot>
   <slot>onPrintButtonClicked()</slot>
   <slot>onSystemDialogButtonClicked()</slot>
+  <slot>onZplButtonClicked()</slot>
  </slots>
 </ui>

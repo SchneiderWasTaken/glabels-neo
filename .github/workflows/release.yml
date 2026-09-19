@@ -36,7 +36,7 @@ jobs:
         uses: jurplel/install-qt-action@v4
         with:
           version: '6.8.*'
-          archives: 'qtbase qtsvg qttools icu qttranslations'
+          archives: 'qtbase qtsvg qttools qtdeclarative icu qttranslations'
 
       - name: Configure
         run: >
@@ -98,7 +98,7 @@ jobs:
         uses: jurplel/install-qt-action@v4
         with:
           version: '6.8.*'
-          archives: 'qtbase qtsvg qttools icu qttranslations'
+          archives: 'qtbase qtsvg qttools qtdeclarative icu qttranslations'
 
       - name: Configure
         run: >
@@ -142,7 +142,7 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get -y install xvfb pkgconf libqrencode-dev file ninja
+          sudo apt-get -y install xvfb pkgconf libqrencode-dev file ninja-build
           # zint from source (apt version too old)
           wget -q https://downloads.sourceforge.net/project/zint/zint/2.15.0/zint-2.15.0-src.tar.gz
           tar xzf zint-2.15.0-src.tar.gz
@@ -153,7 +153,7 @@ jobs:
         with:
           version: '6.8.*'
           install-deps: 'true'
-          archives: 'qtbase qtsvg qttools icu qttranslations qtwayland'
+          archives: 'qtbase qtsvg qttools qtdeclarative icu qttranslations qtwayland'
 
       - name: Configure
         run: >

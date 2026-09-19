@@ -66,11 +66,23 @@ if (NOT ${COMMIT_DATE_VALID} STREQUAL "0")
   string (TIMESTAMP COMMIT_DATE %Y-%m-%d)
 endif ()
 
-# Uncomment for snapshots, comment for releases
-set(VERSION_STRING "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}-${BRANCH}${COMMIT_COUNT}")
+# When HEAD is exactly on a git tag (a release), use the tag as the version
+# string; otherwise use the snapshot form <major>.<minor>-<branch><count>.
+execute_process(
+  WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+  COMMAND git describe --tags --exact-match HEAD
+  RESULT_VARIABLE RELEASE_TAG_VALID
+  OUTPUT_VARIABLE RELEASE_TAG
+  OUTPUT_STRIP_TRAILING_WHITESPACE
+  ERROR_QUIET
+)
 
-# Uncomment for releases, comment for snapshots
-#set(VERSION_STRING "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}.${PROJECT_VERSION_PATCH}")
+if (${RELEASE_TAG_VALID} STREQUAL "0")
+   set (VERSION_STRING "${RELEASE_TAG}")
+else ()
+   # Uncomment for snapshots, comment for releases
+   set(VERSION_STRING "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}-${BRANCH}${COMMIT_COUNT}")
+endif ()
 
 set(LONG_VERSION_STRING "${VERSION_STRING} (${COMMIT_HASH} ${COMMIT_DATE})")
 

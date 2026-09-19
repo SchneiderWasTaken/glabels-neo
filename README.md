@@ -24,6 +24,10 @@ features on top of the original:
 
 ## What's new in gLabels-neo (vs. glabels-qt)
 
+- **Ready-to-run builds for macOS, Windows and Linux** — see
+  [Releases](https://github.com/SchneiderWasTaken/glabels-neo/releases):
+  a signed-free `.dmg` for Apple Silicon, a portable `.zip` for Windows
+  (no install, no DLL hunting), and a self-contained `.tar.gz` for Linux.
 - **Fill page** (Ctrl+5): a batch table where each row is one print job with
   a Qty, a Print checkbox, and one column per `${FieldName}` in your label.
   Live sheet preview reflects the checked rows.  CSV/Excel round-trip.

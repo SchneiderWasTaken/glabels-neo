@@ -158,11 +158,15 @@ target_include_directories (glabels_lib
           ${CMAKE_CURRENT_SOURCE_DIR}/qxlsx_compat
 )
 
-option( GLABELS_USE_XLSX "Enable Excel (.xlsx) import/export via QXlsx" ON )
 if( GLABELS_USE_XLSX )
-    find_package( QXlsxQt6 QUIET )
-    if( QXlsxQt6_FOUND )
+    # QXlsx may come from a system package (QXlsx::QXlsx) or from
+    # FetchContent in the top-level CMakeLists (plain QXlsx target).
+    if( TARGET QXlsx::QXlsx )
         target_link_libraries (glabels_lib PUBLIC QXlsx::QXlsx)
+    elseif( TARGET QXlsx )
+        target_link_libraries (glabels_lib PUBLIC QXlsx)
+    else()
+        target_compile_definitions( glabels_lib PUBLIC GLABELS_FILL_NO_XLSX=1 )
     endif()
 else()
     target_compile_definitions( glabels_lib PUBLIC GLABELS_FILL_NO_XLSX=1 )
@@ -188,6 +192,25 @@ add_executable (glabels-qt WIN32
   ${glabels_win_rc}
 )
 
+#=====================================
+# macOS app bundle
+#=====================================
+if (APPLE)
+   target_sources (glabels-qt PRIVATE icons/glabels.icns)
+   set_source_files_properties (icons/glabels.icns PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+   set_target_properties (glabels-qt PROPERTIES
+      MACOSX_BUNDLE TRUE
+      MACOSX_BUNDLE_BUNDLE_NAME "gLabels"
+      MACOSX_BUNDLE_GUI_IDENTIFIER "org.glabels.glabels-qt"
+      MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+      MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}"
+      MACOSX_BUNDLE_ICON_FILE "glabels.icns"
+      MACOSX_BUNDLE_INFO_STRING "gLabels Label Designer"
+      MACOSX_BUNDLE_COPYRIGHT "GPLv3"
+      INSTALL_RPATH "@executable_path/../Frameworks"
+   )
+endif ()
+
 # Resources must be linked DIRECTLY to the executable (OBJECT libraries
 # do not propagate transitively through STATIC libraries).
 target_link_libraries (glabels-qt
@@ -197,7 +220,32 @@ target_link_libraries (glabels-qt
 #=======================================
 # Install
 #=======================================
-install (TARGETS glabels-qt RUNTIME DESTINATION bin)
+if (APPLE)
+   install (TARGETS glabels-qt BUNDLE DESTINATION . RUNTIME DESTINATION bin)
+   # Bundle data so the .app is fully self-contained
+   install (DIRECTORY ${CMAKE_SOURCE_DIR}/templates/
+            DESTINATION glabels-qt.app/Contents/Resources/templates)
+   install (DIRECTORY ${CMAKE_BINARY_DIR}/translations/
+            DESTINATION glabels-qt.app/Contents/Resources/translations
+            FILES_MATCHING PATTERN "*.qm")
+   # Deploy Qt frameworks/plugins into the installed bundle so it is
+   # self-contained and distributable.
+   qt6_generate_deploy_app_script (
+      TARGET glabels-qt
+      OUTPUT_SCRIPT glabels_deploy_script
+      NO_UNSUPPORTED_PLATFORM_ERROR
+   )
+   install (SCRIPT ${glabels_deploy_script})
+   # Homebrew's macdeployqt misses transitive frameworks (e.g. QtDBus) and
+   # breaks the signature; finish the bundle ourselves.
+   install (CODE "
+      set( APP_BUNDLE \"\${CMAKE_INSTALL_PREFIX}/glabels-qt.app\" )
+      set( QT_LIB_DIR \"${QT_LIB_DIR}\" )
+      include( \"${CMAKE_SOURCE_DIR}/cmake/MacDeployFixup.cmake\" )
+   ")
+else ()
+   install (TARGETS glabels-qt RUNTIME DESTINATION bin)
+endif ()
 
 install (FILES icons/glabels-flat/scalable/apps/glabels.svg DESTINATION share/icons/hicolor/scalable/apps)
 install (FILES icons/glabels-flat/16x16/apps/glabels.svg    DESTINATION share/icons/hicolor/16x16/apps)

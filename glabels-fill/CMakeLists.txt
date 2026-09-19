@@ -49,6 +49,24 @@ add_executable (glabels-fill WIN32
 
 target_compile_features (glabels-fill PRIVATE cxx_std_20)
 
+#=====================================
+# macOS app bundle
+#=====================================
+if (APPLE)
+   target_sources (glabels-fill PRIVATE "${CMAKE_SOURCE_DIR}/glabels/icons/glabels.icns")
+   set_source_files_properties ("${CMAKE_SOURCE_DIR}/glabels/icons/glabels.icns" PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
+   set_target_properties (glabels-fill PROPERTIES
+      MACOSX_BUNDLE TRUE
+      MACOSX_BUNDLE_BUNDLE_NAME "gLabels Fill"
+      MACOSX_BUNDLE_GUI_IDENTIFIER "org.glabels.glabels-fill"
+      MACOSX_BUNDLE_BUNDLE_VERSION "${PROJECT_VERSION}"
+      MACOSX_BUNDLE_SHORT_VERSION_STRING "${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}"
+      MACOSX_BUNDLE_ICON_FILE "glabels.icns"
+      MACOSX_BUNDLE_INFO_STRING "gLabels Fill Kiosk"
+      INSTALL_RPATH "@executable_path/../Frameworks"
+   )
+endif ()
+
 if( GLABELS_FILL_STATIC )
     # Omit QXlsx (Excel) in the static build -- it's a dynamic-only dep.
     # The kiosk falls back to CSV for data sources.
@@ -74,4 +92,24 @@ endif()
 #=======================================
 # Install
 #=======================================
-install (TARGETS glabels-fill RUNTIME DESTINATION bin)
+if (APPLE)
+   install (TARGETS glabels-fill BUNDLE DESTINATION . RUNTIME DESTINATION bin)
+   install (DIRECTORY ${CMAKE_SOURCE_DIR}/templates/
+            DESTINATION glabels-fill.app/Contents/Resources/templates)
+   install (DIRECTORY ${CMAKE_BINARY_DIR}/translations/
+            DESTINATION glabels-fill.app/Contents/Resources/translations
+            FILES_MATCHING PATTERN "*.qm")
+   qt6_generate_deploy_app_script (
+      TARGET glabels-fill
+      OUTPUT_SCRIPT glabels_fill_deploy_script
+      NO_UNSUPPORTED_PLATFORM_ERROR
+   )
+   install (SCRIPT ${glabels_fill_deploy_script})
+   install (CODE "
+      set( APP_BUNDLE \"\${CMAKE_INSTALL_PREFIX}/glabels-fill.app\" )
+      set( QT_LIB_DIR \"${QT_LIB_DIR}\" )
+      include( \"${CMAKE_SOURCE_DIR}/cmake/MacDeployFixup.cmake\" )
+   ")
+else ()
+   install (TARGETS glabels-fill RUNTIME DESTINATION bin)
+endif ()

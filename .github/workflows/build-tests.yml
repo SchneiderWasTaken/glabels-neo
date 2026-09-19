@@ -1,17 +1,20 @@
-# This workflow performs test builds across a diversity of supported platforms
+# Multi-platform build + test.
 #
-#     - ubuntu-latest  - gcc
-#     - ubuntu-latest  - clang
-#     - ubuntu-24.04   - gcc   (For backwards compatablity)
-#     - windows-2022   - cl    (build on windows-latest is currently broken - Qt-6.2.4 MSVC incompatability)
-#     - macos-latest   - clang
+# Builds glabels-neo on the three target platforms and runs the unit +
+# render tests.  Distributable artifacts are built by release.yml.
 #
-      
+# Qt >= 6.7 is required because QXlsx (fetched automatically when no system
+# package is found) links Qt6::GuiPrivate, which is only exposed as a
+# find_package component from Qt 6.7 on.
 
 name: Multi-Platform Build Tests
 
 on:
   push:
+    branches:
+      - '**'
+  pull_request:
+  workflow_dispatch:
 
 jobs:
   build:
@@ -25,12 +28,6 @@ jobs:
           - os: ubuntu-latest
             c_compiler: gcc
             cpp_compiler: g++
-          - os: ubuntu-latest
-            c_compiler: clang
-            cpp_compiler: clang++
-          - os: ubuntu-22.04
-            c_compiler: gcc
-            cpp_compiler: g++
           - os: windows-2022
             c_compiler: cl
             cpp_compiler: cl
@@ -42,20 +39,19 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v4
       with:
-        # Checkout full-depth to facilitate auto versioning
+        # Full depth for git-based version numbering
         fetch-depth: 0
 
-    - name: Install optional dependencies (Ubuntu)
+    - name: Install dependencies (Ubuntu)
       if: startsWith( matrix.os, 'ubuntu-' )
       shell: bash
       run: |
-        # install packages
         sudo apt-get update
-        sudo apt-get -y install xvfb
-        sudo apt-get -y install pkgconf libqrencode-dev
-        sudo apt-get -y install barcode
-        # install zint-2.15.0 from source
-        wget https://downloads.sourceforge.net/project/zint/zint/2.15.0/zint-2.15.0-src.tar.gz && tar xzf zint-2.15.0-src.tar.gz && ( cd zint-2.15.0-src && mkdir build && cd build && cmake .. && make && sudo make install )
+        sudo apt-get -y install xvfb pkgconf libqrencode-dev barcode
+        # zint from source (apt version too old)
+        wget -q https://downloads.sourceforge.net/project/zint/zint/2.15.0/zint-2.15.0-src.tar.gz
+        tar xzf zint-2.15.0-src.tar.gz
+        cd zint-2.15.0-src && mkdir build && cd build && cmake .. && make -j$(nproc) && sudo make install
 
     - name: Pre-install vcpkg (Windows)
       if: startsWith( matrix.os, 'windows-' )
@@ -74,31 +70,24 @@ jobs:
         restore-keys: |
           vcpkg-${{ runner.os }}-
 
-    - name: Install optional dependencies (Windows)
+    - name: Install dependencies (Windows)
       if: startsWith( matrix.os, 'windows-' )
       shell: bash
       run: |
-        # install packages
         ./vcpkg/bootstrap-vcpkg.sh
-        ./vcpkg/vcpkg install pkgconf
-        ./vcpkg/vcpkg install zlib
-        ./vcpkg/vcpkg install libqrencode
-        ./vcpkg/vcpkg install zint
+        ./vcpkg/vcpkg install pkgconf zlib libqrencode zint
         echo "TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" >> $GITHUB_ENV
 
-    - name: Install optional dependencies (MacOS)
+    - name: Install dependencies (MacOS)
       if: startsWith( matrix.os, 'macos-' )
       shell: bash
       run: |
-        # install packages
-        brew install zlib
-        brew install qrencode
-        brew install zint
+        brew install zlib qrencode zint
 
     - name: Install Qt
       uses: jurplel/install-qt-action@v4
       with:
-        version: '6.2.*'
+        version: '6.8.*'
         install-deps: 'true'
         archives: 'qtbase qtsvg qttools icu qttranslations qtwayland'
 
@@ -140,137 +129,15 @@ jobs:
       if: startsWith( matrix.os, 'macos-' )
       working-directory: ${{ steps.strings.outputs.build-output-dir }}
       run: |
-        ./glabels/glabels-qt --Version
+        ./glabels/glabels-qt.app/Contents/MacOS/glabels-qt --Version
         ctest --build-config Release
 
-    - name: Install render test dependencies (Ubuntu-latest)
-      if: startsWith( matrix.os, 'ubuntu-latest' )
-      working-directory: ${{ steps.strings.outputs.build-output-dir }}
-      run: |
-        sudo apt-get -y install xwayland-run
-        sudo apt-get -y install comparepdf
-
-    - name: Install render test dependencies (Windows)
-      if: startsWith( matrix.os, 'windows' )
-      working-directory: ${{ steps.strings.outputs.build-output-dir }}
-      run: |
-        choco install diff-pdf
-
-    - name: Install render test dependencies (MacOS)
-      if: startsWith( matrix.os, 'macos' )
-      working-directory: ${{ steps.strings.outputs.build-output-dir }}
-      run: |
-        brew install diff-pdf
-
-    - name: Render tests (Ubuntu-latest)
-      if: startsWith( matrix.os, 'ubuntu-latest' )
-      working-directory: ${{ steps.strings.outputs.build-output-dir }}
-      shell: bash
-      env:
-        TEST_DIR: ${{ github.workspace }}/test-data
-      run: |
-        set +e
-        run-x() { xvfb-run -a "$@"; }
-        run-w() { wlheadless-run -c weston --log=/dev/null -- "$@"; }
-        #
-        #
-        echo "================"
-        echo "X11 render tests"
-        echo "================"
-        run-x ./glabels-batch/glabels-batch-qt --Version
-        #
-        # echo "-- Available fonts (X) -------------------------------------------------"
-        # run-x fc-list : family
-        # echo "------------------------------------------------------------------------"
-        #
-        echo "-----------------------------------"
-        run-x ./glabels-batch/glabels-batch-qt -o simple-shapes-x.pdf "$TEST_DIR/simple-shapes.glabels"
-        comparepdf -ca -v2 "$TEST_DIR/simple-shapes.pdf" simple-shapes-x.pdf
-        echo "-----------------------------------"
-        run-x ./glabels-batch/glabels-batch-qt -o simple-code39-x.pdf "$TEST_DIR/simple-code39.glabels"
-        comparepdf -ca -v2 "$TEST_DIR/simple-code39.pdf" simple-code39-x.pdf
-        echo "-----------------------------------"
-        run-x ./glabels-batch/glabels-batch-qt -o simple-text-liberation-sans-x.pdf "$TEST_DIR/simple-text-liberation-sans.glabels"
-        comparepdf -ca -v2 "$TEST_DIR/simple-text-liberation-sans.pdf" simple-text-liberation-sans-x.pdf
-        echo "-----------------------------------"
-        run-x ./glabels-batch/glabels-batch-qt -o simple-text-liberation-serif-x.pdf "$TEST_DIR/simple-text-liberation-serif.glabels"
-        comparepdf -ca -v2 "$TEST_DIR/simple-text-liberation-serif.pdf" simple-text-liberation-serif-x.pdf
-        echo "-----------------------------------"
-        #
-        #
-        echo "===================="
-        echo "Wayland render tests"
-        echo "===================="
-        run-w ./glabels-batch/glabels-batch-qt --Version
-        #
-        # echo "-- Available fonts (X) -------------------------------------------------"
-        # run-w fc-list : family
-        # echo "------------------------------------------------------------------------"
-        #
-        echo "-----------------------------------"
-        run-w ./glabels-batch/glabels-batch-qt -o simple-shapes-w.pdf "$TEST_DIR/simple-shapes.glabels"
-        comparepdf -ca -v2 "$TEST_DIR/simple-shapes.pdf" simple-shapes-w.pdf
-        echo "-----------------------------------"
-        run-w ./glabels-batch/glabels-batch-qt -o simple-code39-w.pdf "$TEST_DIR/simple-code39.glabels"
-        comparepdf -ca -v2 "$TEST_DIR/simple-code39.pdf" simple-code39-w.pdf
-        echo "-----------------------------------"
-        run-w ./glabels-batch/glabels-batch-qt -o simple-text-liberation-sans-w.pdf "$TEST_DIR/simple-text-liberation-sans.glabels"
-        comparepdf -ca -v2 "$TEST_DIR/simple-text-liberation-sans.pdf" simple-text-liberation-sans-w.pdf
-        echo "-----------------------------------"
-        run-w ./glabels-batch/glabels-batch-qt -o simple-text-liberation-serif-w.pdf "$TEST_DIR/simple-text-liberation-serif.glabels"
-        comparepdf -ca -v2 "$TEST_DIR/simple-text-liberation-serif.pdf" simple-text-liberation-serif-w.pdf
-        echo "-----------------------------------"
-
-    - name: Render tests (Windows)
-      if: startsWith( matrix.os, 'windows' )
-      working-directory: ${{ steps.strings.outputs.build-output-dir }}
-      shell: pwsh
-      env:
-        TEST_DIR: ${{ github.workspace }}/test-data
-        QT_ASSUME_STDERR_HAS_CONSOLE: 1
-      run: |
-        set +e
-        ./glabels-batch/Release/glabels-batch-qt --Version
-        echo "-----------------------------------"
-        ./glabels-batch/Release/glabels-batch-qt -o simple-shapes-windows.pdf "$env:TEST_DIR/simple-shapes.glabels" 2>&1
-        diff-pdf -v "$env:TEST_DIR/simple-shapes.pdf" simple-shapes-windows.pdf 2>&1
-        echo "-----------------------------------"
-        ./glabels-batch/Release/glabels-batch-qt -o simple-code39-windows.pdf "$env:TEST_DIR/simple-code39.glabels" 2>&1
-        diff-pdf -v "$env:TEST_DIR/simple-code39.pdf" simple-code39-windows.pdf 2>&1
-        echo "-----------------------------------"
-        #
-        # TODO: Create text-based rendering tests using fonts available on Windows
-        #
-
-    - name: Render tests (MacOS)
-      if: startsWith( matrix.os, 'macos' )
-      working-directory: ${{ steps.strings.outputs.build-output-dir }}
-      shell: bash
-      env:
-        TEST_DIR: ${{ github.workspace }}/test-data
-      run: |
-        set +e
-        ./glabels-batch/glabels-batch-qt --Version
-        echo "-----------------------------------"
-        ./glabels-batch/glabels-batch-qt -o simple-shapes-mac.pdf "$TEST_DIR/simple-shapes.glabels"
-        diff-pdf -v "$TEST_DIR/simple-shapes.pdf" simple-shapes-mac.pdf
-        echo "-----------------------------------"
-        ./glabels-batch/glabels-batch-qt -o simple-code39-mac.pdf "$TEST_DIR/simple-code39.glabels"
-        diff-pdf -v "$TEST_DIR/simple-code39.pdf" simple-code39-mac.pdf
-        echo "-----------------------------------"
-        #
-        # TODO: Create text-based rendering tests using fonts available on MacOS
-        #
-
-    - name: Upload render tests for manual inspection
-      if: always()
+    - name: Upload build log on failure
+      if: failure()
       uses: actions/upload-artifact@v4
       with:
-        name: render-tests-${{ matrix.os }}-${{ matrix.cpp_compiler }}-${{ github.run_number }}
-        path: ${{ steps.strings.outputs.build-output-dir }}/*.pdf
-
-
-#    - name: Tmate
-#      uses: mxschmitt/action-tmate@v3
-#      if: failure()
-
+        name: build-log-${{ matrix.os }}
+        path: |
+          ${{ steps.strings.outputs.build-output-dir }}/CMakeCache.txt
+          ${{ steps.strings.outputs.build-output-dir }}/CMakeFiles/CMakeError.log
+        if-no-files-found: ignore

@@ -1,0 +1,203 @@
+# Build distributable artifacts for all three platforms.
+#
+#  - every push: artifacts are uploaded to the workflow run (downloadable
+#    from the Actions page) so builds are available as we go
+#  - tag pushes (v*): artifacts are attached to a GitHub Release
+#
+name: Release Artifacts
+
+on:
+  push:
+    branches:
+      - master
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  macos:
+    name: macOS (arm64)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          brew install zlib qrencode zint ninja
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.*'
+          archives: 'qtbase qtsvg qttools icu qttranslations'
+
+      - name: Configure
+        run: >
+          cmake -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -S ${{ github.workspace }}
+
+      - name: Build
+        run: cmake --build build -j$(sysctl -n hw.ncpu)
+
+      - name: Test
+        working-directory: build
+        run: |
+          ./glabels/glabels-qt.app/Contents/MacOS/glabels-qt --Version
+          ctest --build-config Release
+
+      - name: Package DMG
+        run: ./scripts/package-macos.sh build glabels-neo-macos-arm64.dmg
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: glabels-neo-macos-arm64.dmg
+          path: glabels-neo-macos-arm64.dmg
+          if-no-files-found: error
+
+  windows:
+    name: Windows (x64)
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies (vcpkg)
+        shell: bash
+        run: |
+          git clone --depth 1 https://github.com/microsoft/vcpkg.git
+
+      - name: Restore vcpkg cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ github.workspace }}/vcpkg/installed
+            ${{ github.workspace }}/vcpkg/downloads
+          key: vcpkg-${{ runner.os }}-${{ hashFiles('.github/workflows/release.yml') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-
+
+      - name: Install dependencies (vcpkg) (cont.)
+        shell: bash
+        run: |
+          ./vcpkg/bootstrap-vcpkg.sh
+          ./vcpkg/vcpkg install pkgconf zlib libqrencode zint
+          echo "TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" >> $GITHUB_ENV
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.*'
+          archives: 'qtbase qtsvg qttools icu qttranslations'
+
+      - name: Configure
+        run: >
+          cmake -B build
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_TOOLCHAIN_FILE=${{ env.TOOLCHAIN_FILE }}
+          -S ${{ github.workspace }}
+
+      - name: Build
+        run: cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
+
+      - name: Test
+        working-directory: build
+        env:
+          QT_ASSUME_STDERR_HAS_CONSOLE: 1
+        run: |
+          ./glabels-batch/Release/glabels-batch-qt --Version
+          ctest --build-config Release
+
+      - name: Package zip
+        shell: pwsh
+        run: ./scripts/package-windows.ps1 -BuildDir build -OutZip glabels-neo-windows-x64.zip
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: glabels-neo-windows-x64.zip
+          path: glabels-neo-windows-x64.zip
+          if-no-files-found: error
+
+  linux:
+    name: Linux (x86_64)
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get -y install xvfb pkgconf libqrencode-dev file ninja
+          # zint from source (apt version too old)
+          wget -q https://downloads.sourceforge.net/project/zint/zint/2.15.0/zint-2.15.0-src.tar.gz
+          tar xzf zint-2.15.0-src.tar.gz
+          cd zint-2.15.0-src && mkdir build && cd build && cmake .. && make -j$(nproc) && sudo make install
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.8.*'
+          install-deps: 'true'
+          archives: 'qtbase qtsvg qttools icu qttranslations qtwayland'
+
+      - name: Configure
+        run: >
+          cmake -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -S ${{ github.workspace }}
+
+      - name: Build
+        run: cmake --build build -j$(nproc)
+
+      - name: Test
+        working-directory: build
+        run: |
+          xvfb-run -a ./glabels/glabels-qt --Version
+          xvfb-run -a ctest --build-config Release
+
+      - name: Package tarball
+        run: ./scripts/package-linux.sh build glabels-neo-linux-x86_64.tar.gz
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: glabels-neo-linux-x86_64.tar.gz
+          path: glabels-neo-linux-x86_64.tar.gz
+          if-no-files-found: error
+
+  release:
+    name: Attach artifacts to GitHub Release
+    needs: [macos, windows, linux]
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+          path: dist
+
+      - name: Create release
+        working-directory: dist
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "${{ github.ref_name }}" \
+            --generate-notes \
+            *

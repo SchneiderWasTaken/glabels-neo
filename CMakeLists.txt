@@ -117,17 +117,41 @@ if (MINGW)
    # user-specified prefix (e.g. static Qt) survives.
 endif ()
 
-# GuiPrivate is only needed for QXlsx; omit it for the static (no-Xlsx) build.
+# Xlsx support via QXlsx.  QXlsx links Qt6::GuiPrivate internally, which as a
+# find_package component requires Qt >= 6.7.  When a system QXlsxQt6 package
+# is not available we fetch and build QXlsx from source (pinned tag).
 option( GLABELS_USE_XLSX "Enable Excel (.xlsx) support via QXlsx" ON )
-if( GLABELS_USE_XLSX )
-    set( GLABELS_QT_GUI_PRIVATE_COMPONENT GuiPrivate )
-else()
-    set( GLABELS_QT_GUI_PRIVATE_COMPONENT "" )
-endif()
-
-find_package (Qt6 6.2 REQUIRED COMPONENTS Concurrent Core Gui ${GLABELS_QT_GUI_PRIVATE_COMPONENT} Widgets PrintSupport Xml Svg LinguistTools Test Network)
 
 find_package (QXlsxQt6 QUIET)
+
+if (GLABELS_USE_XLSX AND NOT QXlsxQt6_FOUND)
+   include (FetchContent)
+   FetchContent_Declare (QXlsx
+      GIT_REPOSITORY https://github.com/QtExcel/QXlsx.git
+      GIT_TAG v1.5.1.1
+      GIT_SHALLOW TRUE
+   )
+   FetchContent_MakeAvailable (QXlsx)
+endif ()
+
+find_package (Qt6 6.2 REQUIRED COMPONENTS Concurrent Core Gui Widgets PrintSupport Xml Svg LinguistTools Test Network)
+
+# Qt's FindWrapOpenGL module still links the legacy AGL framework on macOS,
+# which was removed from the SDKs shipped with Xcode 26.  Qt 6 does not use
+# AGL, so strip it from the interface target.
+if (APPLE AND TARGET WrapOpenGL::WrapOpenGL)
+   get_target_property (_wrapopengl_libs WrapOpenGL::WrapOpenGL INTERFACE_LINK_LIBRARIES)
+   if (_wrapopengl_libs)
+      list (FILTER _wrapopengl_libs EXCLUDE REGEX "AGL")
+      set_target_properties (WrapOpenGL::WrapOpenGL PROPERTIES INTERFACE_LINK_LIBRARIES "${_wrapopengl_libs}")
+   endif ()
+endif ()
+
+# Location of the Qt runtime libraries (frameworks/dylibs) for macOS bundle
+# deployment.
+if (APPLE)
+   get_filename_component (QT_LIB_DIR "${Qt6Core_DIR}/../../../lib" ABSOLUTE)
+endif ()
 
 if (WIN32)
    # Locate Qt directories

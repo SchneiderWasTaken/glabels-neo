@@ -52,6 +52,15 @@ namespace glabels::model
                         return QDir( ":/templates" );
                 }
 
+#if defined(Q_OS_MACOS)
+                // Next, try the macOS app bundle's Resources directory.
+                dir.cd( QApplication::applicationDirPath() );
+                if ( dir.cdUp() && dir.cd( "Resources" ) && dir.cd( "templates" ) )
+                {
+                        return dir;
+                }
+#endif
+
                 // Next, try a "portable" layout: templates/ next to the executable.
                 // This lets the app run from an extracted folder with no install.
                 dir.cd( QApplication::applicationDirPath() );
@@ -104,7 +113,16 @@ namespace glabels::model
         {
                 QDir dir;
 
-                // First, try a "portable" layout: translations/ next to the executable.
+#if defined(Q_OS_MACOS)
+                // First, try the macOS app bundle's Resources directory.
+                dir.cd( QApplication::applicationDirPath() );
+                if ( dir.cdUp() && dir.cd( "Resources" ) && dir.cd( "translations" ) )
+                {
+                        return dir;
+                }
+#endif
+
+                // Next, try a "portable" layout: translations/ next to the executable.
                 dir.cd( QApplication::applicationDirPath() );
                 if ( dir.cd( "translations" ) )
                 {

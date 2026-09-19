@@ -48,3 +48,7 @@ TEST-DATA
 SAV*
 OLD*
 
+
+# Packaging output
+*.dmg
+dist/

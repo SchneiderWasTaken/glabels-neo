@@ -89,7 +89,7 @@ jobs:
       with:
         version: '6.8.*'
         install-deps: 'true'
-        archives: 'qtbase qtsvg qttools icu qttranslations qtwayland'
+        archives: 'qtbase qtsvg qttools qtdeclarative icu qttranslations qtwayland'
 
     - name: Set reusable strings
       id: strings

@@ -1,0 +1,12 @@
+{
+  "name": "glabels-neo-js",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "build": "npm run build -ws --if-present",
+    "dev": "npm run dev -w @glabels/server & npm run dev -w @glabels/web",
+    "test": "npm test -ws --if-present",
+    "electron": "npm run build && npm start -w @glabels/electron"
+  }
+}

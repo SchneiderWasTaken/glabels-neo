@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="app-icon-sm-title app-icon-sm-desc">
+  <title id="app-icon-sm-title">gLabels Neo Small App Icon (16px / 32px)</title>
+  <desc id="app-icon-sm-desc">Simplified high-contrast app icon for 16px and 32px sizes with full-bleed purple-to-blue gradient plate, bold white label silhouette, three thick barcode bars, Neo spark, and peeled corner.</desc>
+
+  <defs>
+    <!-- Canonical gLabels Neo Brand Gradient (135 deg) -->
+    <linearGradient id="glabels-brand-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7C3AED"/>
+      <stop offset="50%" stop-color="#4F46E5"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+
+    <!-- High-Contrast Peeled Flap Tint for Small Sizes -->
+    <linearGradient id="glabels-flap-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#C4B5FD"/>
+      <stop offset="100%" stop-color="#93C5FD"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Maximized Rounded-Square Plate for Small-Size Legibility -->
+  <g id="layer-icon-plate">
+    <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#glabels-brand-gradient)"/>
+  </g>
+
+  <!-- Simplified High-Legibility White Die-Cut Label -->
+  <g id="layer-label-mark">
+    <path
+      id="label-body"
+      d="M 17 13 H 47 A 7 7 0 0 1 54 20 V 37 L 40 51 H 17 A 7 7 0 0 1 10 44 V 20 A 7 7 0 0 1 17 13 Z"
+      fill="#FFFFFF"
+    />
+
+    <!-- Simplified 3-Bar Barcode + Bold Neo Spark (snaps cleanly at 16px) -->
+    <g id="layer-label-graphics" fill="url(#glabels-brand-gradient)">
+      <rect x="16" y="21" width="6" height="22" rx="1.8"/>
+      <rect x="25" y="21" width="3.5" height="22" rx="1.5"/>
+      <rect x="31.5" y="21" width="5.5" height="22" rx="1.8"/>
+      <path d="M 44.5 20.5 C 45 23.6 46.4 25 49.5 25.5 C 46.4 26 45 27.4 44.5 30.5 C 44 27.4 42.6 26 39.5 25.5 C 42.6 25 44 23.6 44.5 20.5 Z"/>
+    </g>
+
+    <!-- Bold Peeled Bottom-Right Flap -->
+    <g id="layer-peel-corner">
+      <path
+        id="peel-flap"
+        d="M 40 51 V 42 A 5 5 0 0 1 45 37 H 54 Z"
+        fill="url(#glabels-flap-gradient)"
+      />
+    </g>
+  </g>
+</svg>

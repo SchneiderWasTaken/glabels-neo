@@ -1,0 +1,230 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-labelledby="og-title og-desc">
+  <title id="og-title">gLabels Neo — Social Preview Card</title>
+  <desc id="og-desc">Open Graph social preview card for gLabels Neo, a modernized fork of gLabels: Design and print labels, barcodes and thermal labels - free and open source.</desc>
+
+  <defs>
+    <!-- Canonical gLabels Neo Brand Gradient (135 deg) -->
+    <linearGradient id="glabels-brand-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7C3AED"/>
+      <stop offset="50%" stop-color="#4F46E5"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+
+    <!-- Luminous Dark-Surface Gradient for "Neo" Accent Text -->
+    <linearGradient id="glabels-brand-gradient-light" gradientUnits="userSpaceOnUse" x1="468" y1="150" x2="620" y2="235">
+      <stop offset="0%" stop-color="#A78BFA"/>
+      <stop offset="50%" stop-color="#818CF8"/>
+      <stop offset="100%" stop-color="#60A5FA"/>
+    </linearGradient>
+
+    <!-- Peeled Corner Underside Highlight -->
+    <linearGradient id="glabels-flap-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EDE9FE"/>
+      <stop offset="100%" stop-color="#DBEAFE"/>
+    </linearGradient>
+
+    <!-- Background Atmospheric Glows -->
+    <radialGradient id="og-glow-violet" cx="15%" cy="18%" r="55%">
+      <stop offset="0%" stop-color="#7C3AED" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#090D1A" stop-opacity="0"/>
+    </radialGradient>
+
+    <radialGradient id="og-glow-blue" cx="88%" cy="85%" r="55%">
+      <stop offset="0%" stop-color="#2563EB" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#090D1A" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Subtle Precision Drafting Grid Pattern -->
+    <pattern id="og-grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="1" fill="#94A3B8" fill-opacity="0.16"/>
+    </pattern>
+
+    <!-- Showcase Label Card Shadow -->
+    <filter id="card-shadow" x="-15%" y="-12%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="20" stdDeviation="24" flood-color="#020617" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+
+  <!-- Background Canvas -->
+  <g id="layer-background">
+    <rect width="1200" height="630" fill="#090D1A"/>
+    <rect width="1200" height="630" fill="url(#og-glow-violet)"/>
+    <rect width="1200" height="630" fill="url(#og-glow-blue)"/>
+    <rect width="1200" height="630" fill="url(#og-grid)"/>
+    <!-- Top Brand Accent Bar -->
+    <rect x="0" y="0" width="1200" height="6" fill="url(#glabels-brand-gradient)"/>
+  </g>
+
+  <!-- Left Editorial Brand Column -->
+  <g id="layer-brand-content">
+    <!-- Brand Mark (scaled 1.65x -> 105.6x105.6 nominal) -->
+    <g id="og-mark" transform="translate(76, 134) scale(1.65)">
+      <path
+        d="M 14 8 H 50 A 10 10 0 0 1 60 18 V 38 L 42 56 H 14 A 10 10 0 0 1 4 46 V 18 A 10 10 0 0 1 14 8 Z"
+        fill="url(#glabels-brand-gradient)"
+      />
+      <g fill="#FFFFFF">
+        <rect x="12" y="18" width="5.5" height="28" rx="2"/>
+        <rect x="20.5" y="18" width="2.8" height="28" rx="1.4"/>
+        <rect x="26.3" y="18" width="5" height="28" rx="2"/>
+        <rect x="34.3" y="18" width="2.8" height="28" rx="1.4"/>
+        <path d="M 47.5 17.8 C 48.1 21.8 49.7 23.4 53.7 24 C 49.7 24.6 48.1 26.2 47.5 30.2 C 46.9 26.2 45.3 24.6 41.3 24 C 45.3 23.4 46.9 21.8 47.5 17.8 Z"/>
+      </g>
+      <path d="M 42 56 H 39.5 V 44 A 8.5 8.5 0 0 1 48 35.5 H 60 V 38 Z" fill="#1E1B4B" fill-opacity="0.22"/>
+      <path d="M 42 56 V 45 A 7 7 0 0 1 49 38 H 60 Z" fill="url(#glabels-flap-gradient)"/>
+    </g>
+
+    <!-- Product Wordmark -->
+    <text
+      id="og-wordmark"
+      x="202"
+      y="202"
+      font-family="'Inter', 'Segoe UI', system-ui, sans-serif"
+      font-size="66"
+      font-weight="700"
+      letter-spacing="-0.03em"
+      fill="#F8FAFC"
+    >gLabels <tspan fill="url(#glabels-brand-gradient-light)">Neo</tspan></text>
+
+    <!-- Required Attribution Tagline -->
+    <text
+      id="og-tagline"
+      x="204"
+      y="250"
+      font-family="'Inter', 'Segoe UI', system-ui, sans-serif"
+      font-size="22"
+      font-weight="500"
+      letter-spacing="0.01em"
+      fill="#CBD5E1"
+    >A modernized fork of gLabels</text>
+
+    <!-- Subtle Accent Rule -->
+    <rect x="82" y="298" width="88" height="4" rx="2" fill="url(#glabels-brand-gradient)"/>
+
+    <!-- Description Copy (Exact Brief Wording) -->
+    <text
+      id="og-description"
+      x="82"
+      y="356"
+      font-family="'Inter', 'Segoe UI', system-ui, sans-serif"
+      font-size="28"
+      font-weight="500"
+      fill="#E2E8F0"
+    >
+      <tspan x="82" dy="0">Design and print labels, barcodes and</tspan>
+      <tspan x="82" dy="40">thermal labels - free and open source</tspan>
+    </text>
+
+    <!-- Feature Pills -->
+    <g id="og-feature-pills" transform="translate(82, 466)">
+      <g>
+        <rect x="0" y="0" width="194" height="40" rx="20" fill="#1E293B" stroke="#334155" stroke-width="1.5"/>
+        <circle cx="20" cy="20" r="4.5" fill="#A78BFA"/>
+        <text x="34" y="25" font-family="'Inter', 'Segoe UI', system-ui, sans-serif" font-size="14" font-weight="600" fill="#E2E8F0">Address &amp; Shipping</text>
+      </g>
+      <g transform="translate(208, 0)">
+        <rect x="0" y="0" width="158" height="40" rx="20" fill="#1E293B" stroke="#334155" stroke-width="1.5"/>
+        <circle cx="20" cy="20" r="4.5" fill="#818CF8"/>
+        <text x="34" y="25" font-family="'Inter', 'Segoe UI', system-ui, sans-serif" font-size="14" font-weight="600" fill="#E2E8F0">Barcodes &amp; QR</text>
+      </g>
+      <g transform="translate(380, 0)">
+        <rect x="0" y="0" width="168" height="40" rx="20" fill="#1E293B" stroke="#334155" stroke-width="1.5"/>
+        <circle cx="20" cy="20" r="4.5" fill="#60A5FA"/>
+        <text x="34" y="25" font-family="'Inter', 'Segoe UI', system-ui, sans-serif" font-size="14" font-weight="600" fill="#E2E8F0">Thermal &amp; Sheet</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Right Geometric Label-Sheet Preview Illustration -->
+  <g id="layer-label-preview" transform="translate(760, 108)">
+    <!-- Subtle Backing Sheet Frame with Registration Crop Marks -->
+    <g stroke="#475569" stroke-width="1.5" stroke-linecap="round" opacity="0.7">
+      <path d="M -14 0 H -4 M 0 -14 V -4"/>
+      <path d="M 364 0 H 374 M 360 -14 V -4"/>
+      <path d="M -14 414 H -4 M 0 418 V 428"/>
+      <path d="M 364 414 H 374 M 360 418 V 428"/>
+    </g>
+
+    <!-- Back Stacked Label (subtle depth cue) -->
+    <rect
+      x="22"
+      y="22"
+      width="336"
+      height="390"
+      rx="24"
+      fill="#1E293B"
+      stroke="#334155"
+      stroke-width="1.5"
+    />
+
+    <!-- Foreground Die-Cut Shipping / Thermal Label Card with Peeling Corner -->
+    <g filter="url(#card-shadow)">
+      <path
+        d="M 24 0 H 320 A 24 24 0 0 1 344 24 V 322 L 266 400 H 24 A 24 24 0 0 1 0 376 V 24 A 24 24 0 0 1 24 0 Z"
+        fill="#F8FAFC"
+      />
+
+      <!-- Top Gradient Header Strip -->
+      <path
+        d="M 24 0 H 320 A 24 24 0 0 1 344 24 V 66 H 0 V 24 A 24 24 0 0 1 24 0 Z"
+        fill="url(#glabels-brand-gradient)"
+      />
+      <rect x="24" y="24" width="112" height="10" rx="5" fill="#FFFFFF" fill-opacity="0.92"/>
+      <rect x="24" y="42" width="68" height="7" rx="3.5" fill="#EDE9FE" fill-opacity="0.8"/>
+      <path d="M 304 20 C 305.5 29 309 32.5 318 34 C 309 35.5 305.5 39 304 48 C 302.5 39 299 35.5 290 34 C 299 32.5 302.5 29 304 20 Z" fill="#FFFFFF"/>
+
+      <!-- Address & Metadata Layout Blocks -->
+      <rect x="24" y="92" width="180" height="14" rx="5" fill="#0F172A"/>
+      <rect x="24" y="116" width="248" height="10" rx="5" fill="#64748B"/>
+      <rect x="24" y="136" width="204" height="10" rx="5" fill="#94A3B8"/>
+
+      <!-- Divider -->
+      <line x1="24" y1="170" x2="320" y2="170" stroke="#E2E8F0" stroke-width="2" stroke-dasharray="6 6"/>
+
+      <!-- Mini Grid / Template Spec Tiles -->
+      <rect x="24" y="190" width="136" height="46" rx="10" fill="#EDE9FE"/>
+      <rect x="38" y="203" width="64" height="8" rx="4" fill="#7C3AED"/>
+      <rect x="38" y="218" width="96" height="7" rx="3.5" fill="#4F46E5" fill-opacity="0.55"/>
+
+      <rect x="174" y="190" width="146" height="46" rx="10" fill="#DBEAFE"/>
+      <rect x="188" y="203" width="76" height="8" rx="4" fill="#2563EB"/>
+      <rect x="188" y="218" width="104" height="7" rx="3.5" fill="#2563EB" fill-opacity="0.55"/>
+
+      <!-- Crisp Vector Barcode Strip -->
+      <g fill="#0F172A" transform="translate(24, 260)">
+        <rect x="0"   y="0" width="9"  height="92" rx="2.5"/>
+        <rect x="14"  y="0" width="4"  height="92" rx="1.5"/>
+        <rect x="23"  y="0" width="11" height="92" rx="2.5"/>
+        <rect x="39"  y="0" width="5"  height="92" rx="1.5"/>
+        <rect x="49"  y="0" width="4"  height="92" rx="1.5"/>
+        <rect x="59"  y="0" width="12" height="92" rx="2.5"/>
+        <rect x="76"  y="0" width="5"  height="92" rx="1.5"/>
+        <rect x="86"  y="0" width="9"  height="92" rx="2.5"/>
+        <rect x="100" y="0" width="4"  height="92" rx="1.5"/>
+        <rect x="110" y="0" width="11" height="92" rx="2.5"/>
+        <rect x="126" y="0" width="4"  height="92" rx="1.5"/>
+        <rect x="135" y="0" width="8"  height="92" rx="2.5"/>
+        <rect x="148" y="0" width="5"  height="92" rx="1.5"/>
+        <rect x="158" y="0" width="12" height="92" rx="2.5"/>
+        <rect x="175" y="0" width="4"  height="92" rx="1.5"/>
+        <rect x="184" y="0" width="9"  height="92" rx="2.5"/>
+        <rect x="198" y="0" width="6"  height="92" rx="2"/>
+        <rect x="209" y="0" width="10" height="92" rx="2.5"/>
+      </g>
+
+      <!-- Subtle Numeric Caption Under Barcode -->
+      <rect x="24" y="366" width="132" height="7" rx="3.5" fill="#94A3B8"/>
+
+      <!-- Matching Peeling Corner Flap on Foreground Label Card -->
+      <path
+        d="M 266 400 H 254 V 340 A 28 28 0 0 1 282 312 H 344 V 322 Z"
+        fill="#312E81"
+        fill-opacity="0.12"
+      />
+      <path
+        d="M 266 400 V 344 A 22 22 0 0 1 288 322 H 344 Z"
+        fill="url(#glabels-flap-gradient)"
+      />
+    </g>
+  </g>
+</svg>

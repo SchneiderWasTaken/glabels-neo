@@ -1,0 +1,164 @@
+/**
+ * gLabels Neo — Design Tokens
+ * A modernized fork of gLabels
+ *
+ * Canonical brand gradient, neutral scale, semantic status colors,
+ * light/dark surface & text tokens, typography, and corner radii.
+ */
+
+:root {
+  /* ========================================================================
+   * Brand & Gradient Stops
+   * ======================================================================== */
+  --gn-brand-violet: #7C3AED;
+  --gn-brand-indigo: #4F46E5;
+  --gn-brand-blue: #2563EB;
+
+  /* Luminous accents for dark surfaces (WCAG AA/AAA on #090D1A and #0F172A) */
+  --gn-brand-violet-light: #A78BFA;
+  --gn-brand-indigo-light: #818CF8;
+  --gn-brand-blue-light: #60A5FA;
+
+  /* Soft tints (peeled corner highlight & subtle brand surfaces) */
+  --gn-brand-tint-violet: #EDE9FE;
+  --gn-brand-tint-blue: #DBEAFE;
+
+  /* Canonical Gradients */
+  --gn-gradient-brand: linear-gradient(135deg, #7C3AED 0%, #4F46E5 50%, #2563EB 100%);
+  --gn-gradient-brand-light: linear-gradient(135deg, #A78BFA 0%, #818CF8 50%, #60A5FA 100%);
+  --gn-gradient-flap: linear-gradient(135deg, #EDE9FE 0%, #DBEAFE 100%);
+
+  /* ========================================================================
+   * Neutral Scale (Cool Slate)
+   * ======================================================================== */
+  --gn-neutral-0: #FFFFFF;
+  --gn-neutral-50: #F8FAFC;
+  --gn-neutral-100: #F1F5F9;
+  --gn-neutral-200: #E2E8F0;
+  --gn-neutral-300: #CBD5E1;
+  --gn-neutral-400: #94A3B8;
+  --gn-neutral-500: #64748B;
+  --gn-neutral-600: #475569;
+  --gn-neutral-700: #334155;
+  --gn-neutral-800: #1E293B;
+  --gn-neutral-900: #0F172A;
+  --gn-neutral-950: #090D1A;
+
+  /* ========================================================================
+   * Semantic Status Colors
+   * ======================================================================== */
+  --gn-success: #059669;
+  --gn-success-text-light: #047857;
+  --gn-success-text-dark: #34D399;
+  --gn-success-surface-light: #ECFDF5;
+  --gn-success-surface-dark: #064E3B;
+
+  --gn-warning: #D97706;
+  --gn-warning-text-light: #B45309;
+  --gn-warning-text-dark: #FBBF24;
+  --gn-warning-surface-light: #FFFBEB;
+  --gn-warning-surface-dark: #78350F;
+
+  --gn-danger: #DC2626;
+  --gn-danger-text-light: #B91C1C;
+  --gn-danger-text-dark: #F87171;
+  --gn-danger-surface-light: #FEF2F2;
+  --gn-danger-surface-dark: #7F1D1D;
+
+  /* ========================================================================
+   * Typography & Geometry
+   * ======================================================================== */
+  --gn-font-sans: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --gn-font-mono: 'JetBrains Mono', 'Cascadia Code', ui-monospace, monospace;
+
+  --gn-radius-xs: 4px;
+  --gn-radius-sm: 6px;
+  --gn-radius-md: 10px;
+  --gn-radius-lg: 14px;
+  --gn-radius-xl: 20px;
+  --gn-radius-pill: 9999px;
+
+  /* ========================================================================
+   * Semantic Surface, Border & Text Tokens — Light Theme (Default)
+   * ======================================================================== */
+  --gn-surface-canvas: var(--gn-neutral-0);
+  --gn-surface-subtle: var(--gn-neutral-50);
+  --gn-surface-muted: var(--gn-neutral-100);
+  --gn-surface-elevated: var(--gn-neutral-0);
+  --gn-surface-inverse: var(--gn-neutral-950);
+
+  --gn-border-subtle: var(--gn-neutral-200);
+  --gn-border-default: var(--gn-neutral-300);
+  --gn-border-strong: var(--gn-neutral-400);
+
+  --gn-text-primary: var(--gn-neutral-900);
+  --gn-text-secondary: var(--gn-neutral-600);
+  --gn-text-muted: var(--gn-neutral-500);
+  --gn-text-inverse: var(--gn-neutral-50);
+  --gn-text-on-brand: var(--gn-neutral-0);
+  --gn-text-accent: var(--gn-brand-indigo);
+
+  --gn-status-success-text: var(--gn-success-text-light);
+  --gn-status-success-surface: var(--gn-success-surface-light);
+  --gn-status-warning-text: var(--gn-warning-text-light);
+  --gn-status-warning-surface: var(--gn-warning-surface-light);
+  --gn-status-danger-text: var(--gn-danger-text-light);
+  --gn-status-danger-surface: var(--gn-danger-surface-light);
+}
+
+/* ==========================================================================
+ * Dark Theme — Explicit attribute or OS preference
+ * ========================================================================== */
+[data-theme="dark"] {
+  --gn-surface-canvas: var(--gn-neutral-950);
+  --gn-surface-subtle: var(--gn-neutral-900);
+  --gn-surface-muted: var(--gn-neutral-800);
+  --gn-surface-elevated: var(--gn-neutral-900);
+  --gn-surface-inverse: var(--gn-neutral-50);
+
+  --gn-border-subtle: var(--gn-neutral-800);
+  --gn-border-default: var(--gn-neutral-700);
+  --gn-border-strong: var(--gn-neutral-600);
+
+  --gn-text-primary: var(--gn-neutral-50);
+  --gn-text-secondary: var(--gn-neutral-300);
+  --gn-text-muted: var(--gn-neutral-400);
+  --gn-text-inverse: var(--gn-neutral-900);
+  --gn-text-on-brand: var(--gn-neutral-0);
+  --gn-text-accent: var(--gn-brand-violet-light);
+
+  --gn-status-success-text: var(--gn-success-text-dark);
+  --gn-status-success-surface: var(--gn-success-surface-dark);
+  --gn-status-warning-text: var(--gn-warning-text-dark);
+  --gn-status-warning-surface: var(--gn-warning-surface-dark);
+  --gn-status-danger-text: var(--gn-danger-text-dark);
+  --gn-status-danger-surface: var(--gn-danger-surface-dark);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --gn-surface-canvas: var(--gn-neutral-950);
+    --gn-surface-subtle: var(--gn-neutral-900);
+    --gn-surface-muted: var(--gn-neutral-800);
+    --gn-surface-elevated: var(--gn-neutral-900);
+    --gn-surface-inverse: var(--gn-neutral-50);
+
+    --gn-border-subtle: var(--gn-neutral-800);
+    --gn-border-default: var(--gn-neutral-700);
+    --gn-border-strong: var(--gn-neutral-600);
+
+    --gn-text-primary: var(--gn-neutral-50);
+    --gn-text-secondary: var(--gn-neutral-300);
+    --gn-text-muted: var(--gn-neutral-400);
+    --gn-text-inverse: var(--gn-neutral-900);
+    --gn-text-on-brand: var(--gn-neutral-0);
+    --gn-text-accent: var(--gn-brand-violet-light);
+
+    --gn-status-success-text: var(--gn-success-text-dark);
+    --gn-status-success-surface: var(--gn-success-surface-dark);
+    --gn-status-warning-text: var(--gn-warning-text-dark);
+    --gn-status-warning-surface: var(--gn-warning-surface-dark);
+    --gn-status-danger-text: var(--gn-danger-text-dark);
+    --gn-status-danger-surface: var(--gn-danger-surface-dark);
+  }
+}

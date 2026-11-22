@@ -21,10 +21,16 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      - name: Run actionlint
+      - name: Run actionlint (checksum-verified release binary)
         run: |
-          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/914e7df21a07ef503a81201c76d2b11c789d3fca/scripts/download-actionlint.bash) 1.7.12
+          set -euo pipefail
+          curl -fsSL --retry 3 -o actionlint.tar.gz \
+            https://github.com/rhysd/actionlint/releases/download/v1.7.12/actionlint_1.7.12_linux_amd64.tar.gz
+          echo "8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8  actionlint.tar.gz" | sha256sum -c -
+          tar xzf actionlint.tar.gz actionlint
           ./actionlint -color
 
   shellcheck:
@@ -34,6 +40,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Run shellcheck
         run: shellcheck -S warning scripts/*.sh
@@ -45,6 +53,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Check
         run: bash scripts/check-license-headers.sh
@@ -55,12 +65,11 @@ jobs:
     needs: [actionlint, shellcheck, license-headers]
     if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Verify all lint jobs passed
         env:
           NEEDS: ${{ toJSON(needs) }}
         run: |
           echo "$NEEDS"
-          echo "$NEEDS" | grep -q '"result": "failure"' && exit 1
-          echo "$NEEDS" | grep -q '"result": "cancelled"' && exit 1
-          exit 0
+          jq -e 'all(.[]; .result == "success")' <<< "$NEEDS"

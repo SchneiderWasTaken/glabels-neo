@@ -172,10 +172,10 @@ that bundled notices always match the shipped binaries:
    - **macOS (`Homebrew`):** Copy `$(brew --prefix <pkg>)/LICENSE*` or `COPYING*` for every dylib copied into `Contents/Frameworks/` → `glabels-qt.app/Contents/Resources/licenses/` and `glabels-fill.app/Contents/Resources/licenses/` (plus top-level `LICENSE` & `THIRD-PARTY-NOTICES.md` in the DMG root).
    - **Linux (`apt` + source `zint`):** Copy `/usr/share/doc/<pkg>/copyright` for any copied distro `.so` (e.g., `libqrencode4`), `zint-2.15.0-src/backend/LICENSE` → `licenses/libzint-BSD-3-Clause.txt`, and place everything under `share/doc/glabels-neo/licenses/` (with top-level `LICENSE` and `THIRD-PARTY-NOTICES.md` in the tarball/AppDir root).
 3. **Artifact install paths:**
-   - **Windows `.zip` / NSIS:** `<root>/LICENSE`, `<root>/THIRD-PARTY-NOTICES.md`, `<root>/licenses/...`
-   - **macOS `.dmg`:** `<DMG root>/LICENSE`, `<DMG root>/THIRD-PARTY-NOTICES.md`, and inside both `glabels-qt.app/Contents/Resources/licenses/` and `glabels-fill.app/Contents/Resources/licenses/`
-   - **Linux `.tar.gz` / AppImage:** `<root>/LICENSE`, `<root>/THIRD-PARTY-NOTICES.md`, `<root>/share/doc/glabels-neo/licenses/...`
-   - **Windows `glabels-fill-sfx.exe`:** Embedded Qt resource `:/licenses/...` viewable in-app + extracted alongside runtime or documented in release notes.
+   - **Windows `.zip`:** `<root>/LICENSE`, `<root>/THIRD-PARTY-NOTICES.md`, `<root>/CREDITS.md`, `<root>/licenses/...`
+   - **macOS `.dmg`:** the same files at the DMG root. (They are not placed inside the `.app` bundles, because adding files after code signing would invalidate the signature.)
+   - **Linux `.tar.gz`:** the same files in the top-level `glabels-neo/` directory.
+   - **Windows `glabels-fill-sfx.exe`:** not yet covered; tracked in `docs/plans/mvp-1-cicd.md`.
 
 ---
 

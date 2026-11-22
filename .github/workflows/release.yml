@@ -5,8 +5,9 @@
 #  - pull request touching packaging -> dry run: everything except publishing
 #
 # Every package is smoke-tested after it is built: it is unpacked into a clean
-# location and run with a stripped environment, so a missing library or license
-# file fails the pipeline instead of reaching users.
+# location and run with the build machine's Qt environment stripped, so a
+# missing library, plugin, translation or license file fails the pipeline
+# instead of reaching users.
 
 name: Release
 
@@ -14,10 +15,18 @@ on:
   push:
     branches: [main]
     tags: ['v*']
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
-      - 'brand/**'
+    # Everything that can change a package; documentation-only changes do not rebuild.
+    # (Path filters do not apply to tag pushes: tags always build.)
+    paths:
+      - '**'
+      - '!docs/**'
+      - '!brand/**'
+      - '!README.md'
+      - '!SECURITY.md'
+      - '!.github/ISSUE_TEMPLATE/**'
+      - '!.github/PULL_REQUEST_TEMPLATE.md'
+      - '!.github/CODEOWNERS'
+      - '!.github/dependabot.yml'
   pull_request:
     paths:
       - '.github/workflows/release.yml'
@@ -27,12 +36,19 @@ on:
       - 'cmake/**'
       - 'CMakeLists.txt'
       - 'glabels/CMakeLists.txt'
+      - 'glabels-batch/CMakeLists.txt'
       - 'glabels-fill/**'
+      - 'LICENSE'
+      - 'CREDITS.md'
+      - 'THIRD-PARTY-NOTICES.md'
+      - 'glbarcode/LICENSE'
+      - 'templates/LICENSE'
   workflow_dispatch:
 
+# Publishing runs are queued, never cancelled mid-publish; only superseded PR dry runs are cancelled.
 concurrency:
-  group: release-${{ github.ref }}
-  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+  group: release-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -42,6 +58,7 @@ jobs:
   channel:
     name: Resolve release channel
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     outputs:
       channel: ${{ steps.resolve.outputs.channel }}
     steps:
@@ -66,6 +83,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up build environment
         uses: ./.github/actions/setup-build
@@ -102,22 +120,35 @@ jobs:
             test -f "$f" || { echo "missing from package: $f"; exit 1; }
           done
 
-          # Every binary must resolve all of its libraries from the bundle or the base system.
+          # Strip the Qt environment that install-qt-action exported to the job, so that only
+          # the bundle (and the base system) can satisfy dependencies - like on a user's machine.
+          unset LD_LIBRARY_PATH QT_PLUGIN_PATH QT_ROOT_DIR QML2_IMPORT_PATH QT_QPA_PLATFORM_PLUGIN_PATH
+
+          # Binaries and bundled libraries must resolve every dependency.
           missing=0
           while IFS= read -r -d '' bin; do
-            if file "$bin" | grep -q 'ELF'; then
-              if env LD_LIBRARY_PATH="$PWD/lib" ldd "$bin" 2>/dev/null | grep -q 'not found'; then
+            if [[ "$(file -b "$bin")" == *ELF* ]]; then
+              ldd_out="$(LD_LIBRARY_PATH="$PWD/lib" ldd "$bin" 2>/dev/null || true)"
+              if grep 'not found' <<< "$ldd_out" >/dev/null; then
                 echo "unresolved libraries in $bin:"
-                env LD_LIBRARY_PATH="$PWD/lib" ldd "$bin" | grep 'not found'
+                grep 'not found' <<< "$ldd_out"
                 missing=1
               fi
             fi
           done < <(find bin lib -type f -print0)
           test "$missing" -eq 0
 
+          # Plugins: report only (a plugin may need a system library the runner lacks).
+          while IFS= read -r -d '' plugin; do
+            ldd_out="$(LD_LIBRARY_PATH="$PWD/lib" ldd "$plugin" 2>/dev/null || true)"
+            if grep 'not found' <<< "$ldd_out" >/dev/null; then
+              echo "::warning::plugin ${plugin#./} has unresolved dependencies: $(grep 'not found' <<< "$ldd_out" | tr -d '\t' | tr '\n' ' ')"
+            fi
+          done < <(find plugins -type f -name '*.so' -print0)
+
           export QT_QPA_PLATFORM=offscreen
           ./glabels-batch-qt --Version | tee version.txt
-          grep -q 'GLABELS NEO' version.txt
+          grep 'GLABELS NEO' version.txt >/dev/null
 
           ./glabels-batch-qt -o "$PWD/out.pdf" "$GITHUB_WORKSPACE/test-data/simple-shapes.glabels"
           test "$(head -c 4 out.pdf)" = "%PDF"
@@ -136,6 +167,8 @@ jobs:
           name: pkg-linux
           path: glabels-neo-linux-x86_64.tar.gz
           if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
 
   # ------------------------------------------------------------------ Windows
   windows:
@@ -147,6 +180,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up build environment
         uses: ./.github/actions/setup-build
@@ -155,7 +189,7 @@ jobs:
         run: >
           cmake -B build
           -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_TOOLCHAIN_FILE=${{ env.TOOLCHAIN_FILE }}
+          "-DCMAKE_TOOLCHAIN_FILE=${{ env.TOOLCHAIN_FILE }}"
 
       - name: Build
         run: cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
@@ -166,7 +200,9 @@ jobs:
           QT_ASSUME_STDERR_HAS_CONSOLE: 1
         run: |
           ./glabels-batch/Release/glabels-batch-qt --Version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ctest --build-config Release --output-on-failure
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Package zip
         shell: pwsh
@@ -180,13 +216,16 @@ jobs:
           if (Test-Path $dir) { Remove-Item -Recurse -Force $dir }
           Expand-Archive glabels-neo-windows-x64.zip -DestinationPath $dir
 
-          foreach ($f in 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'CREDITS.md', 'licenses\GPL-3.0.txt', 'licenses\LGPL-3.0.txt', 'licenses\templates-MIT.txt') {
+          foreach ($f in 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'CREDITS.md', 'licenses\GPL-3.0.txt', 'licenses\LGPL-3.0.txt', 'licenses\templates-MIT.txt', 'bin\translations\glabels_de.qm') {
             if (-not (Test-Path (Join-Path $dir $f))) { throw "missing from package: $f" }
           }
 
-          # Strip PATH so DLLs cannot be found anywhere but next to the executable
-          # (this is what a user's machine looks like).
+          # Strip PATH and the Qt environment exported by install-qt-action, so DLLs and plugins can
+          # only come from the package itself (this is what a user's machine looks like).
           $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+          foreach ($v in 'QT_PLUGIN_PATH', 'QT_ROOT_DIR', 'QML2_IMPORT_PATH', 'QT_QPA_PLATFORM_PLUGIN_PATH') {
+            Remove-Item "Env:$v" -ErrorAction SilentlyContinue
+          }
           $exe = Join-Path $dir 'bin\glabels-batch-qt.exe'
 
           $out = & $exe --Version
@@ -207,6 +246,8 @@ jobs:
           name: pkg-windows
           path: glabels-neo-windows-x64.zip
           if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
 
   # -------------------------------------------------------------------- macOS
   macos:
@@ -218,6 +259,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up build environment
         uses: ./.github/actions/setup-build
@@ -258,10 +300,13 @@ jobs:
           bad=0
           for app in glabels-qt.app glabels-fill.app; do
             codesign --verify --deep --strict "$mnt/$app"
-            # Bundled binaries must not reference libraries on the build machine.
+            # Bundled binaries must not reference libraries on the build machine. Only dependency
+            # lines (tab-indented) are inspected: universal binaries print one header line per
+            # architecture, and those start with this machine's path.
             while IFS= read -r -d '' f; do
-              if file "$f" | grep -q 'Mach-O'; then
-                if otool -L "$f" | tail -n +2 | awk '{print $1}' | grep -E '^(/opt/homebrew|/usr/local|/Users/|/Applications/Xcode)'; then
+              if [[ "$(file -b "$f")" == *Mach-O* ]]; then
+                deps="$(otool -L "$f" | awk '/^\t/ {print $1}')"
+                if grep -E '^(/opt/homebrew|/usr/local|/Users/|/Applications/Xcode)' <<< "$deps"; then
                   echo "build-machine path referenced from $f"
                   bad=1
                 fi
@@ -270,8 +315,10 @@ jobs:
           done
           test "$bad" -eq 0
 
-          QT_QPA_PLATFORM=offscreen "$mnt/glabels-qt.app/Contents/MacOS/glabels-qt" --Version | tee version.txt
-          grep -q 'GLABELS NEO' version.txt
+          # Strip the Qt environment exported by install-qt-action, so only the bundle can satisfy it.
+          env -u QT_PLUGIN_PATH -u QT_ROOT_DIR -u QML2_IMPORT_PATH -u DYLD_LIBRARY_PATH -u DYLD_FRAMEWORK_PATH \
+            "$mnt/glabels-qt.app/Contents/MacOS/glabels-qt" --Version | tee version.txt
+          grep 'GLABELS NEO' version.txt >/dev/null
 
       - name: Upload package
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -279,6 +326,8 @@ jobs:
           name: pkg-macos
           path: glabels-neo-macos-arm64.dmg
           if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
 
   # ------------------------------------------------------------------ publish
   publish:
@@ -288,7 +337,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
-      contents: write        # create the release and tag
+      contents: write        # create the release and move the edge tag
       id-token: write        # build provenance attestation
       attestations: write
     env:
@@ -297,6 +346,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
       - name: Download packages
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -330,19 +381,32 @@ jobs:
             tag="$GITHUB_REF_NAME"
             : > notes.md
           fi
-          sed -e "s|@TAG@|${tag}|g" -e "s|@REPO_URL@|${repo_url}|g" \
+          sed -e "s|@TAG@|${tag}|g" -e "s|@REPO_URL@|${repo_url}|g" -e "s|@REPO@|${GITHUB_REPOSITORY}|g" \
             .github/release-notes/footer.md >> notes.md
           cat notes.md
 
+      # The edge release is updated in place (tag moved, assets replaced) rather than deleted and
+      # recreated: deleting a release and its tag is asynchronous on GitHub's side and races with
+      # the re-creation.
       - name: Publish edge release
         if: env.CHANNEL == 'edge'
         run: |
-          gh release delete edge --cleanup-tag --yes || true
-          gh release create edge dist/* \
-            --prerelease \
-            --target "$GITHUB_SHA" \
-            --title "Edge build (${GITHUB_SHA::7})" \
-            --notes-file notes.md
+          set -euo pipefail
+          if gh release view edge >/dev/null 2>&1; then
+            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/git/refs/tags/edge" \
+              -f sha="$GITHUB_SHA" -F force=true >/dev/null
+            gh release edit edge \
+              --prerelease \
+              --title "Edge build (${GITHUB_SHA::7})" \
+              --notes-file notes.md
+            gh release upload edge dist/* --clobber
+          else
+            gh release create edge dist/* \
+              --prerelease \
+              --target "$GITHUB_SHA" \
+              --title "Edge build (${GITHUB_SHA::7})" \
+              --notes-file notes.md
+          fi
 
       - name: Publish stable release
         if: env.CHANNEL == 'stable'

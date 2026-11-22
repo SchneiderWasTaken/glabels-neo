@@ -23,6 +23,7 @@
 
 #include "AppearanceModel.hpp"
 
+#include "model/Branding.hpp"
 #include "model/Version.hpp"
 
 #include <QDebug>
@@ -68,10 +69,23 @@ namespace glabels
                             "MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the "
                             "GNU General Public License for more details." );
 
+                QString productName = "<b>" + model::Branding::DISPLAY_NAME.toHtmlEscaped() + "</b>";
+
+                // Attribution is shown wherever the product name is shown.  It is deliberately NOT
+                // passed through tr(): it names the upstream project and must not be rewritten.
+                QString attribution =
+                        model::Branding::ATTRIBUTION.toHtmlEscaped() +
+                        " &mdash; <a href='" + model::Branding::UPSTREAM_URL + "'>" +
+                        model::Branding::UPSTREAM_URL.toHtmlEscaped() + "</a>";
+
+                QString forkCopyright = "Copyright &copy; 2026 gLabels Neo contributors";
+
                 QString markup =
+                        "<p align='center'>" + productName + "</p>" +
                         "<p align='center'>" + version + "</p>" +
                         "<p align='center'>" + description + "</p>" +
-                        "<p align='center'>" + copyright + "</p>" +
+                        "<p align='center'>" + copyright + "<br/>" + forkCopyright + "</p>" +
+                        "<p align='center'>" + attribution + "</p>" +
                         "<p align='left'>"   + licenseParagraph1 + "</p>" +
                         "<p align='left'>"   + licenseParagraph2 + "</p>";
 

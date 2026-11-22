@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <component type="desktop-application">
   <id>org.glabels.glabels-qt</id>
-  <developer id="io.github.j-evins">
-    <name>Jaye Evins</name>
+  <developer id="io.github.SchneiderWasTaken">
+    <name>gLabels Neo contributors</name>
   </developer>
   <launchable type="desktop-id">org.glabels.glabels-qt.desktop</launchable>
   <metadata_license>CC0-1.0</metadata_license>
   <project_license>GPL-3.0+</project_license>
-  <name>gLabels</name>
+  <name>gLabels Neo</name>
   <summary>Create labels and business cards</summary>
   <summary xml:lang="de">Entwurf von Etiketten und Visitenkarten</summary>
   <summary xml:lang="es">Crear etiquetas y tarjetas de visita</summary>
@@ -18,6 +18,8 @@
   <summary xml:lang="pt_BR">Crie etiquetas e cartões de visita</summary>
   <summary xml:lang="uk">Створюйте етикетки та візитки</summary>
   <description>
+    <p>gLabels Neo is a modernized fork of gLabels by Jaye Evins and contributors, with ready-to-run
+    builds for Windows, macOS and Linux, thermal printer (ZPL) support and batch-fill features.</p>
     <p>gLabels is a program for creating labels, business cards and media covers.
     It is designed to work with various laser/ink-jet peel-off label and business
     card sheets that you'll find at most office supply stores.</p>
@@ -39,10 +41,10 @@
     <keyword>barcode</keyword>
     <keyword translate="no">qt</keyword>
   </keywords>
-  <url type="homepage">https://glabels.org/</url>
-  <url type="bugtracker">https://github.com/j-evins/glabels-qt/issues</url>
-  <url type="vcs-browser">https://github.com/j-evins/glabels-qt</url>
-  <update_contact>evins_at_snaught.com</update_contact>
+  <url type="homepage">https://github.com/SchneiderWasTaken/glabels-neo</url>
+  <url type="bugtracker">https://github.com/SchneiderWasTaken/glabels-neo/issues</url>
+  <url type="vcs-browser">https://github.com/SchneiderWasTaken/glabels-neo</url>
+  <update_contact>SchneiderWasTaken_at_users.noreply.github.com</update_contact>
   <content_rating type="oars-1.1" />
   <branding>
     <color type="primary" scheme_preference="light">#bbdb69</color>

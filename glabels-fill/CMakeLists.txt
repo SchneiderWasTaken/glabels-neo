@@ -58,7 +58,7 @@ if (APPLE)
    set_target_properties (glabels-fill PROPERTIES
       MACOSX_BUNDLE TRUE
       MACOSX_BUNDLE_BUNDLE_NAME "gLabels Fill"
-      MACOSX_BUNDLE_GUI_IDENTIFIER "org.glabels.glabels-fill"
+      MACOSX_BUNDLE_GUI_IDENTIFIER "io.github.schneiderwastaken.glabels-neo.fill"
       MACOSX_BUNDLE_BUNDLE_VERSION "${VERSION_STRING}"
       MACOSX_BUNDLE_SHORT_VERSION_STRING "${VERSION_STRING}"
       MACOSX_BUNDLE_ICON_FILE "glabels.icns"

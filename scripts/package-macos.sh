@@ -28,7 +28,7 @@ xattr -cr "$STAGE/dmg" 2>/dev/null || true
 
 rm -f "$OUT_DMG"
 hdiutil create \
-   -volname "gLabels" \
+   -volname "gLabels Neo" \
    -srcfolder "$STAGE/dmg" \
    -ov \
    -format UDZO \

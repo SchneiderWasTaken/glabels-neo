@@ -203,13 +203,13 @@ if (APPLE)
    set_source_files_properties (icons/glabels.icns PROPERTIES MACOSX_PACKAGE_LOCATION Resources)
    set_target_properties (glabels-qt PROPERTIES
       MACOSX_BUNDLE TRUE
-      MACOSX_BUNDLE_BUNDLE_NAME "gLabels"
-      MACOSX_BUNDLE_GUI_IDENTIFIER "org.glabels.glabels-qt"
+      MACOSX_BUNDLE_BUNDLE_NAME "gLabels Neo"
+      MACOSX_BUNDLE_GUI_IDENTIFIER "io.github.schneiderwastaken.glabels-neo"
       MACOSX_BUNDLE_BUNDLE_VERSION "${VERSION_STRING}"
       MACOSX_BUNDLE_SHORT_VERSION_STRING "${VERSION_STRING}"
       MACOSX_BUNDLE_ICON_FILE "glabels.icns"
-      MACOSX_BUNDLE_INFO_STRING "gLabels Label Designer"
-      MACOSX_BUNDLE_COPYRIGHT "GPLv3"
+      MACOSX_BUNDLE_INFO_STRING "gLabels Neo - a modernized fork of gLabels"
+      MACOSX_BUNDLE_COPYRIGHT "GPL-3.0-or-later. Based on gLabels, Copyright Jaye Evins and contributors."
       INSTALL_RPATH "@executable_path/../Frameworks"
    )
 endif ()

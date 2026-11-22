@@ -20,7 +20,7 @@ set (APPLICATION_NAME "glabels-qt")
 set (DESKTOP_FILE_NAME "org.glabels.glabels-qt")
 
 set (WEBSITE  "glabels.org")
-set (BUG_WEBSITE  "https://github.com/j-evins/glabels-qt/issues")
+set (BUG_WEBSITE  "https://github.com/SchneiderWasTaken/glabels-neo/issues")
 
 execute_process(
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
@@ -102,14 +102,14 @@ set (CPACK_PACKAGE_VERSION_MINOR ${PROJECT_VERSION_MINOR})
 set (CPACK_PACKAGE_VERSION_PATCH ${PROJECT_VERSION_PATCH})
 set (CPACK_PACKAGE_VERSION_TWEAK ${COMMIT_HASH})
 
-set (CPACK_PACKAGE_DESCRIPTION_SUMMARY "gLabels Label Designer")
+set (CPACK_PACKAGE_DESCRIPTION_SUMMARY "gLabels Neo - label, card and barcode designer (a modernized fork of gLabels)")
 set (CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
 
-set (CPACK_PACKAGE_EXECUTABLES "glabels-qt;gLabels")
+set (CPACK_PACKAGE_EXECUTABLES "glabels-qt;gLabels Neo")
 set (CPACK_CREATE_DESKTOP_LINKS "glabels-qt")
 
-set (CPACK_NSIS_DISPLAY_NAME "gLabels")
-set (CPACK_NSIS_URL_INFO_ABOUT "http://${WEBSITE}")
+set (CPACK_NSIS_DISPLAY_NAME "gLabels Neo")
+set (CPACK_NSIS_URL_INFO_ABOUT "https://github.com/SchneiderWasTaken/glabels-neo")
 set (CPACK_NSIS_MUI_ICON "${CMAKE_CURRENT_SOURCE_DIR}/glabels/windows-icon/glabels.ico")
 set (CPACK_NSIS_MODIFY_PATH "ON")
 

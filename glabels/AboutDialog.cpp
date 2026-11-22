@@ -78,7 +78,7 @@ namespace glabels
                         " &mdash; <a href='" + model::Branding::UPSTREAM_URL + "'>" +
                         model::Branding::UPSTREAM_URL.toHtmlEscaped() + "</a>";
 
-                QString forkCopyright = "Copyright &copy; 2026 gLabels Neo contributors";
+                QString forkCopyright = "Copyright &copy; 2026 gLabels Neo contributors. This is a modified version of gLabels (see docs/CHANGES-FROM-UPSTREAM.md).";
 
                 QString markup =
                         "<p align='center'>" + productName + "</p>" +

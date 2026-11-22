@@ -6,7 +6,7 @@
   </developer>
   <launchable type="desktop-id">org.glabels.glabels-qt.desktop</launchable>
   <metadata_license>CC0-1.0</metadata_license>
-  <project_license>GPL-3.0+</project_license>
+  <project_license>GPL-3.0-or-later</project_license>
   <name>gLabels Neo</name>
   <summary>Create labels and business cards</summary>
   <summary xml:lang="de">Entwurf von Etiketten und Visitenkarten</summary>

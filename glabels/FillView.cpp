@@ -1,6 +1,7 @@
 //  FillView.cpp
 //
 //  Copyright (C) 2014-2026  Jaye Evins <evins@snaught.com>
+//  Copyright (C) 2026       gLabels Neo contributors
 //
 //  This file is part of gLabels-qt.
 //

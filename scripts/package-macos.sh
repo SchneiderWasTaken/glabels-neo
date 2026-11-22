@@ -28,11 +28,25 @@ bash "$(dirname "$0")/stage-licenses.sh" "$STAGE/dmg" "$BUILD_DIR"
 xattr -cr "$STAGE/dmg" 2>/dev/null || true
 
 rm -f "$OUT_DMG"
-hdiutil create \
+
+# hdiutil intermittently fails with "Resource busy" on CI runners (a race with the macOS
+# disk services), so retry a few times before giving up.
+attempt=1
+until hdiutil create \
    -volname "gLabels Neo" \
    -srcfolder "$STAGE/dmg" \
    -ov \
    -format UDZO \
    "$OUT_DMG"
+do
+   if [ "$attempt" -ge 5 ]; then
+      echo "hdiutil create failed after $attempt attempts" >&2
+      exit 1
+   fi
+   echo "hdiutil create failed (attempt $attempt); retrying..." >&2
+   attempt=$((attempt + 1))
+   sleep $((attempt * 5))
+   rm -f "$OUT_DMG"
+done
 
 echo "Packaged: $OUT_DMG"

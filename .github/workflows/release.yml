@@ -154,6 +154,22 @@ jobs:
           test "$(head -c 4 out.pdf)" = "%PDF"
           test "$(stat -c %s out.pdf)" -gt 1000
 
+      - name: Report system libraries missing on a bare Ubuntu 22.04 (informational)
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v "$PWD/smoke/glabels-neo:/app:ro" \
+            -v "$PWD/scripts/report-missing-libs.sh:/report.sh:ro" \
+            ubuntu:22.04 bash /report.sh | tee missing-libs.txt
+          {
+            echo '### System libraries a user must provide (bare Ubuntu 22.04)'
+            echo 'Count = number of bundled files that need the library.'
+            echo '```'
+            cat missing-libs.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Run in a bare Ubuntu container (informational)
         continue-on-error: true
         run: |

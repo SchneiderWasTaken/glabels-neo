@@ -34,6 +34,7 @@
 #include "StartupView.hpp"
 #include "VariablesView.hpp"
 
+#include "model/Branding.hpp"
 #include "model/Db.hpp"
 #include "model/Model.hpp"
 
@@ -1092,17 +1093,17 @@ namespace glabels
         {
                 if ( !mModel )
                 {
-                        setWindowTitle( "gLabels" );
+                        setWindowTitle( model::Branding::DISPLAY_NAME );
                 }
                 else
                 {
                         if ( mModel->isModified() )
                         {
-                                setWindowTitle( "gLabels - " + mModel->shortName() + " " + tr("(modified)") );
+                                setWindowTitle( model::Branding::DISPLAY_NAME + " - " + mModel->shortName() + " " + tr("(modified)") );
                         }
                         else
                         {
-                                setWindowTitle( "gLabels - " + mModel->shortName()  );
+                                setWindowTitle( model::Branding::DISPLAY_NAME + " - " + mModel->shortName() );
                         }
                 }
         }

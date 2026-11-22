@@ -22,7 +22,9 @@
 #include "MainWindow.hpp"
 
 #include "AppearanceModel.hpp"
+#include "BrandTranslator.hpp"
 
+#include "model/Branding.hpp"
 #include "model/Db.hpp"
 #include "model/FileUtil.hpp"
 #include "model/Model.hpp"
@@ -61,30 +63,29 @@ int main( int argc, char **argv )
         QString qtTranslationsDir = QLibraryInfo::path( QLibraryInfo::TranslationsPath );
         QString myTranslationsDir = glabels::model::FileUtil::translationsDir().canonicalPath();
 
+        // The catalogs are loaded here but not installed individually: BrandTranslator wraps them
+        // and rewrites the product token "gLabels" to "gLabels Neo" in every language, so that
+        // existing translations do not have to change.  Lookup order matches Qt's (last installed
+        // wins): templates, glabels, qt.
         QTranslator qtTranslator;
-        if ( qtTranslator.load( locale, "qt", "_", qtTranslationsDir ) )
-        {
-                app.installTranslator(&qtTranslator);
-        }
+        qtTranslator.load( locale, "qt", "_", qtTranslationsDir );
 
         QTranslator glabelsTranslator;
-        if ( glabelsTranslator.load( locale, "glabels", "_", myTranslationsDir ) )
-        {
-                app.installTranslator(&glabelsTranslator);
-        }
+        glabelsTranslator.load( locale, "glabels", "_", myTranslationsDir );
 
         QTranslator templatesTranslator;
-        if ( templatesTranslator.load( locale, "templates", "_", myTranslationsDir ) )
-        {
-                app.installTranslator(&templatesTranslator);
-        }
+        templatesTranslator.load( locale, "templates", "_", myTranslationsDir );
+
+        glabels::BrandTranslator brandTranslator( { &templatesTranslator, &glabelsTranslator, &qtTranslator } );
+        app.installTranslator( &brandTranslator );
 
 
         //
         // Parse command line
         //
         QCommandLineParser parser;
-        parser.setApplicationDescription( QCoreApplication::translate( "main", "gLabels Label Designer" ) );
+        parser.setApplicationDescription( glabels::model::Branding::DISPLAY_NAME + " - " +
+                                          glabels::model::Branding::ATTRIBUTION_SHORT );
         parser.addHelpOption();
         parser.addVersionOption();
         parser.addOption( { { "V", "Version" }, QCoreApplication::translate( "main", "More detailed version information." ) } );

@@ -492,7 +492,7 @@ namespace glabels
                 }
 
                 DOC_INFO_1A docInfo = {};
-                docInfo.pDocName = const_cast<char*>("gLabels ZPL");
+                docInfo.pDocName = const_cast<char*>("gLabels Neo ZPL");
                 docInfo.pDatatype = const_cast<char*>("RAW");
 
                 if ( !StartDocPrinterA(hPrinter, 1, reinterpret_cast<BYTE*>(&docInfo)) )

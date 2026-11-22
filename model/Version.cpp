@@ -21,6 +21,8 @@
 
 #include "Version.hpp"
 
+#include "Branding.hpp"
+
 #include <QGuiApplication>
 #include <QLibraryInfo>
 #include <QLocale>
@@ -36,8 +38,9 @@ namespace glabels::model
                 QString s;
                 QTextStream ts( &s );
 
-                ts << "> GLABELS" << "\n"
+                ts << "> " << Branding::DISPLAY_NAME.toUpper() << "\n"
                    << ">     Version: " << STRING << "\n"
+                   << ">     " << Branding::ATTRIBUTION << "\n"
                    << "> " << "\n"
 
                    << "> SYSTEM INFO" << "\n"

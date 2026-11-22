@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 148" role="img" aria-labelledby="logo-s-title logo-s-desc">
+  <title id="logo-s-title">gLabels Neo Logo (Stacked)</title>
+  <desc id="logo-s-desc">Stacked vertical lockup featuring the gLabels Neo gradient label mark centered above the wordmark gLabels Neo.</desc>
+
+  <defs>
+    <!-- Canonical gLabels Neo Brand Gradient (135 deg) -->
+    <linearGradient id="glabels-brand-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7C3AED"/>
+      <stop offset="50%" stop-color="#4F46E5"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+
+    <!-- Peeled Corner Underside Highlight -->
+    <linearGradient id="glabels-flap-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EDE9FE"/>
+      <stop offset="100%" stop-color="#DBEAFE"/>
+    </linearGradient>
+
+    <!-- Consistent User-Space Gradient for "Neo" Accent Text -->
+    <linearGradient id="glabels-wordmark-gradient" gradientUnits="userSpaceOnUse" x1="176" y1="100" x2="250" y2="132">
+      <stop offset="0%" stop-color="#7C3AED"/>
+      <stop offset="50%" stop-color="#4F46E5"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Centered Brand Mark (1.25x scale -> 80x80 nominal) -->
+  <g id="layer-mark" transform="translate(100, 10) scale(1.25)">
+    <path
+      d="M 14 8 H 50 A 10 10 0 0 1 60 18 V 38 L 42 56 H 14 A 10 10 0 0 1 4 46 V 18 A 10 10 0 0 1 14 8 Z"
+      fill="url(#glabels-brand-gradient)"
+    />
+    <g fill="#FFFFFF">
+      <rect x="12" y="18" width="5.5" height="28" rx="2"/>
+      <rect x="20.5" y="18" width="2.8" height="28" rx="1.4"/>
+      <rect x="26.3" y="18" width="5" height="28" rx="2"/>
+      <rect x="34.3" y="18" width="2.8" height="28" rx="1.4"/>
+      <path d="M 47.5 17.8 C 48.1 21.8 49.7 23.4 53.7 24 C 49.7 24.6 48.1 26.2 47.5 30.2 C 46.9 26.2 45.3 24.6 41.3 24 C 45.3 23.4 46.9 21.8 47.5 17.8 Z"/>
+    </g>
+    <path d="M 42 56 H 39.5 V 44 A 8.5 8.5 0 0 1 48 35.5 H 60 V 38 Z" fill="#1E1B4B" fill-opacity="0.22"/>
+    <path d="M 42 56 V 45 A 7 7 0 0 1 49 38 H 60 Z" fill="url(#glabels-flap-gradient)"/>
+  </g>
+
+  <!-- Centered Wordmark -->
+  <g id="layer-wordmark">
+    <text
+      x="140"
+      y="128"
+      text-anchor="middle"
+      font-family="'Inter', 'Segoe UI', system-ui, sans-serif"
+      font-size="36"
+      font-weight="700"
+      letter-spacing="-0.025em"
+      fill="#0F172A"
+    >gLabels <tspan fill="url(#glabels-wordmark-gradient)">Neo</tspan></text>
+  </g>
+</svg>

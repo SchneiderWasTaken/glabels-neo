@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="mark-mono-dark-title mark-mono-dark-desc">
+  <title id="mark-mono-dark-title">gLabels Neo Mark (Monochrome Dark)</title>
+  <desc id="mark-mono-dark-desc">Single-color dark slate mark of a rounded adhesive label with negative-space barcode bars, Neo spark, and separated peeling corner.</desc>
+
+  <!-- Single-color dark fill (#0F172A) for light backgrounds; true negative-space cutouts -->
+  <g id="layer-mark-mono-dark" fill="#0F172A">
+    <!-- Notched label body with barcode bars and Neo spark punched out via evenodd -->
+    <path
+      id="label-body-cutout"
+      fill-rule="evenodd"
+      d="M 14 8 H 50 A 10 10 0 0 1 60 18 V 35.4 H 49 A 9.6 9.6 0 0 0 39.4 45 V 56 H 14 A 10 10 0 0 1 4 46 V 18 A 10 10 0 0 1 14 8 Z
+         M 14 18 H 15.5 A 2 2 0 0 1 17.5 20 V 44 A 2 2 0 0 1 15.5 46 H 14 A 2 2 0 0 1 12 44 V 20 A 2 2 0 0 1 14 18 Z
+         M 21.9 18 A 1.4 1.4 0 0 1 23.3 19.4 V 44.6 A 1.4 1.4 0 0 1 21.9 46 A 1.4 1.4 0 0 1 20.5 44.6 V 19.4 A 1.4 1.4 0 0 1 21.9 18 Z
+         M 28.3 18 H 29.3 A 2 2 0 0 1 31.3 20 V 44 A 2 2 0 0 1 29.3 46 H 28.3 A 2 2 0 0 1 26.3 44 V 20 A 2 2 0 0 1 28.3 18 Z
+         M 35.7 18 A 1.4 1.4 0 0 1 37.1 19.4 V 44.6 A 1.4 1.4 0 0 1 35.7 46 A 1.4 1.4 0 0 1 34.3 44.6 V 19.4 A 1.4 1.4 0 0 1 35.7 18 Z
+         M 47.5 17.8 C 48.1 21.8 49.7 23.4 53.7 24 C 49.7 24.6 48.1 26.2 47.5 30.2 C 46.9 26.2 45.3 24.6 41.3 24 C 45.3 23.4 46.9 21.8 47.5 17.8 Z"
+    />
+
+    <!-- Detached peeled sticker corner separated by concentric 2.6-unit channel -->
+    <path
+      id="peel-flap"
+      d="M 42 56 V 45 A 7 7 0 0 1 49 38 H 60 Z"
+    />
+  </g>
+</svg>

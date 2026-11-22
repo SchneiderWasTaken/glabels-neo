@@ -1,0 +1,116 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" role="img" aria-labelledby="app-icon-title app-icon-desc">
+  <title id="app-icon-title">gLabels Neo App Icon (Master 1024x1024)</title>
+  <desc id="app-icon-desc">Master desktop application icon with a purple-to-blue gradient rounded-square plate respecting OS safe-area margins and a crisp white peeling barcode label mark centered inside.</desc>
+
+  <defs>
+    <!-- Canonical gLabels Neo Brand Gradient (135 deg) -->
+    <linearGradient id="glabels-brand-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7C3AED"/>
+      <stop offset="50%" stop-color="#4F46E5"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+
+    <!-- User-Space Brand Gradient shared coherently across inner barcode bars & Neo spark -->
+    <linearGradient id="glabels-mark-ink-gradient" gradientUnits="userSpaceOnUse" x1="280" y1="320" x2="760" y2="700">
+      <stop offset="0%" stop-color="#7C3AED"/>
+      <stop offset="50%" stop-color="#4F46E5"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+
+    <!-- Peeled Corner Tint Gradient on White Label -->
+    <linearGradient id="glabels-flap-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#DDD6FE"/>
+      <stop offset="100%" stop-color="#BFDBFE"/>
+    </linearGradient>
+
+    <!-- Subtle Top Gloss Highlight on Icon Plate -->
+    <linearGradient id="glabels-plate-sheen" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.22"/>
+      <stop offset="45%" stop-color="#FFFFFF" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#090D1A" stop-opacity="0.16"/>
+    </linearGradient>
+
+    <!-- Ambient Plate Shadow (contained within 96px safe-area margin) -->
+    <filter id="plate-shadow" x="-10%" y="-8%" width="120%" height="122%">
+      <feDropShadow dx="0" dy="22" stdDeviation="24" flood-color="#1E1B4B" flood-opacity="0.28"/>
+    </filter>
+
+    <!-- Tactile Label Elevation Shadow over Plate -->
+    <filter id="label-shadow" x="-10%" y="-10%" width="120%" height="126%">
+      <feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#1E1B4B" flood-opacity="0.24"/>
+    </filter>
+  </defs>
+
+  <!-- Rounded-Square Icon Plate (832x832 centered in 1024x1024 -> 96px OS safe area) -->
+  <g id="layer-icon-plate">
+    <rect
+      id="plate-base"
+      x="96"
+      y="96"
+      width="832"
+      height="832"
+      rx="192"
+      fill="url(#glabels-brand-gradient)"
+      filter="url(#plate-shadow)"
+    />
+    <rect
+      id="plate-sheen"
+      x="96"
+      y="96"
+      width="832"
+      height="832"
+      rx="192"
+      fill="url(#glabels-plate-sheen)"
+    />
+    <rect
+      id="plate-rim"
+      x="98"
+      y="98"
+      width="828"
+      height="828"
+      rx="190"
+      fill="none"
+      stroke="#FFFFFF"
+      stroke-opacity="0.2"
+      stroke-width="4"
+    />
+  </g>
+
+  <!-- Centered White Die-Cut Label Mark (560x480, scaled 10x from 64x64 master grid) -->
+  <g id="layer-label-mark">
+    <!-- White Label Body -->
+    <path
+      id="label-body"
+      d="M 332 272 H 692 A 100 100 0 0 1 792 372 V 572 L 612 752 H 332 A 100 100 0 0 1 232 652 V 372 A 100 100 0 0 1 332 272 Z"
+      fill="#FFFFFF"
+      filter="url(#label-shadow)"
+    />
+
+    <!-- Barcode Bars & Four-Point Neo Spark in Brand Gradient -->
+    <g id="layer-label-graphics" fill="url(#glabels-mark-ink-gradient)">
+      <rect id="barcode-bar-1" x="312" y="372" width="55" height="280" rx="20"/>
+      <rect id="barcode-bar-2" x="397" y="372" width="28" height="280" rx="14"/>
+      <rect id="barcode-bar-3" x="455" y="372" width="50" height="280" rx="20"/>
+      <rect id="barcode-bar-4" x="535" y="372" width="28" height="280" rx="14"/>
+      <path
+        id="neo-spark"
+        d="M 667 370 C 673 410 689 426 729 432 C 689 438 673 454 667 494 C 661 454 645 438 605 432 C 645 426 661 410 667 370 Z"
+      />
+    </g>
+
+    <!-- Peeling Corner Flap with Soft Crease Shadow -->
+    <g id="layer-peel-corner">
+      <path
+        id="peel-shadow"
+        d="M 612 752 H 584 V 632 A 88 88 0 0 1 672 544 H 792 V 572 Z"
+        fill="#312E81"
+        fill-opacity="0.14"
+      />
+      <path
+        id="peel-flap"
+        d="M 612 752 V 642 A 70 70 0 0 1 682 572 H 792 Z"
+        fill="url(#glabels-flap-gradient)"
+      />
+    </g>
+  </g>
+</svg>

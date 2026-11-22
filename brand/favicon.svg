@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-labelledby="favicon-title favicon-desc">
+  <title id="favicon-title">gLabels Neo Favicon</title>
+  <desc id="favicon-desc">Adaptive 16px-ready favicon with purple-to-blue gradient rounded-square plate, crisp white peeling barcode label, and dark-mode luminance boost via prefers-color-scheme.</desc>
+
+  <style>
+    .stop-start { stop-color: #7C3AED; }
+    .stop-mid   { stop-color: #4F46E5; }
+    .stop-end   { stop-color: #2563EB; }
+    .plate-rim  { stroke: none; }
+
+    @media (prefers-color-scheme: dark) {
+      .stop-start { stop-color: #8B5CF6; }
+      .stop-mid   { stop-color: #6366F1; }
+      .stop-end   { stop-color: #3B82F6; }
+      .plate-rim  { stroke: #C4B5FD; stroke-opacity: 0.35; }
+    }
+  </style>
+
+  <defs>
+    <!-- Adaptive Canonical Brand Gradient -->
+    <linearGradient id="glabels-brand-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" class="stop-start"/>
+      <stop offset="50%" class="stop-mid"/>
+      <stop offset="100%" class="stop-end"/>
+    </linearGradient>
+
+    <!-- Peeled Corner Tint -->
+    <linearGradient id="glabels-flap-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#C4B5FD"/>
+      <stop offset="100%" stop-color="#93C5FD"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Rounded-Square Plate -->
+  <g id="layer-plate">
+    <rect x="1" y="1" width="30" height="30" rx="7" fill="url(#glabels-brand-gradient)"/>
+    <rect x="1.5" y="1.5" width="29" height="29" rx="6.5" fill="none" stroke-width="1" class="plate-rim"/>
+  </g>
+
+  <!-- Pixel-Snapped Simplified Label Mark -->
+  <g id="layer-label-mark">
+    <path
+      id="label-body"
+      d="M 8.5 6.5 H 23.5 A 3.5 3.5 0 0 1 27 10 V 18.5 L 20 25.5 H 8.5 A 3.5 3.5 0 0 1 5 22 V 10 A 3.5 3.5 0 0 1 8.5 6.5 Z"
+      fill="#FFFFFF"
+    />
+
+    <!-- Three Crisp Barcode Bars + Neo Spark -->
+    <g id="layer-label-graphics" fill="url(#glabels-brand-gradient)">
+      <rect x="8" y="10.5" width="3" height="11" rx="1"/>
+      <rect x="12.5" y="10.5" width="1.8" height="11" rx="0.8"/>
+      <rect x="15.8" y="10.5" width="2.8" height="11" rx="1"/>
+      <path d="M 22.3 10.2 C 22.55 11.8 23.2 12.45 24.8 12.7 C 23.2 12.95 22.55 13.6 22.3 15.2 C 22.05 13.6 21.4 12.95 19.8 12.7 C 21.4 12.45 22.05 11.8 22.3 10.2 Z"/>
+    </g>
+
+    <!-- Peeled Corner Flap -->
+    <path
+      id="peel-flap"
+      d="M 20 25.5 V 21 A 2.5 2.5 0 0 1 22.5 18.5 H 27 Z"
+      fill="url(#glabels-flap-gradient)"
+    />
+  </g>
+</svg>

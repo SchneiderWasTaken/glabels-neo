@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="mark-title mark-desc">
+  <title id="mark-title">gLabels Neo Mark</title>
+  <desc id="mark-desc">A rounded purple-to-blue gradient adhesive label with a peeling bottom-right corner, white barcode bars, and a four-point Neo spark.</desc>
+
+  <defs>
+    <!-- Canonical gLabels Neo Brand Gradient (135 deg) -->
+    <linearGradient id="glabels-brand-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#7C3AED"/>
+      <stop offset="50%" stop-color="#4F46E5"/>
+      <stop offset="100%" stop-color="#2563EB"/>
+    </linearGradient>
+
+    <!-- Peeled Corner Underside Highlight -->
+    <linearGradient id="glabels-flap-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#EDE9FE"/>
+      <stop offset="100%" stop-color="#DBEAFE"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Main die-cut label silhouette with bottom-right diagonal peel cut -->
+  <g id="layer-label-body">
+    <path
+      id="label-body"
+      d="M 14 8 H 50 A 10 10 0 0 1 60 18 V 38 L 42 56 H 14 A 10 10 0 0 1 4 46 V 18 A 10 10 0 0 1 14 8 Z"
+      fill="url(#glabels-brand-gradient)"
+    />
+  </g>
+
+  <!-- Barcode rhythm and Neo spark graphic -->
+  <g id="layer-label-graphics" fill="#FFFFFF">
+    <!-- Four-bar geometric barcode motif -->
+    <rect id="barcode-bar-1" x="12" y="18" width="5.5" height="28" rx="2"/>
+    <rect id="barcode-bar-2" x="20.5" y="18" width="2.8" height="28" rx="1.4"/>
+    <rect id="barcode-bar-3" x="26.3" y="18" width="5" height="28" rx="2"/>
+    <rect id="barcode-bar-4" x="34.3" y="18" width="2.8" height="28" rx="1.4"/>
+
+    <!-- Four-point Neo spark -->
+    <path
+      id="neo-spark"
+      d="M 47.5 17.8 C 48.1 21.8 49.7 23.4 53.7 24 C 49.7 24.6 48.1 26.2 47.5 30.2 C 46.9 26.2 45.3 24.6 41.3 24 C 45.3 23.4 46.9 21.8 47.5 17.8 Z"
+    />
+  </g>
+
+  <!-- Peeling sticker corner with subtle fold shadow -->
+  <g id="layer-peel-corner">
+    <path
+      id="peel-shadow"
+      d="M 42 56 H 39.5 V 44 A 8.5 8.5 0 0 1 48 35.5 H 60 V 38 Z"
+      fill="#1E1B4B"
+      fill-opacity="0.22"
+    />
+    <path
+      id="peel-flap"
+      d="M 42 56 V 45 A 7 7 0 0 1 49 38 H 60 Z"
+      fill="url(#glabels-flap-gradient)"
+    />
+  </g>
+</svg>

@@ -1,0 +1,29 @@
+name: Label template request
+description: Request or submit a label product template
+title: "[Template]: "
+labels: ["template"]
+body:
+  - type: input
+    id: product
+    attributes:
+      label: Brand and part number
+      placeholder: Avery 5160
+    validations:
+      required: true
+  - type: textarea
+    id: layout
+    attributes:
+      label: Layout
+      description: Page size, label size, rows x columns, margins and gaps (with units).
+    validations:
+      required: true
+  - type: input
+    id: spec
+    attributes:
+      label: Link to manufacturer specification
+  - type: textarea
+    id: xml
+    attributes:
+      label: Template XML (optional)
+      description: If you already created a template with the Template Designer, paste or attach it.
+      render: xml

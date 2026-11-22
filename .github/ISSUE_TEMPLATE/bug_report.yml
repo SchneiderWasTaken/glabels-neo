@@ -1,0 +1,68 @@
+name: Bug report
+description: Something is broken or behaves unexpectedly
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! If the problem also happens in the original gLabels, it may be better reported
+        [upstream](https://github.com/j-evins/glabels-qt/issues).
+  - type: input
+    id: version
+    attributes:
+      label: gLabels Neo version
+      description: Help > About, or the release you downloaded (e.g. v1.3.0 or edge).
+    validations:
+      required: true
+  - type: input
+    id: os
+    attributes:
+      label: Operating system and version
+      placeholder: Windows 11 23H2 / macOS 15 / Ubuntu 24.04
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How did you install it?
+      options:
+        - Windows zip / installer
+        - macOS dmg
+        - Linux AppImage
+        - Linux tar.gz
+        - Flatpak
+        - Built from source
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Open ...
+        2. Click ...
+    validations:
+      required: true
+  - type: textarea
+    id: printer
+    attributes:
+      label: Printer, driver and label stock (if printing is involved)
+  - type: textarea
+    id: attachments
+    attributes:
+      label: Attachments
+      description: Attach a .glabels file, screenshots, or logs. Drag and drop works here.

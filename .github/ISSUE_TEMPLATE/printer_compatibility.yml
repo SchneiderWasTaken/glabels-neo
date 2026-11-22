@@ -1,0 +1,40 @@
+name: Printer compatibility
+description: Report a printer that works, partly works, or does not work
+title: "[Printer]: "
+labels: ["printer"]
+body:
+  - type: input
+    id: printer
+    attributes:
+      label: Printer make and model
+    validations:
+      required: true
+  - type: dropdown
+    id: connection
+    attributes:
+      label: Connection
+      options: [USB, Network, Bluetooth, Other]
+    validations:
+      required: true
+  - type: dropdown
+    id: mode
+    attributes:
+      label: Printing mode
+      options: [OS print driver (CUPS / Windows), Raw ZPL, Not sure]
+    validations:
+      required: true
+  - type: input
+    id: driver
+    attributes:
+      label: Driver and operating system
+  - type: input
+    id: stock
+    attributes:
+      label: Label stock
+      placeholder: Dymo 11354 / Zebra 4x6 thermal / ...
+  - type: textarea
+    id: result
+    attributes:
+      label: What works and what does not
+    validations:
+      required: true

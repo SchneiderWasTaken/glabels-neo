@@ -21,6 +21,7 @@ mkdir -p "$STAGE/dmg"
 cp -R "$STAGE/app/glabels-qt.app" "$STAGE/dmg/"
 cp -R "$STAGE/app/glabels-fill.app" "$STAGE/dmg/"
 ln -s /Applications "$STAGE/dmg/Applications"
+"$(dirname "$0")/stage-licenses.sh" "$STAGE/dmg" "$BUILD_DIR"
 
 # Applications symlink carries quarantine-ish provenance; drop xattrs from
 # everything so codesign artifacts stay valid.

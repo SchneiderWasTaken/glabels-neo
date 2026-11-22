@@ -1,0 +1,5 @@
+# Keep shell scripts and workflows LF on every platform (CRLF breaks bash and shellcheck).
+*.sh   text eol=lf
+*.bash text eol=lf
+*.yml  text eol=lf
+*.yaml text eol=lf

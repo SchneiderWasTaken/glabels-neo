@@ -15,6 +15,12 @@ $stage = Join-Path $env:RUNNER_TEMP "glabels-stage"
 if (Test-Path $stage) { Remove-Item -Recurse -Force $stage }
 
 cmake --install $BuildDir --prefix $stage
+if ($LASTEXITCODE -ne 0) { throw "cmake --install failed" }
+
+# License and notice files (GPLv3 / LGPLv3 / MIT / third-party)
+$stageUnix = $stage -replace "\\", "/"
+bash scripts/stage-licenses.sh $stageUnix $BuildDir
+if ($LASTEXITCODE -ne 0) { throw "stage-licenses.sh failed" }
 
 Compress-Archive -Path "$stage/*" -DestinationPath $OutZip -Force
 Write-Host "Packaged: $OutZip"

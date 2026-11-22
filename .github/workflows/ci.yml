@@ -1,0 +1,130 @@
+# Pull-request gate: build and test on every supported platform.
+#
+# Distributable artifacts are built, smoke-tested and published by release.yml
+# (on merges to main and on version tags).  Static checks live in lint.yml.
+#
+# Qt >= 6.7 is required because QXlsx (fetched automatically when no system
+# package is found) links Qt6::GuiPrivate, which find_package only exposes
+# from Qt 6.7 on.
+
+name: CI
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and test (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Linux gcc
+            os: ubuntu-latest
+            c_compiler: gcc
+            cpp_compiler: g++
+          - name: Linux clang
+            os: ubuntu-latest
+            c_compiler: clang
+            cpp_compiler: clang++
+          - name: Windows MSVC
+            os: windows-2022
+            c_compiler: cl
+            cpp_compiler: cl
+          - name: macOS arm64
+            os: macos-latest
+            c_compiler: clang
+            cpp_compiler: clang++
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full depth for git-based version numbering
+          fetch-depth: 0
+
+      - name: Set up build environment
+        uses: ./.github/actions/setup-build
+        with:
+          gnu-barcode: 'true'
+          cache-key: ${{ matrix.name }}
+
+      - name: Configure (Linux, macOS)
+        if: runner.os != 'Windows'
+        run: >
+          cmake -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_C_COMPILER=${{ matrix.c_compiler }}
+          -DCMAKE_CXX_COMPILER=${{ matrix.cpp_compiler }}
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+
+      - name: Configure (Windows)
+        if: runner.os == 'Windows'
+        run: >
+          cmake -B build
+          -DCMAKE_BUILD_TYPE=Release
+          -DCMAKE_TOOLCHAIN_FILE=${{ env.TOOLCHAIN_FILE }}
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Test (Linux)
+        if: runner.os == 'Linux'
+        working-directory: build
+        run: |
+          xvfb-run -a ./glabels/glabels-qt --Version
+          xvfb-run -a ctest --build-config Release --output-on-failure
+
+      - name: Test (Windows)
+        if: runner.os == 'Windows'
+        working-directory: build
+        env:
+          QT_ASSUME_STDERR_HAS_CONSOLE: 1
+        run: |
+          ./glabels-batch/Release/glabels-batch-qt --Version
+          ctest --build-config Release --output-on-failure
+
+      - name: Test (macOS)
+        if: runner.os == 'macOS'
+        working-directory: build
+        run: |
+          ./glabels/glabels-qt.app/Contents/MacOS/glabels-qt --Version
+          ctest --build-config Release --output-on-failure
+
+      - name: Upload test logs on failure
+        if: failure()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: build-logs-${{ matrix.name }}
+          path: |
+            build/CMakeCache.txt
+            build/CMakeFiles/CMakeError.log
+            build/CMakeFiles/CMakeOutput.log
+            build/Testing/Temporary/LastTest.log
+          if-no-files-found: ignore
+
+  # Single, stable status for branch protection: require "CI OK".
+  ci-ok:
+    name: CI OK
+    needs: build
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all build legs passed
+        env:
+          RESULT: ${{ needs.build.result }}
+        run: |
+          echo "build result: $RESULT"
+          test "$RESULT" = "success"

@@ -25,8 +25,8 @@ with no manual steps.
 | Linux x86_64 | AppImage (with update info), `.tar.gz`, Flatpak bundle, `.deb` |
 | All | `SHA256SUMS`, SBOM (SPDX/CycloneDX), build provenance attestations, `THIRD-PARTY-NOTICES`, license folder, source tarball |
 
-Naming: `glabels-neo-<version>-<os>-<arch>.<ext>` (stable) - consistent so that
-"latest" download links and package manifests can be generated.
+Naming: fixed, version-free file names (`glabels-neo-windows-x64.zip`, ...) so that
+`releases/latest/download/<name>` links and package manifests never change; the version lives in the release.
 
 ## Workflows (one concern per file)
 | File | Purpose |
@@ -84,3 +84,28 @@ build (all matrix legs), tests, format, static analysis, CodeQL, license check, 
 - [ ] Each artifact passes the smoke test on a clean runner
 - [ ] A non-developer completes the "user promise" test on Windows, macOS, Linux
 - [ ] Flaky tests quarantined, not ignored; main stays green
+
+## Status
+
+### Wave 1 - pipeline foundation (implemented)
+- `ci.yml`: PR gate on Linux (gcc, clang), Windows (MSVC) and macOS (arm64); Qt and compiler caching;
+  stable aggregate status **CI OK**.
+- `lint.yml`: actionlint, shellcheck and license-header/placeholder checks; aggregate status **Lint OK**.
+- `release.yml`: build, test, package, **smoke-test the packaged files** (unpacked into a clean location,
+  stripped environment, renders a label to PDF), then publish. Merges to `main` publish a rolling `edge`
+  prerelease; `v*` tags publish a stable release. Both ship `SHA256SUMS`, build-provenance attestations and
+  release notes with a "which file do I need?" table and the GPLv3 corresponding-source statement.
+  PRs that touch packaging run it as a dry run (no publishing).
+- Shared composite action `.github/actions/setup-build` so CI and release build against identical inputs.
+- Packages now ship `LICENSE`, `THIRD-PARTY-NOTICES.md`, `CREDITS.md` and a `licenses/` folder.
+- All third-party actions are pinned by commit SHA; Dependabot keeps them current.
+- `.gitattributes` keeps shell scripts and workflows LF on Windows checkouts.
+
+### Next waves
+- **Wave 2 - installers and more platforms:** Windows installer (NSIS) next to the zip, Linux AppImage,
+  Flatpak and `.deb`, macOS Intel/universal; icon pipeline from `brand/app-icon.svg`; kiosk SFX in the release.
+- **Wave 3 - depth:** CodeQL, sanitizer (ASan/UBSan) test job, clang-tidy/cppcheck, clang-format enforcement,
+  SBOM, license-allowlist check of bundled binaries, version pinning of Qt/vcpkg/zint.
+- **Wave 4 - distribution and automation:** release-please (SemVer + changelog from Conventional Commits),
+  winget/Homebrew/Scoop manifests, code signing (SignPath / Apple notarization) once accounts exist,
+  weekly upstream-sync PR, required-status-check ruleset.

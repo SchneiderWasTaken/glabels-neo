@@ -1,111 +1,161 @@
-# Build distributable artifacts for all three platforms.
+# Build, test, package, smoke-test and publish gLabels Neo.
 #
-#  - every push: artifacts are uploaded to the workflow run (downloadable
-#    from the Actions page) so builds are available as we go
-#  - tag pushes (v*): artifacts are attached to a GitHub Release
+#  - push to main          -> rolling "edge" prerelease with the newest build
+#  - push of a v* tag      -> stable release (attached to that tag)
+#  - pull request touching packaging -> dry run: everything except publishing
 #
-name: Release Artifacts
+# Every package is smoke-tested after it is built: it is unpacked into a clean
+# location and run with a stripped environment, so a missing library or license
+# file fails the pipeline instead of reaching users.
+
+name: Release
 
 on:
   push:
-    branches:
-      - master
-    tags:
-      - 'v*'
+    branches: [main]
+    tags: ['v*']
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'brand/**'
+  pull_request:
+    paths:
+      - '.github/workflows/release.yml'
+      - '.github/actions/**'
+      - '.github/release-notes/**'
+      - 'scripts/**'
+      - 'cmake/**'
+      - 'CMakeLists.txt'
+      - 'glabels/CMakeLists.txt'
+      - 'glabels-fill/**'
   workflow_dispatch:
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type != 'tag' }}
+
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  macos:
-    name: macOS (arm64)
-    runs-on: macos-latest
+  # ------------------------------------------------------------------ channel
+  channel:
+    name: Resolve release channel
+    runs-on: ubuntu-latest
+    outputs:
+      channel: ${{ steps.resolve.outputs.channel }}
+    steps:
+      - name: Resolve
+        id: resolve
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            echo "channel=stable" >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            echo "channel=edge" >> "$GITHUB_OUTPUT"
+          else
+            echo "channel=dry-run" >> "$GITHUB_OUTPUT"
+          fi
+
+  # -------------------------------------------------------------------- Linux
+  linux:
+    name: Linux x86_64
+    runs-on: ubuntu-22.04   # oldest supported image: best glibc compatibility
+    timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
-      - name: Install dependencies
-        shell: bash
-        run: |
-          brew install zlib qrencode zint ninja
-
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v4
+      - name: Set up build environment
+        uses: ./.github/actions/setup-build
         with:
-          version: '6.8.*'
-          archives: 'qtbase qtsvg qttools qtdeclarative icu qttranslations'
+          cache-key: release
 
       - name: Configure
         run: >
           cmake -B build -G Ninja
           -DCMAKE_BUILD_TYPE=Release
-          -S ${{ github.workspace }}
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Build
-        run: cmake --build build -j$(sysctl -n hw.ncpu)
+        run: cmake --build build -j"$(nproc)"
 
       - name: Test
         working-directory: build
         run: |
-          ./glabels/glabels-qt.app/Contents/MacOS/glabels-qt --Version
-          ctest --build-config Release
+          xvfb-run -a ./glabels/glabels-qt --Version
+          xvfb-run -a ctest --build-config Release --output-on-failure
 
-      - name: Package DMG
-        run: ./scripts/package-macos.sh build glabels-neo-macos-arm64.dmg
+      - name: Package tarball
+        run: ./scripts/package-linux.sh build glabels-neo-linux-x86_64.tar.gz
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Smoke test (unpack, strict environment, render a label to PDF)
+        run: |
+          set -euo pipefail
+          rm -rf smoke && mkdir smoke
+          tar -xzf glabels-neo-linux-x86_64.tar.gz -C smoke
+          cd smoke/glabels-neo
+
+          for f in LICENSE THIRD-PARTY-NOTICES.md CREDITS.md licenses/GPL-3.0.txt licenses/LGPL-3.0.txt licenses/templates-MIT.txt; do
+            test -f "$f" || { echo "missing from package: $f"; exit 1; }
+          done
+
+          # Every binary must resolve all of its libraries from the bundle or the base system.
+          missing=0
+          while IFS= read -r -d '' bin; do
+            if file "$bin" | grep -q 'ELF'; then
+              if env LD_LIBRARY_PATH="$PWD/lib" ldd "$bin" 2>/dev/null | grep -q 'not found'; then
+                echo "unresolved libraries in $bin:"
+                env LD_LIBRARY_PATH="$PWD/lib" ldd "$bin" | grep 'not found'
+                missing=1
+              fi
+            fi
+          done < <(find bin lib -type f -print0)
+          test "$missing" -eq 0
+
+          export QT_QPA_PLATFORM=offscreen
+          ./glabels-batch-qt --Version | tee version.txt
+          grep -q 'GLABELS NEO' version.txt
+
+          ./glabels-batch-qt -o "$PWD/out.pdf" "$GITHUB_WORKSPACE/test-data/simple-shapes.glabels"
+          test "$(head -c 4 out.pdf)" = "%PDF"
+          test "$(stat -c %s out.pdf)" -gt 1000
+
+      - name: Run in a bare Ubuntu container (informational)
+        continue-on-error: true
+        run: |
+          docker run --rm -e QT_QPA_PLATFORM=offscreen \
+            -v "$PWD/smoke/glabels-neo:/app:ro" ubuntu:22.04 \
+            bash -c 'apt-get update -qq && apt-get install -y -qq libfontconfig1 libfreetype6 libglib2.0-0 libxkbcommon0 libdbus-1-3 >/dev/null && /app/glabels-batch-qt --Version'
+
+      - name: Upload package
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: glabels-neo-macos-arm64.dmg
-          path: glabels-neo-macos-arm64.dmg
+          name: pkg-linux
+          path: glabels-neo-linux-x86_64.tar.gz
           if-no-files-found: error
 
+  # ------------------------------------------------------------------ Windows
   windows:
-    name: Windows (x64)
+    name: Windows x64
     runs-on: windows-2022
+    timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
-      - name: Install dependencies (vcpkg)
-        shell: bash
-        run: |
-          git clone --depth 1 https://github.com/microsoft/vcpkg.git
-
-      - name: Restore vcpkg cache
-        uses: actions/cache@v4
-        with:
-          path: |
-            ${{ github.workspace }}/vcpkg/installed
-            ${{ github.workspace }}/vcpkg/downloads
-          key: vcpkg-${{ runner.os }}-${{ hashFiles('.github/workflows/release.yml') }}
-          restore-keys: |
-            vcpkg-${{ runner.os }}-
-
-      - name: Install dependencies (vcpkg) (cont.)
-        shell: bash
-        run: |
-          ./vcpkg/bootstrap-vcpkg.sh
-          ./vcpkg/vcpkg install pkgconf zlib libqrencode zint
-          echo "TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" >> $GITHUB_ENV
-
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v4
-        with:
-          version: '6.8.*'
-          archives: 'qtbase qtsvg qttools qtdeclarative icu qttranslations'
+      - name: Set up build environment
+        uses: ./.github/actions/setup-build
 
       - name: Configure
         run: >
           cmake -B build
           -DCMAKE_BUILD_TYPE=Release
           -DCMAKE_TOOLCHAIN_FILE=${{ env.TOOLCHAIN_FILE }}
-          -S ${{ github.workspace }}
 
       - name: Build
         run: cmake --build build --config Release -j $env:NUMBER_OF_PROCESSORS
@@ -116,91 +166,189 @@ jobs:
           QT_ASSUME_STDERR_HAS_CONSOLE: 1
         run: |
           ./glabels-batch/Release/glabels-batch-qt --Version
-          ctest --build-config Release
+          ctest --build-config Release --output-on-failure
 
       - name: Package zip
         shell: pwsh
         run: ./scripts/package-windows.ps1 -BuildDir build -OutZip glabels-neo-windows-x64.zip
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Smoke test (unzip, clean PATH, render a label to PDF)
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $dir = Join-Path $env:RUNNER_TEMP 'smoke'
+          if (Test-Path $dir) { Remove-Item -Recurse -Force $dir }
+          Expand-Archive glabels-neo-windows-x64.zip -DestinationPath $dir
+
+          foreach ($f in 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'CREDITS.md', 'licenses\GPL-3.0.txt', 'licenses\LGPL-3.0.txt', 'licenses\templates-MIT.txt') {
+            if (-not (Test-Path (Join-Path $dir $f))) { throw "missing from package: $f" }
+          }
+
+          # Strip PATH so DLLs cannot be found anywhere but next to the executable
+          # (this is what a user's machine looks like).
+          $env:PATH = "$env:SystemRoot\System32;$env:SystemRoot"
+          $exe = Join-Path $dir 'bin\glabels-batch-qt.exe'
+
+          $out = & $exe --Version
+          if ($LASTEXITCODE -ne 0) { throw "--Version exited with $LASTEXITCODE" }
+          $out | ForEach-Object { Write-Host $_ }
+          if (-not (($out -join "`n") -match 'GLABELS NEO')) { throw 'version output lacks the gLabels Neo header' }
+
+          $pdf = Join-Path $dir 'out.pdf'
+          & $exe -o $pdf (Join-Path $env:GITHUB_WORKSPACE 'test-data\simple-shapes.glabels')
+          if ($LASTEXITCODE -ne 0) { throw "render exited with $LASTEXITCODE" }
+          $bytes = [System.IO.File]::ReadAllBytes($pdf)
+          if ($bytes.Length -lt 1000) { throw "PDF too small: $($bytes.Length) bytes" }
+          if ([System.Text.Encoding]::ASCII.GetString($bytes, 0, 4) -ne '%PDF') { throw 'output is not a PDF' }
+
+      - name: Upload package
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: glabels-neo-windows-x64.zip
+          name: pkg-windows
           path: glabels-neo-windows-x64.zip
           if-no-files-found: error
 
-  linux:
-    name: Linux (x86_64)
-    runs-on: ubuntu-22.04
+  # -------------------------------------------------------------------- macOS
+  macos:
+    name: macOS arm64
+    runs-on: macos-latest
+    timeout-minutes: 60
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
-      - name: Install dependencies
-        shell: bash
-        run: |
-          sudo apt-get update
-          sudo apt-get -y install xvfb pkgconf libqrencode-dev file ninja-build
-          # zint from source (apt version too old)
-          wget -q https://downloads.sourceforge.net/project/zint/zint/2.15.0/zint-2.15.0-src.tar.gz
-          tar xzf zint-2.15.0-src.tar.gz
-          cd zint-2.15.0-src && mkdir build && cd build && cmake .. && make -j$(nproc) && sudo make install
-
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v4
+      - name: Set up build environment
+        uses: ./.github/actions/setup-build
         with:
-          version: '6.8.*'
-          install-deps: 'true'
-          archives: 'qtbase qtsvg qttools qtdeclarative icu qttranslations qtwayland'
+          cache-key: release
 
       - name: Configure
         run: >
           cmake -B build -G Ninja
           -DCMAKE_BUILD_TYPE=Release
-          -S ${{ github.workspace }}
+          -DCMAKE_C_COMPILER_LAUNCHER=ccache
+          -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
       - name: Build
-        run: cmake --build build -j$(nproc)
+        run: cmake --build build -j"$(sysctl -n hw.ncpu)"
 
       - name: Test
         working-directory: build
         run: |
-          xvfb-run -a ./glabels/glabels-qt --Version
-          xvfb-run -a ctest --build-config Release
+          ./glabels/glabels-qt.app/Contents/MacOS/glabels-qt --Version
+          ctest --build-config Release --output-on-failure
 
-      - name: Package tarball
-        run: ./scripts/package-linux.sh build glabels-neo-linux-x86_64.tar.gz
+      - name: Package DMG
+        run: ./scripts/package-macos.sh build glabels-neo-macos-arm64.dmg
 
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+      - name: Smoke test (mount DMG, verify signature, no build-machine paths, run)
+        run: |
+          set -euo pipefail
+          mnt="$RUNNER_TEMP/dmg"
+          mkdir -p "$mnt"
+          hdiutil attach -nobrowse -readonly -mountpoint "$mnt" glabels-neo-macos-arm64.dmg
+          trap 'hdiutil detach "$mnt" -force || true' EXIT
+
+          for f in LICENSE THIRD-PARTY-NOTICES.md CREDITS.md licenses/GPL-3.0.txt licenses/LGPL-3.0.txt licenses/templates-MIT.txt; do
+            test -f "$mnt/$f" || { echo "missing from DMG: $f"; exit 1; }
+          done
+
+          bad=0
+          for app in glabels-qt.app glabels-fill.app; do
+            codesign --verify --deep --strict "$mnt/$app"
+            # Bundled binaries must not reference libraries on the build machine.
+            while IFS= read -r -d '' f; do
+              if file "$f" | grep -q 'Mach-O'; then
+                if otool -L "$f" | tail -n +2 | awk '{print $1}' | grep -E '^(/opt/homebrew|/usr/local|/Users/|/Applications/Xcode)'; then
+                  echo "build-machine path referenced from $f"
+                  bad=1
+                fi
+              fi
+            done < <(find "$mnt/$app" -type f -print0)
+          done
+          test "$bad" -eq 0
+
+          QT_QPA_PLATFORM=offscreen "$mnt/glabels-qt.app/Contents/MacOS/glabels-qt" --Version | tee version.txt
+          grep -q 'GLABELS NEO' version.txt
+
+      - name: Upload package
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: glabels-neo-linux-x86_64.tar.gz
-          path: glabels-neo-linux-x86_64.tar.gz
+          name: pkg-macos
+          path: glabels-neo-macos-arm64.dmg
           if-no-files-found: error
 
-  release:
-    name: Attach artifacts to GitHub Release
-    needs: [macos, windows, linux]
-    if: startsWith(github.ref, 'refs/tags/v')
+  # ------------------------------------------------------------------ publish
+  publish:
+    name: Publish (${{ needs.channel.outputs.channel }})
+    needs: [channel, linux, windows, macos]
+    if: needs.channel.outputs.channel != 'dry-run'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write        # create the release and tag
+      id-token: write        # build provenance attestation
+      attestations: write
+    env:
+      CHANNEL: ${{ needs.channel.outputs.channel }}
+      GH_TOKEN: ${{ github.token }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
+      - name: Download packages
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
+          pattern: pkg-*
           merge-multiple: true
           path: dist
 
-      - name: Create release
+      - name: Checksums
         working-directory: dist
-        env:
-          GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "${{ github.ref_name }}" \
-            --title "${{ github.ref_name }}" \
+          ls -l
+          sha256sum glabels-neo-* | tee SHA256SUMS
+
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: 'dist/glabels-neo-*'
+
+      - name: Compose release notes
+        run: |
+          repo_url="https://github.com/${GITHUB_REPOSITORY}"
+          if [ "$CHANNEL" = "edge" ]; then
+            tag="$GITHUB_SHA"   # exact commit: the moving "edge" tag is not a stable reference
+            {
+              echo "**Edge build** of commit \`${GITHUB_SHA::7}\` - the newest build of the \`main\` branch."
+              echo "It passed all tests, but it is not a stable release. For a stable version use the latest release."
+              echo
+            } > notes.md
+          else
+            tag="$GITHUB_REF_NAME"
+            : > notes.md
+          fi
+          sed -e "s|@TAG@|${tag}|g" -e "s|@REPO_URL@|${repo_url}|g" \
+            .github/release-notes/footer.md >> notes.md
+          cat notes.md
+
+      - name: Publish edge release
+        if: env.CHANNEL == 'edge'
+        run: |
+          gh release delete edge --cleanup-tag --yes || true
+          gh release create edge dist/* \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "Edge build (${GITHUB_SHA::7})" \
+            --notes-file notes.md
+
+      - name: Publish stable release
+        if: env.CHANNEL == 'stable'
+        run: |
+          gh release create "$GITHUB_REF_NAME" dist/* \
+            --verify-tag \
+            --title "gLabels Neo ${GITHUB_REF_NAME}" \
             --generate-notes \
-            *
+            --notes-file notes.md

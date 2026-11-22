@@ -1,0 +1,66 @@
+# Fast static checks: workflow syntax, shell scripts, license headers.
+
+name: Lint
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: lint-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    name: Workflows (actionlint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Run actionlint
+        run: |
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/914e7df21a07ef503a81201c76d2b11c789d3fca/scripts/download-actionlint.bash) 1.7.12
+          ./actionlint -color
+
+  shellcheck:
+    name: Shell scripts (shellcheck)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Run shellcheck
+        run: shellcheck -S warning scripts/*.sh
+
+  license-headers:
+    name: License headers and placeholders
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check
+        run: bash scripts/check-license-headers.sh
+
+  # Single, stable status for branch protection: require "Lint OK".
+  lint-ok:
+    name: Lint OK
+    needs: [actionlint, shellcheck, license-headers]
+    if: always()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verify all lint jobs passed
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          echo "$NEEDS"
+          echo "$NEEDS" | grep -q '"result": "failure"' && exit 1
+          echo "$NEEDS" | grep -q '"result": "cancelled"' && exit 1
+          exit 0

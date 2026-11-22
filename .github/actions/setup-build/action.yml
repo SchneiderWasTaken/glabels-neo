@@ -1,0 +1,79 @@
+name: Set up build environment
+description: >
+  Installs the compiler-side dependencies (zint, libqrencode, zlib, ...) and Qt for the current
+  runner OS, with caching, so CI and the release pipeline build against identical inputs.
+
+inputs:
+  qt-version:
+    description: Qt version spec passed to install-qt-action
+    default: '6.8.*'
+  gnu-barcode:
+    description: Install the optional GNU Barcode backend (CI only; release builds do not bundle it)
+    default: 'false'
+  cache-key:
+    description: Extra key component for the compiler cache
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    # ---------------------------------------------------------------- Linux
+    - name: Install dependencies (Linux)
+      if: runner.os == 'Linux'
+      shell: bash
+      env:
+        GNU_BARCODE: ${{ inputs.gnu-barcode }}
+      run: |
+        sudo apt-get update
+        packages="xvfb pkgconf libqrencode-dev file ninja-build ccache"
+        if [ "$GNU_BARCODE" = "true" ]; then packages="$packages barcode"; fi
+        # shellcheck disable=SC2086
+        sudo apt-get -y install $packages
+        # zint from source (the distro package is too old)
+        wget -q https://downloads.sourceforge.net/project/zint/zint/2.15.0/zint-2.15.0-src.tar.gz
+        tar xzf zint-2.15.0-src.tar.gz
+        cd zint-2.15.0-src && mkdir build && cd build && cmake .. && make -j"$(nproc)" && sudo make install
+
+    # --------------------------------------------------------------- Windows
+    - name: Restore vcpkg cache (Windows)
+      if: runner.os == 'Windows'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ${{ github.workspace }}/vcpkg/installed
+          ${{ github.workspace }}/vcpkg/downloads
+        key: vcpkg-${{ runner.os }}-${{ hashFiles('.github/actions/setup-build/action.yml') }}
+        restore-keys: |
+          vcpkg-${{ runner.os }}-
+
+    - name: Install dependencies (Windows)
+      if: runner.os == 'Windows'
+      shell: bash
+      run: |
+        git clone --depth 1 https://github.com/microsoft/vcpkg.git
+        ./vcpkg/bootstrap-vcpkg.sh
+        ./vcpkg/vcpkg install pkgconf zlib libqrencode zint
+        echo "TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" >> "$GITHUB_ENV"
+
+    # ----------------------------------------------------------------- macOS
+    - name: Install dependencies (macOS)
+      if: runner.os == 'macOS'
+      shell: bash
+      run: brew install zlib qrencode zint ninja ccache
+
+    # -------------------------------------------------------------------- Qt
+    - name: Install Qt
+      uses: jurplel/install-qt-action@b344308e4483fc892e0d27b3cd1b173ebdd95f06 # v4.5.0
+      with:
+        version: ${{ inputs.qt-version }}
+        install-deps: 'true'
+        cache: 'true'
+        archives: ${{ runner.os == 'Linux' && 'qtbase qtsvg qttools qtdeclarative icu qttranslations qtwayland' || 'qtbase qtsvg qttools qtdeclarative icu qttranslations' }}
+
+    # ---------------------------------------------------------------- ccache
+    - name: Compiler cache (ccache)
+      if: runner.os != 'Windows'
+      uses: hendrikmuhs/ccache-action@dbeefd73e8e2ffc1bbc412570072735eb4db3607 # v1.2.25
+      with:
+        key: ${{ runner.os }}-${{ inputs.cache-key }}
+        max-size: 500M

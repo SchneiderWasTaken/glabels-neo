@@ -109,3 +109,19 @@ build (all matrix legs), tests, format, static analysis, CodeQL, license check, 
 - **Wave 4 - distribution and automation:** release-please (SemVer + changelog from Conventional Commits),
   winget/Homebrew/Scoop manifests, code signing (SignPath / Apple notarization) once accounts exist,
   weekly upstream-sync PR, required-status-check ruleset.
+
+### Known gaps to close before the first stable release
+Found by the wave 1 review and the license inventory; edge builds ship with these open, stable releases must not.
+- **Third-party license texts:** packages ship the gLabels, glbarcode (LGPL), template (MIT) and QXlsx texts and
+  Qt's `LICENSES/` when present, but not yet those of libzint (BSD-3-Clause), libqrencode (LGPL-2.1+), ICU
+  (Unicode-3.0) and zlib. Collect them per platform from vcpkg / Homebrew / apt and add a CI check that fails
+  when a bundled library has no license file.
+- **`THIRD-PARTY-NOTICES.md` placeholders** (`<QT_VERSION>`, ...) must be filled from a build manifest, and the
+  "being finalized" banner removed.
+- **Windows translations:** fixed in packaging (gLabels' own `.qm` files are copied next to the executable);
+  a code fix in `FileUtil` would be cleaner.
+- **macOS:** `cmake/MacDeployFixup.cmake` may not rewrite every transitive Homebrew dylib; the new smoke test
+  reports any leftover build-machine path. The apps are ad-hoc signed, not notarized.
+- **Linux:** needs a documented system baseline (e.g. `libxcb-cursor0` for Qt 6.5+ on X11) or bundling; the
+  informational bare-container step in `release.yml` reports what is missing.
+- **Kiosk (`glabels-fill`):** no About/legal-notices dialog and no `scripts/build-sfx.ps1` in the repository.

@@ -53,6 +53,7 @@ jobs:
         with:
           # Full depth for git-based version numbering
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up build environment
         uses: ./.github/actions/setup-build
@@ -75,7 +76,7 @@ jobs:
         run: >
           cmake -B build
           -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_TOOLCHAIN_FILE=${{ env.TOOLCHAIN_FILE }}
+          "-DCMAKE_TOOLCHAIN_FILE=${{ env.TOOLCHAIN_FILE }}"
 
       - name: Build
         run: cmake --build build --config Release
@@ -89,12 +90,15 @@ jobs:
 
       - name: Test (Windows)
         if: runner.os == 'Windows'
+        shell: pwsh
         working-directory: build
         env:
           QT_ASSUME_STDERR_HAS_CONSOLE: 1
         run: |
           ./glabels-batch/Release/glabels-batch-qt --Version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ctest --build-config Release --output-on-failure
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Test (macOS)
         if: runner.os == 'macOS'
@@ -107,13 +111,14 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: build-logs-${{ matrix.name }}
+          name: build-logs-${{ strategy.job-index }}
           path: |
             build/CMakeCache.txt
             build/CMakeFiles/CMakeError.log
             build/CMakeFiles/CMakeOutput.log
             build/Testing/Temporary/LastTest.log
           if-no-files-found: ignore
+          retention-days: 7
 
   # Single, stable status for branch protection: require "CI OK".
   ci-ok:
@@ -121,6 +126,7 @@ jobs:
     needs: build
     if: always()
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Verify all build legs passed
         env:

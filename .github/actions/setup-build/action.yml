@@ -24,17 +24,32 @@ runs:
       env:
         GNU_BARCODE: ${{ inputs.gnu-barcode }}
       run: |
-        sudo apt-get update
+        set -euo pipefail
+        sudo apt-get -o Acquire::Retries=3 update
         packages="xvfb pkgconf libqrencode-dev file ninja-build ccache"
         if [ "$GNU_BARCODE" = "true" ]; then packages="$packages barcode"; fi
         # shellcheck disable=SC2086
-        sudo apt-get -y install $packages
-        # zint from source (the distro package is too old)
-        wget -q https://downloads.sourceforge.net/project/zint/zint/2.15.0/zint-2.15.0-src.tar.gz
+        sudo apt-get -o Acquire::Retries=3 -y install $packages
+
+        # zint from source (the distro package is too old), checksum-verified, built outside the workspace
+        cd "$RUNNER_TEMP"
+        curl -fsSL --retry 3 -o zint-2.15.0-src.tar.gz \
+          https://downloads.sourceforge.net/project/zint/zint/2.15.0/zint-2.15.0-src.tar.gz
+        echo "bce37d9b86e6127cac63c8b6267ac421116d4ac086519d726eb724f5462d98c7  zint-2.15.0-src.tar.gz" | sha256sum -c -
         tar xzf zint-2.15.0-src.tar.gz
-        cd zint-2.15.0-src && mkdir build && cd build && cmake .. && make -j"$(nproc)" && sudo make install
+        cmake -S zint-2.15.0-src -B zint-2.15.0-src/build -DCMAKE_BUILD_TYPE=Release
+        cmake --build zint-2.15.0-src/build -j"$(nproc)"
+        sudo cmake --install zint-2.15.0-src/build
+        sudo ldconfig
 
     # --------------------------------------------------------------- Windows
+    # Order matters: clone first, then restore the cached 'installed' and 'downloads'
+    # directories into the fresh clone (cloning into a non-empty directory fails).
+    - name: Clone vcpkg (Windows)
+      if: runner.os == 'Windows'
+      shell: bash
+      run: git clone --depth 1 --branch 2026.10.16 https://github.com/microsoft/vcpkg.git
+
     - name: Restore vcpkg cache (Windows)
       if: runner.os == 'Windows'
       uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -42,16 +57,16 @@ runs:
         path: |
           ${{ github.workspace }}/vcpkg/installed
           ${{ github.workspace }}/vcpkg/downloads
-        key: vcpkg-${{ runner.os }}-${{ hashFiles('.github/actions/setup-build/action.yml') }}
+        key: vcpkg-${{ runner.os }}-2026.10.16-${{ hashFiles('.github/actions/setup-build/action.yml') }}
         restore-keys: |
-          vcpkg-${{ runner.os }}-
+          vcpkg-${{ runner.os }}-2026.10.16-
 
     - name: Install dependencies (Windows)
       if: runner.os == 'Windows'
       shell: bash
       run: |
-        git clone --depth 1 https://github.com/microsoft/vcpkg.git
-        ./vcpkg/bootstrap-vcpkg.sh
+        set -euo pipefail
+        ./vcpkg/bootstrap-vcpkg.sh -disableMetrics
         ./vcpkg/vcpkg install pkgconf zlib libqrencode zint
         echo "TOOLCHAIN_FILE=${{ github.workspace }}/vcpkg/scripts/buildsystems/vcpkg.cmake" >> "$GITHUB_ENV"
 
@@ -59,6 +74,8 @@ runs:
     - name: Install dependencies (macOS)
       if: runner.os == 'macOS'
       shell: bash
+      env:
+        HOMEBREW_NO_AUTO_UPDATE: '1'
       run: brew install zlib qrencode zint ninja ccache
 
     # -------------------------------------------------------------------- Qt

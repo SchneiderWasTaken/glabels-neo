@@ -34,7 +34,8 @@ done
 # Qt license texts, when present in the Qt installation.
 QMAKE_BIN="$(command -v qmake6 || command -v qmake || true)"
 if [ -n "$QMAKE_BIN" ]; then
-   QT_PREFIX="$("$QMAKE_BIN" -query QT_INSTALL_PREFIX)"
+   # qmake.exe prints CRLF line endings on Windows; strip the carriage return.
+   QT_PREFIX="$("$QMAKE_BIN" -query QT_INSTALL_PREFIX | tr -d '\r')"
    if [ -d "$QT_PREFIX/LICENSES" ]; then
       mkdir -p "$DEST/licenses/qt"
       cp -R "$QT_PREFIX/LICENSES/." "$DEST/licenses/qt/"

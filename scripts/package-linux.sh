@@ -97,7 +97,7 @@ make_launcher glabels-fill      glabels-fill
 make_launcher glabels-batch-qt  glabels-batch-qt
 
 #--- License files ----------------------------------------------------------
-"$(dirname "$0")/stage-licenses.sh" "$PREFIX" "$BUILD_DIR"
+bash "$(dirname "$0")/stage-licenses.sh" "$PREFIX" "$BUILD_DIR"
 
 #--- Tarball ----------------------------------------------------------------
 tar -czf "$OUT_TARBALL" -C "$STAGE" glabels-neo

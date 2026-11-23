@@ -66,7 +66,7 @@ const decision = releaseDecision({
 
 console.log(JSON.stringify({
   now: now.toISOString(), chicago: chicago(now), lastTag, commits: commits.length, shippableChanged,
-  head: headSha.slice(0, 8), buildState: state, slotsUsedToday: trainRuns.length, ...decision,
+  head: headSha.slice(0, 8), buildState: state, slotsUsedToday: trainRuns.filter((r) => chicago(new Date(r.created_at)).date === chicago(now).date).length, ...decision,
 }));
 if (!decision.release) process.exit(0);
 

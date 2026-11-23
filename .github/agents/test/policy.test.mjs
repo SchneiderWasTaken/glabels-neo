@@ -125,6 +125,9 @@ test('oversized diffs and test-weakening edits are blocked; sensitive code and s
   for (const p of ['user-docs/conf.py', 'glabels/ReportBugDialog.cpp', 'model/BugReport.cpp', 'glabels/AboutDialog.cpp', 'scripts/X.SH', 'glabels/CMAKELISTS.TXT', 'glabels/a.PS1']) {
     assert.equal(agentMayChange(p), false, p);
   }
+  for (const p of ['update/UpdateService.cpp', 'updater/glabels-updater.cpp', 'update/unit_tests/TestUpdateApply.cpp']) {
+    assert.equal(agentMayChange(p), false, p);
+  }
   assert.equal(agentMayChange('translations/glabels_de.ts'), true);
   assert.equal(agentMayChange('glabels/ui/PrintView.ui'), true);
 });

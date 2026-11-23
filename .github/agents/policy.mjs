@@ -38,6 +38,7 @@ const AGENT_ALLOWED = [
 // ...except these, which control the build, packaging, supply chain, automation or credentials.
 const AGENT_DENIED = [
   /(^|\/)CMakeLists\.txt$/i, /\.cmake$/i, /^cmake\//i, /^scripts\//i, /^\.github\//i, /^relay\//i, /^tools\//i,
+  /^update\//i, /^updater\//i, // the self-updater: it replaces the program on users' machines
   /^data\//i, /^brand\//i, /^LICENSE/i, /^THIRD-PARTY/i, /^CREDITS/i, /^SECURITY/i, /^CLAUDE\.md$/i,
   // anything executable or configuration-like, whatever its directory (Sphinx's conf.py is executed, for one)
   /\.(sh|bash|ps1|bat|cmd|py|pl|rb|js|mjs|cjs|yml|yaml|json|toml|lock|in|exe|dll|so|dylib|a|lib)$/i,

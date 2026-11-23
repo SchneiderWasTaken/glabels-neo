@@ -25,6 +25,9 @@
 #include <QWidget>
 
 
+namespace glabels::model { class Model; }
+
+
 namespace glabels
 {
 
@@ -35,7 +38,7 @@ namespace glabels
         {
 
                 void displayContents( QWidget *parent );
-                void displayReportBug( QWidget *parent );
+                void displayReportBug( QWidget *parent, const model::Model* model = nullptr );
                 void displayAbout( QWidget *parent );
 
         }

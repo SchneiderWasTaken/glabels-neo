@@ -37,6 +37,7 @@ namespace glabels::model
 
                 const QString WEBSITE = "https://@WEBSITE@";
                 const QString BUG_WEBSITE = "@BUG_WEBSITE@";
+                const QString REPORT_ENDPOINT = "@REPORT_ENDPOINT@";
 
                 const int     MAJOR   = @glabels-qt_VERSION_MAJOR@;
                 const int     MINOR   = @glabels-qt_VERSION_MINOR@;

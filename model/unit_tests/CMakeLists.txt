@@ -105,4 +105,12 @@ if (Qt6Test_FOUND)
   target_link_libraries (TestStrUtil Model Qt6::Test)
   add_test (NAME StrUtil COMMAND TestStrUtil)
 
+  #=======================================
+  # Test BugReport / LogBuffer
+  #=======================================
+  qt6_wrap_cpp (TestBugReport_moc_sources TestBugReport.hpp)
+  add_executable (TestBugReport TestBugReport.cpp ${TestBugReport_moc_sources})
+  target_link_libraries (TestBugReport Model Qt6::Test)
+  add_test (NAME BugReport COMMAND TestBugReport)
+
 endif (Qt6Test_FOUND)

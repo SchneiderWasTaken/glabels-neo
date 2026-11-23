@@ -94,6 +94,7 @@ jobs:
         run: >
           cmake -B build -G Ninja
           -DCMAKE_BUILD_TYPE=Release
+          "-DGLABELS_REPORT_ENDPOINT=${{ vars.REPORT_ENDPOINT }}"
           -DCMAKE_C_COMPILER_LAUNCHER=ccache
           -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
@@ -205,6 +206,7 @@ jobs:
         run: >
           cmake -B build
           -DCMAKE_BUILD_TYPE=Release
+          "-DGLABELS_REPORT_ENDPOINT=${{ vars.REPORT_ENDPOINT }}"
           "-DCMAKE_TOOLCHAIN_FILE=${{ env.TOOLCHAIN_FILE }}"
 
       - name: Build
@@ -286,6 +288,7 @@ jobs:
         run: >
           cmake -B build -G Ninja
           -DCMAKE_BUILD_TYPE=Release
+          "-DGLABELS_REPORT_ENDPOINT=${{ vars.REPORT_ENDPOINT }}"
           -DCMAKE_C_COMPILER_LAUNCHER=ccache
           -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 

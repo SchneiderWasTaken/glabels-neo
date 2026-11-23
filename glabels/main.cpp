@@ -27,6 +27,7 @@
 #include "model/Branding.hpp"
 #include "model/Db.hpp"
 #include "model/FileUtil.hpp"
+#include "model/LogBuffer.hpp"
 #include "model/Model.hpp"
 #include "model/Settings.hpp"
 #include "model/Version.hpp"
@@ -47,6 +48,8 @@
 
 int main( int argc, char **argv )
 {
+        glabels::model::LogBuffer::install();
+
         QApplication app( argc, argv );
 
         QCoreApplication::setOrganizationName( glabels::model::Version::ORGANIZATION_NAME );

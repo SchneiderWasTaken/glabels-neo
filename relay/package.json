@@ -1,0 +1,19 @@
+{
+  "name": "glabels-neo-report-relay",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Files gLabels Neo in-app bug reports as GitHub issues, with the user's consent.",
+  "license": "GPL-3.0-or-later",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test test/",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.166.0"
+  }
+}

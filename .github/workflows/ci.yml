@@ -120,17 +120,34 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  relay:
+    name: Report relay tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Test
+        working-directory: relay
+        run: |
+          node --version
+          node --test test/
+
   # Single, stable status for branch protection: require "CI OK".
   ci-ok:
     name: CI OK
-    needs: build
+    needs: [build, relay]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
-      - name: Verify all build legs passed
+      - name: Verify all jobs passed
         env:
-          RESULT: ${{ needs.build.result }}
+          BUILD: ${{ needs.build.result }}
+          RELAY: ${{ needs.relay.result }}
         run: |
-          echo "build result: $RESULT"
-          test "$RESULT" = "success"
+          echo "build: $BUILD, relay: $RELAY"
+          test "$BUILD" = "success" && test "$RELAY" = "success"

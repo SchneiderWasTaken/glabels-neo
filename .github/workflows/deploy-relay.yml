@@ -1,0 +1,86 @@
+# Deploys the report relay (relay/) to Cloudflare Workers.
+#
+# One-time setup is described in relay/README.md.  Until the repository variable RELAY_DEPLOY is set to
+# "true" this workflow does nothing, so it never fails on a fresh fork.
+
+name: Deploy report relay
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'relay/**'
+      - '.github/workflows/deploy-relay.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-relay
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to Cloudflare
+    if: vars.RELAY_DEPLOY == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: relay
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install (locked)
+        run: npm ci
+
+      - name: Test
+        run: npm test
+
+      - name: Deploy worker
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: npx wrangler deploy
+
+      - name: Set worker secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          GITHUB_APP_ID: ${{ secrets.RELAY_GITHUB_APP_ID }}
+          GITHUB_APP_PRIVATE_KEY: ${{ secrets.RELAY_GITHUB_APP_PRIVATE_KEY }}
+          GITHUB_APP_INSTALLATION_ID: ${{ secrets.RELAY_GITHUB_APP_INSTALLATION_ID }}
+          RELAY_TOKEN: ${{ secrets.RELAY_GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          # A fresh challenge-signing secret each deploy; outstanding challenges (10 minute lifetime) simply expire.
+          CHALLENGE_SECRET="$(openssl rand -hex 32)"
+          export CHALLENGE_SECRET
+          node --input-type=module -e '
+            import { writeFileSync } from "node:fs";
+            const names = ["CHALLENGE_SECRET", "GITHUB_APP_ID", "GITHUB_APP_PRIVATE_KEY", "GITHUB_APP_INSTALLATION_ID"];
+            const out = {};
+            for (const n of names) if (process.env[n]) out[n] = process.env[n];
+            if (process.env.RELAY_TOKEN) out.GITHUB_TOKEN = process.env.RELAY_TOKEN;
+            if (!out.GITHUB_TOKEN && !(out.GITHUB_APP_ID && out.GITHUB_APP_PRIVATE_KEY && out.GITHUB_APP_INSTALLATION_ID)) {
+              console.error("No GitHub credentials: set RELAY_GITHUB_APP_ID, RELAY_GITHUB_APP_PRIVATE_KEY and RELAY_GITHUB_APP_INSTALLATION_ID, or RELAY_GITHUB_TOKEN.");
+              process.exit(1);
+            }
+            writeFileSync(process.env.RUNNER_TEMP + "/secrets.json", JSON.stringify(out), { mode: 0o600 });
+          '
+          npx wrangler secret bulk "$RUNNER_TEMP/secrets.json"
+          rm -f "$RUNNER_TEMP/secrets.json"
+
+      - name: Health check
+        env:
+          URL: ${{ vars.REPORT_ENDPOINT }}
+        run: |
+          if [ -z "$URL" ]; then
+            echo "Set the repository variable REPORT_ENDPOINT to the worker URL so builds use it."
+            exit 0
+          fi
+          curl --fail --silent --show-error --retry 5 --retry-delay 3 "$URL/v1/health"

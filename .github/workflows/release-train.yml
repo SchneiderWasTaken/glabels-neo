@@ -16,8 +16,9 @@ name: Release train
 
 on:
   schedule:
-    # :05 and :35 so that a late scheduler still lands inside the 90-minute window of its slot (policy.mjs)
-    - cron: '5,35 15,16,17,19,20,21 * * *'
+    # Every 10 minutes inside each window: GitHub's scheduler is best-effort and often skips or delays runs, and a slot
+    # can only be used once (policy.mjs), so extra attempts are harmless and make a missed slot unlikely.
+    - cron: '*/10 15,16,17,19,20,21 * * *'
   workflow_dispatch:
     inputs:
       dry_run:

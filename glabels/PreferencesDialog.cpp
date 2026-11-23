@@ -22,6 +22,7 @@
 #include "PreferencesDialog.hpp"
 
 #include "AppearanceModel.hpp"
+#include "UpdateUi.hpp"
 
 #include "model/Settings.hpp"
 
@@ -150,6 +151,8 @@ namespace glabels
                         startupOtherLineEdit->setText( path );
                 }
 
+
+                tabWidget->addTab( new UpdatePreferencesPage( tabWidget ), tr("Updates") );
 
                 connect( model::Settings::instance(), SIGNAL(changed()),
                          this, SLOT(onSettingsChanged()) );

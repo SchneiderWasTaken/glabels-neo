@@ -47,6 +47,7 @@ set (glabels_sources
   TemplatePicker.cpp
   TemplatePickerItem.cpp
   UndoRedoModel.cpp
+  UpdateUi.cpp
   VariablesView.cpp
   ZplRenderer.cpp
 )
@@ -86,6 +87,7 @@ set (glabels_qobject_headers
   TemplateDesigner.hpp
   TemplatePicker.hpp
   UndoRedoModel.hpp
+  UpdateUi.hpp
   VariablesView.hpp
   ZplRenderer.hpp
 )
@@ -177,6 +179,7 @@ endif()
 target_link_libraries (glabels_lib
   PUBLIC
   Model
+  Update
   Qt6::Concurrent
   Qt6::Widgets
   Qt6::Network

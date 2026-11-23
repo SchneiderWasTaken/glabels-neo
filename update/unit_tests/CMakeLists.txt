@@ -6,6 +6,7 @@ if (Qt6Test_FOUND)
   qt6_wrap_cpp (TestUpdateManifest_moc_sources TestUpdateManifest.hpp)
   add_executable (TestUpdateManifest TestUpdateManifest.cpp ${TestUpdateManifest_moc_sources})
   target_link_libraries (TestUpdateManifest Update Qt6::Test)
+  target_compile_definitions (TestUpdateManifest PRIVATE MAKE_MANIFEST_SCRIPT="${CMAKE_SOURCE_DIR}/scripts/make-update-manifest.sh")
   add_test (NAME UpdateManifest COMMAND TestUpdateManifest)
 
   #=======================================
@@ -25,5 +26,16 @@ if (Qt6Test_FOUND)
   target_compile_definitions (TestUpdaterHelper PRIVATE UPDATER_EXE="$<TARGET_FILE:glabels-updater>")
   add_dependencies (TestUpdaterHelper glabels-updater)
   add_test (NAME UpdaterHelper COMMAND TestUpdaterHelper)
+
+  #=======================================
+  # Test UpdateService against a local web server: check, download, verify, unpack, smoke test
+  #=======================================
+  add_executable (FakeGlabelsBatch fake_batch.cpp)    # stands in for glabels-batch-qt (answers --Version)
+  qt6_wrap_cpp (TestUpdateService_moc_sources TestUpdateService.hpp)
+  add_executable (TestUpdateService TestUpdateService.cpp ${TestUpdateService_moc_sources})
+  target_link_libraries (TestUpdateService Update Qt6::Test)
+  target_compile_definitions (TestUpdateService PRIVATE FAKE_BATCH_EXE="$<TARGET_FILE:FakeGlabelsBatch>")
+  add_dependencies (TestUpdateService FakeGlabelsBatch)
+  add_test (NAME UpdateService COMMAND TestUpdateService)
 
 endif (Qt6Test_FOUND)

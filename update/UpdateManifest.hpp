@@ -28,6 +28,8 @@
 #include <QString>
 #include <QUrl>
 
+#include <QMetaType>
+
 #include <optional>
 
 
@@ -112,6 +114,9 @@ namespace glabels::update
         int compareTags( const QString& a, const QString& b );
 
 }
+
+
+Q_DECLARE_METATYPE( glabels::update::UpdateManifest )
 
 
 #endif // update_UpdateManifest_hpp

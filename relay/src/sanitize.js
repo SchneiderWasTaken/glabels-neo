@@ -39,7 +39,12 @@ export function neutralizeMarkdown(text) {
     .replace(/@(?=[A-Za-z0-9_])/g, '@' + ZWSP)
     // Stop forged HTML comments (our markers) and raw HTML openers.
     .replace(/<!--/g, '&lt;!--')
-    .replace(/<(?=\/?[A-Za-z!?])/g, '&lt;');
+    .replace(/<(?=\/?[A-Za-z!?])/g, '&lt;')
+    // No images (tracking pixels) or clickable Markdown links under the project's bot identity.
+    .replace(/!\[/g, '! [')
+    .replace(/\]\(/g, '] (')
+    // No cross-repository references (owner/repo#123), which would notify other projects.
+    .replace(/([A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+)#(?=\d)/g, '$1' + ZWSP + '#');
 }
 
 /** A code fence long enough that the content cannot close it. */
@@ -49,7 +54,9 @@ export function fenceFor(text) {
   return '`'.repeat(Math.max(3, longest + 1));
 }
 
-export function fenced(text, lang = 'text') {
+export function fenced(content, lang = 'text') {
+  // A huge run of backticks would make the fence itself exceed GitHub's comment limit: shorten such runs first.
+  const text = content.replace(/`{8,}/g, '`'.repeat(7));
   const f = fenceFor(text);
   return `${f}${lang}\n${text}\n${f}`;
 }

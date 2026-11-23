@@ -58,3 +58,26 @@ export async function checkAndCount(env, reporterId, now = Date.now()) {
   await Promise.all([put(env, kh, h + 1, 3700), put(env, kd, d + 1, 86500), put(env, kg, g + 1, 86500)]);
   return { ok: true };
 }
+
+/**
+ * The single entry point used by the request handler: claim the challenge (single use) and count the report against
+ * the limits, atomically when the LIMITER Durable Object is bound, approximately (KV or memory) otherwise.
+ * Returns { ok: true } | { ok: false, kind: 'nonce' } | { ok: false, kind: 'limit', scope, retryAfter }.
+ */
+export async function claimReport(env, { nonce, nonceExpires, reporter }, now = Date.now()) {
+  const num = (v, d) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : d);
+  if (env.LIMITER) {
+    const stub = env.LIMITER.get(env.LIMITER.idFromName('global'));
+    const res = await stub.fetch('https://limiter.internal/claim', {
+      method: 'POST',
+      body: JSON.stringify({
+        nonce, nonceExpires, reporter, now,
+        perHour: num(env.LIMIT_PER_HOUR, 3), perDay: num(env.LIMIT_PER_DAY, 8), global: num(env.LIMIT_GLOBAL_PER_DAY, 100),
+      }),
+    });
+    return res.json();
+  }
+  if (!(await claimNonce(env, nonce, 900))) return { ok: false, kind: 'nonce' };
+  const r = await checkAndCount(env, reporter, now);
+  return r.ok ? { ok: true } : { ok: false, kind: 'limit', scope: r.scope, retryAfter: r.retryAfter };
+}

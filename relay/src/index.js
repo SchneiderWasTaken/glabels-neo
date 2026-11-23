@@ -8,7 +8,7 @@
 // repository, and it only ever creates issues with the fixed labels below.
 
 import { createIssue } from './github.js';
-import { checkAndCount, claimNonce, sha256Hex } from './limits.js';
+import { claimReport, sha256Hex } from './limits.js';
 import { issueChallenge, verifySolution } from './pow.js';
 import { LIMITS, ValidationError, formatIssue, validateReport } from './sanitize.js';
 
@@ -68,9 +68,14 @@ export async function handle(request, env, ctx, deps = {}) {
     }
 
     // 3. single use + rate limits
-    if (!(await claimNonce(env, pow.nonce, 900))) return json(400, { ok: false, error: 'challenge already used' });
+    // (cf-connecting-ip is set by Cloudflare itself; behind any other proxy it must be the trusted client address.)
     const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
-    const limit = await checkAndCount(env, (await sha256Hex(`${env.CHALLENGE_SECRET}|${ip}`)).slice(0, 24), now);
+    const limit = await claimReport(
+      env,
+      { nonce: pow.nonce, nonceExpires: pow.expires * 1000, reporter: (await sha256Hex(`${env.CHALLENGE_SECRET}|${ip}`)).slice(0, 24) },
+      now,
+    );
+    if (!limit.ok && limit.kind === 'nonce') return json(400, { ok: false, error: 'challenge already used' });
     if (!limit.ok) {
       return json(
         429,
@@ -91,6 +96,8 @@ export async function handle(request, env, ctx, deps = {}) {
 
   return json(404, { ok: false, error: 'not found' });
 }
+
+export { Limiter } from './limiter.js';
 
 export default {
   fetch(request, env, ctx) {

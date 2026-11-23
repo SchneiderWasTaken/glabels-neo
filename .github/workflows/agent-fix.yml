@@ -3,10 +3,11 @@
 # Started by a maintainer applying the `agent-fix` label, or (level >= 3) by triage marking an issue `agent-ready`.
 #
 # Security shape - the issue text is untrusted input to a model that can edit files:
-#   attempt:  three rounds of prepare / agent / verify steps. Only the "agent" step holds the model credential; the model
-#             can only read/edit files in a plain copy of the tree (no shell, no network tool, no .git). Classifying,
-#             building and testing happen in separate steps that never hold the credential.
+#   rounds (agent-fix-round.yml): per round, an "agent" job that holds the model credential and only edits files in a
+#             plain copy of the tree, and a "verify" job on a separate machine with NO secret that classifies,
+#             builds and tests what the model wrote. At most two rounds.
 #   publish:  holds write access but NO model credential. Re-validates the patch and opens a draft PR.
+# The issue text is pinned: if it is edited after approval, the attempt stops.
 # Changes to .github/, build files, scripts, packaging or credentials are refused by policy (policy.mjs).
 
 name: Agent fix
@@ -17,6 +18,10 @@ on:
       issue:
         description: Issue number to attempt
         required: true
+      body_sha:
+        description: Fingerprint of the issue text triage saw (set by the automation; leave empty when running by hand)
+        required: false
+        default: ''
   issues:
     types: [labeled]
 
@@ -38,8 +43,9 @@ jobs:
       pull-requests: read
       actions: read
     outputs:
-      run: ${{ steps.final.outputs.run }}
-      issue: ${{ steps.final.outputs.issue }}
+      run: ${{ steps.eligible.outputs.run }}
+      issue: ${{ steps.eligible.outputs.issue }}
+      body_sha: ${{ steps.eligible.outputs.body_sha }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -51,110 +57,57 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           AUTOMATION_LEVEL: ${{ vars.AUTOMATION_LEVEL }}
+          FIX_MAX_PER_DAY: ${{ vars.FIX_MAX_PER_DAY }}
         run: node .github/agents/gate.mjs fix
 
       - name: Eligibility
-        id: final
+        id: eligible
         env:
           GH_TOKEN: ${{ github.token }}
           LEVEL_OK: ${{ steps.level.outputs.run }}
           ACTOR: ${{ github.actor }}
-          EVENT: ${{ github.event_name }}
           ISSUE: ${{ github.event.issue.number || inputs.issue }}
-        run: |
-          set -euo pipefail
-          ok=true
-          [ "$LEVEL_OK" = "true" ] || { echo "automation level too low or daily cap reached"; ok=false; }
+          EXPECTED_BODY_SHA: ${{ inputs.body_sha }}
+        run: node .github/agents/fix-gate.mjs
 
-          # Who asked? The automation itself (via triage) or someone with write access.
-          if [ "$ok" = true ] && [ "$ACTOR" != "github-actions[bot]" ]; then
-            perm="$(gh api "repos/${GITHUB_REPOSITORY}/collaborators/${ACTOR}/permission" --jq .permission 2>/dev/null || echo none)"
-            case "$perm" in admin|write|maintain) ;; *) echo "actor $ACTOR has permission '$perm'"; ok=false ;; esac
-          fi
-
-          if [ "$ok" = true ]; then
-            state="$(gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE}" --jq 'if .pull_request then "pr" else .state end')"
-            [ "$state" = "open" ] || { echo "issue state is '$state'"; ok=false; }
-          fi
-
-          if [ "$ok" = true ]; then
-            existing="$(gh api "repos/${GITHUB_REPOSITORY}/pulls?state=open&per_page=100" --jq "[.[] | select(.head.ref | startswith(\"agent/issue-${ISSUE}-\"))] | length")"
-            [ "$existing" = "0" ] || { echo "an agent PR is already open for this issue"; ok=false; }
-          fi
-
-          echo "run=$ok" >> "$GITHUB_OUTPUT"
-          echo "issue=$ISSUE" >> "$GITHUB_OUTPUT"
-          echo "eligible: $ok"
-
-  attempt:
-    name: Attempt fix
+  round1:
+    name: Round 1
     needs: gate
     if: needs.gate.outputs.run == 'true'
-    runs-on: ubuntu-22.04
-    timeout-minutes: 90
     permissions:
       contents: read
       issues: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          persist-credentials: false
+    uses: ./.github/workflows/agent-fix-round.yml
+    with:
+      round: 1
+      issue: ${{ needs.gate.outputs.issue }}
+      body_sha: ${{ needs.gate.outputs.body_sha }}
+    secrets:
+      CLAUDE_OAUTH_TOKEN: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
 
-      - name: Set up build environment
-        uses: ./.github/actions/setup-build
-        with:
-          cache-key: agent-fix
-
-      - name: Set up Claude Code
-        uses: ./.github/actions/setup-claude
-
-      - name: Configure and build the baseline
-        run: |
-          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
-          cmake --build build -j"$(nproc)"
-
-      - name: Fix round 1
-        uses: ./.github/actions/fix-round
-        with:
-          issue: ${{ needs.gate.outputs.issue }}
-          model: ${{ vars.FIX_MODEL }}
-          github-token: ${{ github.token }}
-          claude-token: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
-
-      - name: Fix round 2
-        uses: ./.github/actions/fix-round
-        with:
-          issue: ${{ needs.gate.outputs.issue }}
-          model: ${{ vars.FIX_MODEL }}
-          github-token: ${{ github.token }}
-          claude-token: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
-
-      - name: Fix round 3
-        uses: ./.github/actions/fix-round
-        with:
-          issue: ${{ needs.gate.outputs.issue }}
-          model: ${{ vars.FIX_MODEL }}
-          github-token: ${{ github.token }}
-          claude-token: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
-
-      - name: Upload result
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: fix-result
-          path: |
-            fix-result.json
-            fix.patch
-          if-no-files-found: ignore
-          retention-days: 7
+  round2:
+    name: Round 2
+    needs: [gate, round1]
+    if: needs.round1.outputs.status == 'continue'
+    permissions:
+      contents: read
+      issues: read
+    uses: ./.github/workflows/agent-fix-round.yml
+    with:
+      round: 2
+      prev_round: 1
+      issue: ${{ needs.gate.outputs.issue }}
+      body_sha: ${{ needs.gate.outputs.body_sha }}
+    secrets:
+      CLAUDE_OAUTH_TOKEN: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
 
   publish:
     name: Open draft PR
-    needs: [gate, attempt]
-    if: needs.attempt.result == 'success'
+    needs: [gate, round1, round2]
+    if: >-
+      always() && needs.gate.outputs.run == 'true' &&
+      ((needs.round1.outputs.status != '' && needs.round1.outputs.status != 'continue') ||
+       (needs.round2.outputs.status != '' && needs.round2.outputs.status != 'continue'))
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:
@@ -181,8 +134,8 @@ jobs:
 
   failed:
     name: Report failure
-    needs: [gate, attempt]
-    if: always() && needs.attempt.result == 'failure'
+    needs: [gate, round1, round2]
+    if: always() && needs.gate.outputs.run == 'true' && (needs.round1.result == 'failure' || needs.round2.result == 'failure')
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -195,4 +148,4 @@ jobs:
         run: |
           gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE}/labels" --method POST -f 'labels[]=needs-human' >/dev/null
           gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE}/comments" --method POST \
-            -f body="The automatic fix attempt failed to run (see the workflow log). A maintainer needs to look at this one." >/dev/null
+            -f body="The automatic fix attempt stopped before it produced a result (it may have run into a problem, or the issue text was edited after it was approved). A maintainer needs to look at this one." >/dev/null

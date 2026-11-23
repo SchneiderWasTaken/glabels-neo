@@ -73,6 +73,14 @@ test('council: unanimous approval needs enough participants and no veto', () => 
   assert.equal(aggregate([...two, { id: 'c', verdict: verdict({ concerns: [{ severity: 'minor', text: 'nit' }] }) }], 'low').approved, true);
 });
 
+test('council fails closed: every reviewer that was asked must have answered', () => {
+  const two = [{ id: 'a', verdict: verdict() }, { id: 'b', verdict: verdict() }];
+  assert.equal(aggregate(two, 'low', ['a', 'b']).approved, true);
+  const r = aggregate(two, 'low', ['a', 'b', 'opus']);
+  assert.equal(r.approved, false);
+  assert.match(r.reasons.join(' '), /no answer from opus/);
+});
+
 test('council: risk is the maximum of deterministic and reviewer risk; blocked never approves', () => {
   const two = [{ id: 'a', verdict: verdict() }, { id: 'b', verdict: verdict({ risk: 'high' }) }];
   assert.equal(aggregate(two, 'low').risk, 'high');

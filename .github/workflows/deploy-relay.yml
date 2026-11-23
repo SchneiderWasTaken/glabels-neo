@@ -57,6 +57,7 @@ jobs:
           RELAY_TOKEN: ${{ secrets.RELAY_GITHUB_TOKEN }}
         run: |
           set -euo pipefail
+          trap 'rm -f "$RUNNER_TEMP/secrets.json"' EXIT
           # A fresh challenge-signing secret each deploy; outstanding challenges (10 minute lifetime) simply expire.
           CHALLENGE_SECRET="$(openssl rand -hex 32)"
           export CHALLENGE_SECRET

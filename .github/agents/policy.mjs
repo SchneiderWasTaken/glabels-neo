@@ -6,6 +6,8 @@
 //   - when (Chicago time) risky changes may be merged,
 //   - when a release may be cut.
 
+import { parseDiff } from './diff-lib.mjs';
+
 export const TIME_ZONE = 'America/Chicago';
 
 // ------------------------------------------------------------------------------------------ levels
@@ -35,9 +37,13 @@ const AGENT_ALLOWED = [
 
 // ...except these, which control the build, packaging, supply chain, automation or credentials.
 const AGENT_DENIED = [
-  /(^|\/)CMakeLists\.txt$/, /\.cmake$/, /^cmake\//, /^scripts\//, /^\.github\//, /^relay\//, /^tools\//,
-  /^data\//, /^brand\//, /^LICENSE/, /^THIRD-PARTY/, /^CREDITS/, /^SECURITY/, /^CLAUDE\.md$/,
-  /\.(sh|ps1|bat|cmd|yml|yaml|json|toml|lock|in)$/, /(^|\/)\./,
+  /(^|\/)CMakeLists\.txt$/i, /\.cmake$/i, /^cmake\//i, /^scripts\//i, /^\.github\//i, /^relay\//i, /^tools\//i,
+  /^data\//i, /^brand\//i, /^LICENSE/i, /^THIRD-PARTY/i, /^CREDITS/i, /^SECURITY/i, /^CLAUDE\.md$/i,
+  // anything executable or configuration-like, whatever its directory (Sphinx's conf.py is executed, for one)
+  /\.(sh|bash|ps1|bat|cmd|py|pl|rb|js|mjs|cjs|yml|yaml|json|toml|lock|in|exe|dll|so|dylib|a|lib)$/i,
+  /(^|\/)\./,
+  // the reporting, branding and attribution code is security- and legally sensitive
+  /ReportBugDialog|BugReport|LogBuffer|BrandTranslator|Branding|AboutDialog|(^|\/)Version\.|(^|\/)Config\./i,
 ];
 
 export function agentMayChange(path) {
@@ -63,33 +69,45 @@ function hasEncodedRun(line) {
   return false;
 }
 
+// Tripwires are defence in depth, not the only barrier: the path allowlist, the council and CI also stand between
+// an agent and a release.  They are matched per added line AND against the joined added text (with line
+// continuations and adjacent string literals collapsed), so splitting a token across lines does not help.
 export const TRIPWIRES = [
-  [/\bQProcess\b|\bstd::system\b|\bsystem\s*\(|\bpopen\s*\(|\bexec[lv]p?e?\s*\(|ShellExecute|WinExec|CreateProcess/, 'process execution'],
-  [/\bQNetwork\w*|\bQTcpSocket\b|\bQUdpSocket\b|\bQSslSocket\b|\bQWebSocket\b|\bsocket\s*\(|\bconnect\s*\(\s*\w+\s*,\s*\(?\s*struct sockaddr/, 'networking'],
-  [/\bQDesktopServices\b|\bQLibrary\b|\bdlopen\b|\bLoadLibrary/, 'launching or loading external code'],
-  [/\bqgetenv\b|\bqEnvironmentVariable\b|\bgetenv\b|\bsetenv\b|\bputenv\b/, 'environment access'],
-  [/https?:\/\//, 'URL'],
+  [/\bQProcess\w*|\bstd::system\b|\bsystem\s*\(|\bpopen\s*\(|\b_?exec[lv]p?e?\s*\(|\bposix_spawn|\bfork\s*\(|\bvfork\s*\(|\bsyscall\s*\(|ShellExecute|WinExec|CreateProcess/i, 'process execution'],
+  [/\bQNetwork\w*|\bQTcpSocket\b|\bQUdpSocket\b|\bQSslSocket\b|\bQWebSocket\b|\bQHostInfo\b|\bQHostAddress\b|\bsocket\s*\(|\bgetaddrinfo\b|\bgethostby\w*|sockaddr|WinHttp|InternetOpen|URLDownloadToFile|\bWSA\w*|<sys\/socket\.h>|<winsock/i, 'networking'],
+  [/\bQDesktopServices\b|\bQLibrary\b|\bQPluginLoader\b|\bdlopen\b|\bdlsym\b|\bLoadLibrary|\bGetProcAddress\b/, 'launching or loading external code'],
+  [/\bqgetenv\b|\bqEnvironmentVariable\w*|\bQProcessEnvironment\b|\bgetenv\b|\bsetenv\b|\bputenv\b|\benviron\b|\/proc\/|GetEnvironmentVariable/, 'environment access'],
+  [/https?:\/\//i, 'URL'],
   [hasEncodedRun, 'long encoded string'],
   [/\\x[0-9a-fA-F]{2}(\\x[0-9a-fA-F]{2}){7,}/, 'escaped byte blob'],
-  [/\beval\b|\bFunction\s*\(/, 'dynamic evaluation'],
+  [/\beval\b|\bFunction\s*\(|##/, 'dynamic evaluation or token pasting'],
 ];
+
+/** Collapse tricks that split a token over lines or adjacent string literals. */
+function collapse(text) {
+  return text.replace(/\\\r?\n/g, '').replace(/"\s*\n?\s*"/g, '');
+}
 
 // Areas where a regression hurts users most: file formats, printing, data merge, barcodes.
 const HIGH_AREAS = [/^model\/Xml/, /^model\/PageRenderer/, /Zpl/i, /Print/i, /^merge\//, /^model\/Merge/, /^glbarcode\//, /^backends\//, /^glabels-fill\//];
 
-export const LIMITS = { maxFiles: 12, maxChangedLines: 600, highFiles: 5, highChangedLines: 120 };
+// maxDiffChars must stay below what the council reviewers are shown (council-lib.mjs, 70000), so that nothing an
+// automatic merge ships can fall outside what was reviewed.
+export const LIMITS = { maxFiles: 12, maxChangedLines: 600, highFiles: 5, highChangedLines: 120, maxDiffChars: 60000 };
 
 /**
  * Classify a change.
  *   files: [{ path, status: 'added'|'modified'|'removed'|'renamed', additions, deletions, binary?, mode? }]
  *   addedLines: array of added line texts (without the leading "+")
+ *   options.diffChars: size of the whole diff text, when known
  * Returns { risk: 'low' | 'high' | 'blocked', reasons: string[] }.
  */
-export function classifyChange(files, addedLines = []) {
+export function classifyChange(files, addedLines = [], options = {}) {
   const blocked = [];
   const high = [];
 
   if (files.length === 0) blocked.push('empty change');
+  if ((options.diffChars ?? 0) > LIMITS.maxDiffChars) blocked.push(`diff is ${options.diffChars} characters (max ${LIMITS.maxDiffChars})`);
   if (files.length > LIMITS.maxFiles) blocked.push(`touches ${files.length} files (max ${LIMITS.maxFiles})`);
 
   let changed = 0;
@@ -98,7 +116,9 @@ export function classifyChange(files, addedLines = []) {
     if (!agentMayChange(f.path)) blocked.push(`out-of-scope path: ${f.path}`);
     if (f.binary) blocked.push(`binary file: ${f.path}`);
     if (f.mode && f.mode !== '100644') blocked.push(`file mode ${f.mode}: ${f.path}`);
-    if (f.status === 'removed' && /(^|\/)(unit_tests|tests?)\//.test(f.path)) blocked.push(`removes a test: ${f.path}`);
+    const isTest = /(^|\/)(unit_tests|tests?)\//i.test(f.path);
+    if (f.status === 'removed' && isTest) blocked.push(`removes a test: ${f.path}`);
+    if (isTest && f.status !== 'added' && (f.deletions ?? 0) > (f.additions ?? 0) + 5) blocked.push(`weakens a test: ${f.path}`);
     if (f.status === 'removed' || f.status === 'renamed') high.push(`${f.status} file: ${f.path}`);
     if (HIGH_AREAS.some((r) => r.test(f.path))) high.push(`sensitive area: ${f.path}`);
   }
@@ -106,13 +126,18 @@ export function classifyChange(files, addedLines = []) {
   if (changed > LIMITS.highChangedLines) high.push(`${changed} changed lines`);
   if (files.length > LIMITS.highFiles) high.push(`${files.length} files`);
 
+  const trips = (test, text) => (typeof test === 'function' ? test(text) : test.test(text));
   for (const line of addedLines) {
     for (const [test, label] of TRIPWIRES) {
-      if (typeof test === 'function' ? test(line) : test.test(line)) {
+      if (trips(test, line)) {
         blocked.push(`added line trips "${label}": ${line.trim().slice(0, 80)}`);
         break;
       }
     }
+  }
+  const joined = collapse(addedLines.join('\n'));
+  for (const [test, label] of TRIPWIRES) {
+    if (trips(test, joined)) blocked.push(`added code trips "${label}" (after joining lines)`);
   }
 
   if (blocked.length) return { risk: 'blocked', reasons: [...new Set(blocked)] };
@@ -127,12 +152,9 @@ export function maxRisk(...risks) {
   return risks.reduce((a, b) => (ORDER[b] > ORDER[a] ? b : a), 'low');
 }
 
-/** Added lines from a unified diff. */
+/** Added lines from a unified diff (hunk-aware: a content line that starts with "++" is still content). */
 export function addedLinesOf(diffText) {
-  return diffText
-    .split('\n')
-    .filter((l) => l.startsWith('+') && !l.startsWith('+++'))
-    .map((l) => l.slice(1));
+  return parseDiff(diffText).addedLines;
 }
 
 // ------------------------------------------------------------------------------------------ time
@@ -166,32 +188,41 @@ export function mayAutoMerge(risk, level, now = new Date()) {
 
 // ------------------------------------------------------------------------------------------ releases
 
-export const RELEASE_HOURS = [10, 14];
+// GitHub's scheduler can start a run well after its cron time, so each slot is a window rather than an instant.
+// A slot can only be used once (counted from the release runs the train itself started), and at most two a day.
+export const RELEASE_WINDOWS = [{ slot: 10, from: 10 * 60, to: 11 * 60 + 30 }, { slot: 14, from: 14 * 60, to: 15 * 60 + 30 }];
 export const MAX_RELEASES_PER_DAY = 2;
+
+/** Which release slot (10 or 14) a Chicago time falls into, or null. */
+export function slotAt(t) {
+  const minutes = t.hour * 60 + t.minute;
+  return RELEASE_WINDOWS.find((w) => minutes >= w.from && minutes < w.to)?.slot ?? null;
+}
 
 /**
  * Decide whether the release train should publish now.
  *   now              Date
- *   releases         [{ tag_name, published_at, draft, prerelease }]  (stable and edge; edge is ignored)
- *   shippableChanged boolean   anything user-visible landed since the last stable tag
- *   headBuilt        boolean   the newest commit on main has a successful edge build
- * Returns { release: boolean, reason: string, slot?: number }.
+ *   trainRuns        [{ created_at }]  release workflow runs on version tags (any outcome) - these are the slots used
+ *   shippableChanged boolean           anything user-visible landed since the last stable tag
+ *   headBuilt        boolean           the code on main has a successful build
+ *   ignoreClock      boolean           maintainer override: skip the slot window (the daily cap still applies)
+ * Returns { release: boolean, reason: string, slot?: number | 'manual' }.
  */
-export function releaseDecision({ now = new Date(), releases, shippableChanged, headBuilt }) {
+export function releaseDecision({ now = new Date(), trainRuns, shippableChanged, headBuilt, ignoreClock = false }) {
   const t = chicago(now);
-  if (!RELEASE_HOURS.includes(t.hour)) return { release: false, reason: `not a release hour (Chicago ${t.hour}:00)` };
-  const slot = t.hour;
-
-  const today = releases.filter(
-    (r) => !r.draft && !r.prerelease && /^v\d+\.\d+\.\d+$/.test(r.tag_name) && chicago(new Date(r.published_at)).date === t.date,
-  );
-  if (today.length >= MAX_RELEASES_PER_DAY) return { release: false, reason: `already ${today.length} releases today`, slot };
-  if (today.some((r) => chicago(new Date(r.published_at)).hour >= slot)) {
-    return { release: false, reason: `the ${slot}:00 slot already released`, slot };
+  const slot = slotAt(t);
+  if (slot === null && !ignoreClock) {
+    return { release: false, reason: `not inside a release window (Chicago ${String(t.hour).padStart(2, '0')}:${String(t.minute).padStart(2, '0')})` };
   }
-  if (!shippableChanged) return { release: false, reason: 'no user-visible changes since the last release', slot };
-  if (!headBuilt) return { release: false, reason: 'the newest commit has no successful build yet', slot };
-  return { release: true, reason: `release slot ${slot}:00`, slot };
+
+  const today = trainRuns.filter((r) => chicago(new Date(r.created_at)).date === t.date);
+  if (today.length >= MAX_RELEASES_PER_DAY) return { release: false, reason: `already ${today.length} releases today`, slot: slot ?? 'manual' };
+  if (slot !== null && today.some((r) => slotAt(chicago(new Date(r.created_at))) === slot)) {
+    return { release: false, reason: `the ${slot}:00 slot was already used`, slot };
+  }
+  if (!shippableChanged) return { release: false, reason: 'no user-visible changes since the last release', slot: slot ?? 'manual' };
+  if (!headBuilt) return { release: false, reason: 'the code on main has no successful build yet', slot: slot ?? 'manual' };
+  return { release: true, reason: slot === null ? 'maintainer override' : `release slot ${slot}:00`, slot: slot ?? 'manual' };
 }
 
 /** Next version: minor for features, patch otherwise.  Major bumps are manual. */

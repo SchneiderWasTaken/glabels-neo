@@ -70,9 +70,18 @@ export function validateVerdict(obj) {
 }
 
 /** Combine verdicts.  `verdicts` is [{ id, verdict }] for reviewers that produced a valid answer. */
-export function aggregate(verdicts, deterministicRisk) {
+export function aggregate(verdicts, deterministicRisk, expectedIds = []) {
   const reasons = [];
   let approved = true;
+
+  // Fail closed: every reviewer that was asked must have answered.  A reviewer that errored, timed out or went over
+  // budget must not silently drop out of the vote (it could be the strictest one).
+  const answered = new Set(verdicts.map((v) => v.id));
+  const missing = expectedIds.filter((id) => !answered.has(id));
+  if (missing.length) {
+    approved = false;
+    reasons.push(`no answer from ${missing.join(', ')}`);
+  }
 
   if (verdicts.length < MIN_PARTICIPANTS) {
     approved = false;

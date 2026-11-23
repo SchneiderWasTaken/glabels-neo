@@ -18,7 +18,7 @@ repository**. It is never given to the app.
 | Threat | Defence |
 |:--|:--|
 | Someone extracts a token from the app | there is no token in the app |
-| Scripted spam | a signed, single-use, expiring proof-of-work challenge (about a second of CPU), a User-Agent check, per-reporter hourly/daily limits and a global daily circuit breaker |
+| Scripted spam | a signed, single-use, expiring proof-of-work challenge (about a second of CPU), a User-Agent check, per-reporter hourly/daily limits and a global daily circuit breaker, all enforced atomically by a Durable Object (a KV fallback is used only in local development) |
 | A report that tries to ping people or forge machine-readable markers | `@` mentions are broken, HTML comments and tags are escaped, code fences cannot be closed from inside |
 | A client choosing labels such as `agent-fix` | labels are fixed by the relay (`bug`, `from-app`, `needs-triage`) |
 | Oversized input | request, field and attachment size limits |

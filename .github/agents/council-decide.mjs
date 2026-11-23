@@ -20,12 +20,14 @@ const verdicts = [];
 const silent = [];
 for (const f of readdirSync('.').filter((n) => /^verdict-.+\.json$/.test(n))) {
   const v = readJson(f);
-  if (v.sha !== sha) continue;
-  if (v.verdict) verdicts.push({ id: v.id, model: v.model, verdict: validateVerdict(v.verdict) });
-  else silent.push(`${v.id} (${sanitizeForComment(v.error ?? 'no answer', 100)})`);
+  // Only reviewers that were asked, for the commit that was reviewed, count.
+  if (v.sha !== sha || !input.expected.includes(v.id)) continue;
+  const id = sanitizeForComment(v.id, 60);
+  if (v.verdict) verdicts.push({ id, model: sanitizeForComment(v.model, 80), verdict: validateVerdict(v.verdict) });
+  else silent.push(`${id} (${sanitizeForComment(v.error ?? 'no answer', 100)})`);
 }
 
-const result = aggregate(verdicts, input.classification.risk);
+const result = aggregate(verdicts, input.classification.risk, input.expected);
 console.log(JSON.stringify({ approved: result.approved, risk: result.risk, reasons: result.reasons, participants: verdicts.map((v) => v.id) }));
 
 // ---- record it: status on the reviewed commit, labels, a comment

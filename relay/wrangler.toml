@@ -17,7 +17,7 @@ LIMIT_PER_HOUR = "3"
 LIMIT_PER_DAY = "8"
 LIMIT_GLOBAL_PER_DAY = "100"
 
-# Rate-limit counters.  Wrangler provisions this namespace on first deploy.
+# Fallback rate-limit counters (used only when the LIMITER Durable Object below is not bound).  Wrangler provisions it.
 [[kv_namespaces]]
 binding = "RATE"
 
@@ -28,3 +28,12 @@ binding = "RATE"
 #   GITHUB_APP_INSTALLATION_ID  installation id of the App on this repository
 #   GITHUB_TOKEN                alternative to the three App secrets: a fine-grained token with
 #                               "Issues: write" on this repository only
+
+# Atomic single-use challenges and rate limits (a Durable Object processes one request at a time).
+[[durable_objects.bindings]]
+name = "LIMITER"
+class_name = "Limiter"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["Limiter"]

@@ -98,8 +98,35 @@ test('ordinary code and ruler comments do not trip', () => {
 });
 
 test('addedLinesOf extracts added lines only', () => {
-  const diff = ['--- a/x', '+++ b/x', '@@ -1,2 +1,3 @@', ' ctx', '-old', '+new', '++plus'].join('\n');
+  const diff = ['diff --git a/x b/x', '--- a/x', '+++ b/x', '@@ -1,2 +1,3 @@', ' ctx', '-old', '+new', '++plus'].join('\n');
   assert.deepEqual(addedLinesOf(diff), ['new', '+plus']);
+});
+
+test('a content line that starts with "++" cannot hide a tripwire', () => {
+  const diff = ['diff --git a/glabels/A.cpp b/glabels/A.cpp', '--- a/glabels/A.cpp', '+++ b/glabels/A.cpp', '@@ -1 +1,2 @@', ' int x;', '+++i; QProcess::startDetached("x");'].join('\n');
+  assert.equal(addedLinesOf(diff).length, 1);
+  assert.equal(classifyChange([f('glabels/A.cpp')], addedLinesOf(diff)).risk, 'blocked');
+});
+
+test('tripwires also see tokens split across lines and string literals', () => {
+  const split = ['QProc\\', 'ess p;'];
+  assert.equal(classifyChange([f('glabels/A.cpp')], split).risk, 'blocked');
+  assert.equal(classifyChange([f('glabels/A.cpp')], ['const char* u = "ht" "tps://example.com";']).risk, 'blocked');
+  for (const line of ['QProcessEnvironment e;', 'QHostInfo::lookupHost(a, b);', 'posix_spawn(&p, a, 0, 0, 0, 0);', 'QFile f("/proc/self/environ");', '#define J(a,b) a##b']) {
+    assert.equal(classifyChange([f('glabels/A.cpp')], [line]).risk, 'blocked', line);
+  }
+});
+
+test('oversized diffs and test-weakening edits are blocked; sensitive code and scripts are out of scope', () => {
+  assert.equal(classifyChange([f('glabels/A.cpp')], [], { diffChars: 60001 }).risk, 'blocked');
+  assert.equal(classifyChange([f('glabels/A.cpp')], [], { diffChars: 59000 }).risk, 'low');
+  assert.equal(classifyChange([f('model/unit_tests/TestA.cpp', { additions: 0, deletions: 30 })]).risk, 'blocked');
+  assert.equal(classifyChange([f('model/unit_tests/TestA.cpp', { status: 'added', additions: 30, deletions: 0 })]).risk, 'low');
+  for (const p of ['user-docs/conf.py', 'glabels/ReportBugDialog.cpp', 'model/BugReport.cpp', 'glabels/AboutDialog.cpp', 'scripts/X.SH', 'glabels/CMAKELISTS.TXT', 'glabels/a.PS1']) {
+    assert.equal(agentMayChange(p), false, p);
+  }
+  assert.equal(agentMayChange('translations/glabels_de.ts'), true);
+  assert.equal(agentMayChange('glabels/ui/PrintView.ui'), true);
 });
 
 test('maxRisk', () => {
@@ -126,42 +153,41 @@ test('auto-merge rules by risk, level and time', () => {
   assert.equal(mayAutoMerge('high', 4, new Date('2026-12-01T15:30:00Z')).ok, false); // 09:30, too late to soak
 });
 
-const rel = (tag, iso, extra = {}) => ({ tag_name: tag, published_at: iso, draft: false, prerelease: false, ...extra });
+const run = (iso) => ({ created_at: iso, head_branch: 'v1.2.1', event: 'workflow_dispatch' });
 
-test('release train: only at 10:00 and 14:00 Chicago, with changes, once per slot, twice per day', () => {
-  const base = { releases: [rel('v1.2.0', '2026-11-20T16:00:00Z')], shippableChanged: true, headBuilt: true };
-  const at = (iso) => releaseDecision({ ...base, now: new Date(iso) });
+test('release train: inside the 10:00 / 14:00 windows only, with changes, once per slot, twice per day', () => {
+  const base = { trainRuns: [], shippableChanged: true, headBuilt: true };
+  const at = (iso, extra = {}) => releaseDecision({ ...base, ...extra, now: new Date(iso) });
 
   assert.equal(at('2026-12-01T16:05:00Z').release, true); // 10:05 CST
+  assert.equal(at('2026-12-01T17:20:00Z').release, true); // 11:20 CST: a late scheduler is still inside the window
   assert.equal(at('2026-12-01T20:30:00Z').release, true); // 14:30 CST
-  assert.equal(at('2026-12-01T17:00:00Z').release, false); // 11:00
+  assert.equal(at('2026-12-01T17:40:00Z').release, false); // 11:40
   assert.equal(at('2026-12-01T15:00:00Z').release, false); // 09:00 (the CDT-hour cron during CST)
-  assert.equal(at('2026-12-01T21:00:00Z').release, false); // 15:00
+  assert.equal(at('2026-12-01T21:45:00Z').release, false); // 15:45
+  assert.equal(at('2026-07-01T15:05:00Z').release, true); // 10:05 CDT
 
-  const noChanges = releaseDecision({ ...base, now: new Date('2026-12-01T16:05:00Z'), shippableChanged: false });
-  assert.equal(noChanges.release, false);
-  assert.match(noChanges.reason, /no user-visible/);
+  assert.match(at('2026-12-01T16:05:00Z', { shippableChanged: false }).reason, /no user-visible/);
+  assert.equal(at('2026-12-01T16:05:00Z', { headBuilt: false }).release, false);
 
-  const unbuilt = releaseDecision({ ...base, now: new Date('2026-12-01T16:05:00Z'), headBuilt: false });
-  assert.equal(unbuilt.release, false);
+  const tenDone = { trainRuns: [run('2026-12-01T16:10:00Z')] };
+  assert.equal(at('2026-12-01T16:50:00Z', tenDone).release, false); // same slot
+  assert.equal(at('2026-12-01T20:05:00Z', tenDone).release, true); // 14:00 slot
 
-  const tenDone = { ...base, releases: [rel('v1.2.1', '2026-12-01T16:10:00Z'), ...base.releases] };
-  assert.equal(releaseDecision({ ...tenDone, now: new Date('2026-12-01T16:50:00Z') }).release, false); // same slot
-  assert.equal(releaseDecision({ ...tenDone, now: new Date('2026-12-01T20:05:00Z') }).release, true); // 14:00 slot
-
-  const both = { ...base, releases: [rel('v1.2.2', '2026-12-01T20:10:00Z'), rel('v1.2.1', '2026-12-01T16:10:00Z')] };
-  const third = releaseDecision({ ...both, now: new Date('2026-12-01T20:40:00Z') });
+  const both = { trainRuns: [run('2026-12-01T20:10:00Z'), run('2026-12-01T16:10:00Z')] };
+  const third = at('2026-12-01T20:40:00Z', both);
   assert.equal(third.release, false);
   assert.match(third.reason, /already 2 releases/);
+
+  // yesterday's runs do not count today
+  assert.equal(at('2026-12-01T16:05:00Z', { trainRuns: [run('2026-11-30T16:10:00Z'), run('2026-11-30T20:10:00Z')] }).release, true);
 });
 
-test('release train ignores edge prereleases and drafts when counting', () => {
-  const releases = [
-    rel('edge', '2026-12-01T16:01:00Z', { prerelease: true }),
-    rel('v1.2.3', '2026-12-01T16:02:00Z', { draft: true }),
-    rel('v1.2.0', '2026-11-20T16:00:00Z'),
-  ];
-  assert.equal(releaseDecision({ releases, shippableChanged: true, headBuilt: true, now: new Date('2026-12-01T16:30:00Z') }).release, true);
+test('release train: a maintainer override skips the window but not the daily cap', () => {
+  const base = { trainRuns: [], shippableChanged: true, headBuilt: true, ignoreClock: true };
+  assert.equal(releaseDecision({ ...base, now: new Date('2026-12-01T18:30:00Z') }).release, true);
+  const capped = releaseDecision({ ...base, trainRuns: [run('2026-12-01T16:10:00Z'), run('2026-12-01T20:10:00Z')], now: new Date('2026-12-01T18:30:00Z') });
+  assert.equal(capped.release, false);
 });
 
 test('nextVersion', () => {

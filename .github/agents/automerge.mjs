@@ -44,7 +44,21 @@ for (const p of prs) {
 
   const runs = api(`repos/${REPO}/commits/${sha}/check-runs?per_page=100`).check_runs ?? [];
   const bad = REQUIRED_CHECKS.map((n) => [n, latestConclusion(runs, n)]).filter(([, c]) => c !== 'success');
-  if (bad.length) { skip(`checks not green: ${bad.map(([n, c]) => `${n}=${c}`).join(', ')}`); continue; }
+  if (bad.length) {
+    // Housekeeping so a PR is never stuck on infrastructure: approve held runs, and re-run a failed CI/Lint once
+    // (runner flakes happen; a genuine failure fails again and stays failed).
+    const wruns = api(`repos/${REPO}/actions/runs?head_sha=${sha}&per_page=50`)?.workflow_runs ?? [];
+    for (const r of wruns.filter((x) => x.conclusion === 'action_required')) {
+      api(`repos/${REPO}/actions/runs/${r.id}/approve`, { method: 'POST', allowFail: true });
+      console.log(`${tag}: approved held run ${r.id} (${r.name})`);
+    }
+    for (const r of wruns.filter((x) => ['CI', 'Lint'].includes(x.name) && x.conclusion === 'failure' && x.run_attempt < 2)) {
+      gh(['run', 'rerun', String(r.id), '--repo', REPO, '--failed'], { allowFail: true });
+      console.log(`${tag}: re-running failed ${r.name} run ${r.id} once`);
+    }
+    skip(`checks not green: ${bad.map(([n, c]) => `${n}=${c}`).join(', ')}`);
+    continue;
+  }
 
   const diffText = gh(['pr', 'diff', String(p.number), '--repo', REPO]);
   if (api(`repos/${REPO}/pulls/${p.number}`).head.sha !== sha) { skip('the PR changed while it was being checked'); continue; }

@@ -23,6 +23,7 @@
 
 #include "AppearanceModel.hpp"
 #include "BrandTranslator.hpp"
+#include "UpdateUi.hpp"
 
 #include "model/Branding.hpp"
 #include "model/Db.hpp"
@@ -35,6 +36,8 @@
 
 #include "barcode/Backends.hpp"
 #include "merge/Factory.hpp"
+
+#include "update/UpdateService.hpp"
 
 #include <QApplication>
 #include <QCommandLineParser>
@@ -106,6 +109,18 @@ int main( int argc, char **argv )
 
 
         //
+        // Finish a pending self-update first: if one has been downloaded but not applied yet (for
+        // example because the previous run was killed), a helper swaps it in and starts the program
+        // again with the same arguments.
+        //
+        auto *updates = glabels::update::UpdateService::instance();
+        if ( updates->applyPendingAtStartup( app.arguments().mid( 1 ) ) )
+        {
+                return 0;
+        }
+
+
+        //
         // Initialize subsystems
         //
         glabels::model::Settings::init();
@@ -152,6 +167,14 @@ int main( int argc, char **argv )
                 auto *mainWindow = new glabels::MainWindow();
                 mainWindow->show();
         }
+
+
+        //
+        // Look for new versions in the background; a downloaded one is swapped in when we exit.
+        //
+        glabels::UpdateUi::init();
+        QObject::connect( &app, &QCoreApplication::aboutToQuit, updates, &glabels::update::UpdateService::applyPendingAtExit );
+        updates->start();
 
 
         return app.exec();

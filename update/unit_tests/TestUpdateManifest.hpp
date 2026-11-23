@@ -36,4 +36,5 @@ private slots:
         void stableIsAvailableOnlyWhenNewer();
         void edgeIsAvailableWhenCommitDiffers();
         void channelMismatchIsNeverAvailable();
+        void parsesWhatTheReleaseScriptProduces();
 };

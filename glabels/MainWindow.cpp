@@ -32,6 +32,7 @@
 #include "PrintView.hpp"
 #include "PropertiesView.hpp"
 #include "StartupView.hpp"
+#include "UpdateUi.hpp"
 #include "VariablesView.hpp"
 
 #include "model/Branding.hpp"
@@ -738,6 +739,7 @@ namespace glabels
                 helpMenu->addAction( helpContentsAction );
                 helpMenu->addAction( helpReportBugAction );
                 helpMenu->addAction( helpAboutAction );
+                UpdateUi::addToHelpMenu( helpMenu );
 
                 contextMenu = new QMenu();
                 contextOrderMenu = contextMenu->addMenu( tr("&Order") );

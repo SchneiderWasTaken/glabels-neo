@@ -26,6 +26,10 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QCryptographicHash>
+#include <QProcess>
+#include <QStandardPaths>
+#include <QTemporaryDir>
 
 
 QTEST_MAIN(TestUpdateManifest)
@@ -225,4 +229,56 @@ void TestUpdateManifest::channelMismatchIsNeverAvailable()
         auto m = parsed( validManifest() );
         QVERIFY( !isUpdateAvailable( BuildIdentity{ "", "v1.0.0", OTHER }, m ) );      // self-update off
         QVERIFY( !isUpdateAvailable( BuildIdentity{ "edge", "v1.0.0", OTHER }, m ) );  // stable manifest, edge build
+}
+
+
+void TestUpdateManifest::parsesWhatTheReleaseScriptProduces()
+{
+        // The contract between the release workflow (scripts/make-update-manifest.sh) and this parser.
+        QString bash = qEnvironmentVariable( "GLABELS_TEST_BASH" );
+#ifndef Q_OS_WIN
+        if ( bash.isEmpty() )
+        {
+                bash = QStandardPaths::findExecutable( "bash" );   // (on Windows "bash" may be the WSL stub)
+        }
+#endif
+        if ( bash.isEmpty() || QStandardPaths::findExecutable( "jq" ).isEmpty() )
+        {
+                QSKIP( "needs bash and jq" );
+        }
+
+        QTemporaryDir dist;
+        QVERIFY( dist.isValid() );
+        const QByteArray zip( 4321, 'z' );
+        const QByteArray tgz( 8765, 't' );
+        for ( auto [name, content] : { std::pair<QString,QByteArray>{ "glabels-neo-windows-x64.zip", zip },
+                                       std::pair<QString,QByteArray>{ "glabels-neo-linux-x86_64.tar.gz", tgz } } )
+        {
+                QFile f( dist.path() + "/" + name );
+                QVERIFY( f.open( QIODevice::WriteOnly ) );
+                f.write( content );
+        }
+
+        QProcess script;
+        script.start( bash, { MAKE_MANIFEST_SCRIPT, dist.path(), "stable", "v1.3.0", COMMIT, "SchneiderWasTaken/glabels-neo" } );
+        QVERIFY( script.waitForFinished( 30000 ) );
+        QVERIFY2( script.exitCode() == 0, qPrintable( script.readAllStandardError() ) );
+
+        QFile out( dist.path() + "/glabels-neo-update-manifest.json" );
+        QVERIFY( out.open( QIODevice::ReadOnly ) );
+
+        QString error;
+        auto m = UpdateManifest::parse( out.readAll(), "SchneiderWasTaken/glabels-neo", "stable", true, &error );
+        QVERIFY2( m.has_value(), qPrintable( error ) );
+
+        QCOMPARE( m->version, QString( "v1.3.0" ) );
+        QCOMPARE( m->commit, COMMIT );
+        QCOMPARE( m->assets.size(), 2 );                         // no macOS package was given
+        QVERIFY( !m->assetFor( "macos-arm64" ) );
+
+        const UpdateAsset* win = m->assetFor( "windows-x86_64" );
+        QVERIFY( win );
+        QCOMPARE( win->size, qint64( zip.size() ) );
+        QCOMPARE( win->sha256, QString::fromLatin1( QCryptographicHash::hash( zip, QCryptographicHash::Sha256 ).toHex() ) );
+        QCOMPARE( win->url.toString(), QString( "https://github.com/SchneiderWasTaken/glabels-neo/releases/download/v1.3.0/glabels-neo-windows-x64.zip" ) );
 }

@@ -195,12 +195,13 @@ void TestUpdateUi::offerDialogHasTheThreeChoices()
 
 namespace
 {
-        QMessageBox* waitForBox( const QString& title )
+        // Looks the box up by its text: Qt ignores the window title of a QMessageBox on macOS.
+        QMessageBox* waitForBox( const QString& text )
         {
                 for ( int waited = 0; waited < 5000; waited += 50 )
                 {
                         auto* box = qobject_cast<QMessageBox*>( QApplication::activeModalWidget() );
-                        if ( box && box->windowTitle() == title )
+                        if ( box && box->text().contains( text ) )
                         {
                                 return box;
                         }
@@ -233,7 +234,7 @@ void TestUpdateUi::consentDialogAsksOnceAndStoresTheAnswer()
         QVERIFY( !update::UpdateSettings::consentAsked() );
         emit service->consentRequired();
 
-        QMessageBox* box = waitForBox( "Check for Updates Automatically?" );
+        QMessageBox* box = waitForBox( "look for new versions in the background" );
         QVERIFY( box );
         QVERIFY( box->informativeText().contains( "github.com" ) );        // says who is contacted
         QVERIFY( box->informativeText().contains( "Preferences" ) );        // says how to change it
@@ -257,7 +258,7 @@ void TestUpdateUi::consentDialogAsksOnceAndStoresTheAnswer()
         // --- "Check Automatically" ---
         QSettings().clear();
         emit service->consentRequired();
-        box = waitForBox( "Check for Updates Automatically?" );
+        box = waitForBox( "look for new versions in the background" );
         QVERIFY( box );
         buttonLabelled( box, "Check Automatically" )->click();
         QTRY_VERIFY_WITH_TIMEOUT( update::UpdateSettings::autoCheck(), 5000 );

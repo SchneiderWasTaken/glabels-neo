@@ -1,0 +1,64 @@
+# Scheduled stable releases: 10:00 and 14:00 Central Time, at most two a day, and only when something user-visible
+# has landed on main since the last release. No changes, no release.
+#
+#   10:00  carries everything merged since the last release, including the riskier changes (those are merged
+#          early in the morning so they have a full day to be watched).
+#   14:00  carries the day's low-risk follow-ups and fixes for anything the 10:00 release revealed, so the
+#          overnight build is the most stable one.
+#
+# GitHub cron runs in UTC, so each slot is listed for both the daylight-saving and standard-time offset; the script
+# decides from the actual Chicago clock which (if any) is the real slot (policy.mjs, releaseDecision).
+#
+# Opt-in: nothing is released until the repository variable RELEASE_TRAIN is set to "on". Set it to anything
+# else to pause.
+
+name: Release train
+
+on:
+  schedule:
+    - cron: '5 15,16,19,20 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Only print the decision
+        type: boolean
+        default: true
+      force:
+        description: Ignore the clock (maintainer override)
+        type: boolean
+        default: false
+
+concurrency:
+  group: release-train
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  train:
+    name: Decide and release
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - name: Checkout (trusted default branch)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Gate
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TRAIN: ${{ vars.RELEASE_TRAIN }}
+        run: node .github/agents/gate.mjs release
+
+      - name: Release train
+        if: steps.gate.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
+          RELEASE_FORCE_HOUR: ${{ github.event_name == 'workflow_dispatch' && inputs.force && '1' || '0' }}
+        run: node .github/agents/release-train.mjs

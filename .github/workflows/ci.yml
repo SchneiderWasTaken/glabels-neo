@@ -121,7 +121,7 @@ jobs:
           retention-days: 7
 
   relay:
-    name: Report relay tests
+    name: Relay and automation script tests
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -130,11 +130,15 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Test
+      - name: Relay tests
         working-directory: relay
         run: |
           node --version
           node --test
+
+      - name: Automation script tests
+        working-directory: .github/agents
+        run: node --test
 
   # Single, stable status for branch protection: require "CI OK".
   ci-ok:

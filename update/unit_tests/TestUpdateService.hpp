@@ -39,6 +39,7 @@ private slots:
         void rejectsAPackageThatDoesNotStart();
         void automaticChecksRespectSkipAndFailure();
         void autoInstallNeedsNoOffer();
+        void backgroundChecksNeedConsent();
         void recognizesAnAppliedUpdateAtStartup();
         void dropsObsoleteOrBrokenPendingUpdates();
         void givesUpAfterRepeatedFailedSwaps();

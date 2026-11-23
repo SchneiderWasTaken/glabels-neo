@@ -358,8 +358,19 @@ namespace glabels::update
 
         void UpdateService::onTimer()
         {
-                if ( !mSupported || !UpdateSettings::autoCheck() )
+                if ( !mSupported )
                 {
+                        return;
+                }
+                if ( !UpdateSettings::autoCheck() )
+                {
+                        // Never contact the network on the user's behalf before they have agreed to it.
+                        // Ask once per session until they have answered.
+                        if ( !UpdateSettings::consentAsked() && !mConsentRequested )
+                        {
+                                mConsentRequested = true;
+                                emit consentRequired();
+                        }
                         return;
                 }
                 if ( mState != State::Idle && mState != State::Available )
@@ -392,6 +403,10 @@ namespace glabels::update
                 {
                         emit checkFinished( CheckResult::Unsupported, userInitiated, mUnsupportedReason );
                         return;
+                }
+                if ( !userInitiated && !UpdateSettings::autoCheck() )
+                {
+                        return;  // background checks need the user's consent (see onTimer)
                 }
                 if ( mState != State::Idle && mState != State::Available )
                 {

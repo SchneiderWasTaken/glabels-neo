@@ -144,8 +144,12 @@ namespace glabels::update
                         }
                 }
 
-                bool autoCheck()                    { return get<bool>( "autoCheck", true ); }
-                void setAutoCheck( bool enabled )   { set( "autoCheck", enabled ); }
+                // Background checks contact github.com, so they are off until the user has said yes.
+                bool autoCheck()                    { return get<bool>( "autoCheck", false ); }
+                void setAutoCheck( bool enabled )   { set( "autoCheck", enabled ); set( "consentAsked", true ); }
+
+                bool consentAsked()                 { return get<bool>( "consentAsked", false ); }
+                void setConsentAsked( bool asked )  { set( "consentAsked", asked ); }
 
                 bool autoInstall()                  { return get<bool>( "autoInstall", false ); }
                 void setAutoInstall( bool enabled ) { set( "autoInstall", enabled ); }

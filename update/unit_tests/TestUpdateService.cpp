@@ -259,6 +259,7 @@ void TestUpdateService::initTestCase()
 void TestUpdateService::init()
 {
         QSettings().clear();
+        UpdateSettings::setAutoCheck( true );     // most tests exercise background checks; consent has its own test
         QDir( UpdateStore::dir() ).removeRecursively();
         g.server->routes.clear();
         g.server->requests.clear();
@@ -527,6 +528,53 @@ void TestUpdateService::autoInstallNeedsNoOffer()
 
         QCOMPARE( offered.count(), 0 );                          // the user was not asked, and not disturbed
         QCOMPARE( svc->pendingUpdate()->id, QString( "v1.1.0" ) );
+}
+
+
+void TestUpdateService::backgroundChecksNeedConsent()
+{
+        g.server->routes["/manifest.json"] = { 200, manifestFor( "v1.1.0", "x" ) };
+        QSettings().clear();                                  // a fresh installation: nobody has been asked
+
+        auto svc = makeService();
+        QVERIFY( svc->isSupported() );
+        QVERIFY( !UpdateSettings::autoCheck() );
+        QVERIFY( !UpdateSettings::consentAsked() );
+
+        QSignalSpy asked( svc.get(), &UpdateService::consentRequired );
+        QSignalSpy checked( svc.get(), &UpdateService::checkFinished );
+
+        // the periodic timer asks (once per session) instead of checking
+        QMetaObject::invokeMethod( svc.get(), "onTimer", Qt::DirectConnection );
+        QMetaObject::invokeMethod( svc.get(), "onTimer", Qt::DirectConnection );
+        QCOMPARE( asked.count(), 1 );
+
+        // and nothing may reach the network without consent, however the check is requested
+        svc->checkNow( false );
+        QTest::qWait( 300 );
+        QCOMPARE( checked.count(), 0 );
+        QVERIFY( g.server->requests.isEmpty() );
+
+        // "No" is remembered: no more questions, still no network
+        UpdateSettings::setAutoCheck( false );
+        QVERIFY( UpdateSettings::consentAsked() );
+        auto declined = makeService();
+        QSignalSpy askedAgain( declined.get(), &UpdateService::consentRequired );
+        QMetaObject::invokeMethod( declined.get(), "onTimer", Qt::DirectConnection );
+        QCOMPARE( askedAgain.count(), 0 );
+        QVERIFY( g.server->requests.isEmpty() );
+
+        // a check the user asks for is theirs to ask for, whatever the setting
+        svc->checkNow( true );
+        QVERIFY( checked.wait( 10000 ) );
+        QVERIFY( !g.server->requests.isEmpty() );
+
+        // "Yes": background checks run
+        g.server->requests.clear();
+        UpdateSettings::setAutoCheck( true );
+        svc->checkNow( false );
+        QVERIFY( checked.wait( 10000 ) );
+        QVERIFY( !g.server->requests.isEmpty() );
 }
 
 

@@ -6,13 +6,15 @@ start is already on the new version. Nothing changes under you while the program
 
 ## For users
 
-- **Help > Check for Updates...** looks right now.
-- **Edit > Preferences > Updates** turns the background check off, or lets updates install without asking.
+- **The first time**, the program asks whether it may check for updates in the background. Until you say yes,
+  it contacts nobody. *Don't Check* (or closing the question) is remembered and not asked again.
+- **Help > Check for Updates...** looks right now, whatever you answered.
+- **Edit > Preferences > Updates** turns the background check on or off at any time, or lets updates install without asking.
 - When a newer version is found you are asked once: *Install in Background*, *Not Now* (asks again in a
   few days) or *Skip This Version*. The box *Install future updates automatically* makes later updates silent.
 - Only the release channel you installed is followed: a **stable** release (`v1.2.0`, ...) follows stable
   releases; a build of the **edge** prerelease follows the newest build of `main`.
-- What leaves your computer: a request to `github.com` for a file of about 1 KB, at most every 12 hours
+- What leaves your computer: once you have agreed to background checks, a request to `github.com` for a file of about 1 KB, at most every 12 hours
   (every 6 hours on edge), and the package download when you accept an update. GitHub sees your IP address, as
   with any download. Nothing else is sent, and there is no account or identifier.
 - If an update cannot be installed, the version you are running is left exactly as it was. The log is

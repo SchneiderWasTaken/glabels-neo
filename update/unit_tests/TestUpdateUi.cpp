@@ -105,23 +105,32 @@ void TestUpdateUi::preferencesPageStoresTheChoices()
         QSettings().clear();
 
         UpdatePreferencesPage page;
+        auto* group = page.findChild<QGroupBox*>();
+        QVERIFY( group );
         const auto boxes = page.findChildren<QCheckBox*>();
         QCOMPARE( boxes.size(), 2 );
         QCheckBox* check   = boxes[0];
         QCheckBox* install = boxes[1];
 
-        // defaults: look for updates, but ask before installing
-        QVERIFY( check->isChecked() );
+        // defaults: nothing happens in the background until the user has agreed
+        QVERIFY( !check->isChecked() );
         QVERIFY( !install->isChecked() );
-        QVERIFY( update::UpdateSettings::autoCheck() );
+        QVERIFY( !install->isEnabledTo( group ) );
+        QVERIFY( !update::UpdateSettings::autoCheck() );
+        QVERIFY( !update::UpdateSettings::consentAsked() );
         QVERIFY( !update::UpdateSettings::autoInstall() );
+
+        check->setChecked( true );
+        QVERIFY( update::UpdateSettings::autoCheck() );
+        QVERIFY( update::UpdateSettings::consentAsked() );      // setting it here answers the question
+        QVERIFY( install->isEnabledTo( group ) );
 
         install->setChecked( true );
         QVERIFY( update::UpdateSettings::autoInstall() );
 
         check->setChecked( false );
         QVERIFY( !update::UpdateSettings::autoCheck() );
-        QVERIFY( !install->isEnabled() );        // nothing to install without checking
+        QVERIFY( !install->isEnabledTo( group ) );        // nothing to install without checking
 
         // a new page shows what was stored
         UpdatePreferencesPage again;
@@ -181,4 +190,76 @@ void TestUpdateUi::offerDialogHasTheThreeChoices()
         box->checkBox()->setChecked( true );
         install->click();
         QTRY_VERIFY_WITH_TIMEOUT( update::UpdateSettings::autoInstall(), 5000 );
+}
+
+
+namespace
+{
+        QMessageBox* waitForBox( const QString& title )
+        {
+                for ( int waited = 0; waited < 5000; waited += 50 )
+                {
+                        auto* box = qobject_cast<QMessageBox*>( QApplication::activeModalWidget() );
+                        if ( box && box->windowTitle() == title )
+                        {
+                                return box;
+                        }
+                        QTest::qWait( 50 );
+                }
+                return nullptr;
+        }
+
+        QPushButton* buttonLabelled( QMessageBox* box, const QString& text )
+        {
+                for ( QAbstractButton* b : box->buttons() )
+                {
+                        if ( b->text() == text )
+                        {
+                                return qobject_cast<QPushButton*>( b );
+                        }
+                }
+                return nullptr;
+        }
+}
+
+
+void TestUpdateUi::consentDialogAsksOnceAndStoresTheAnswer()
+{
+        UpdateUi::init();
+        auto* service = update::UpdateService::instance();
+
+        // --- "Don't Check" (also what Escape means) ---
+        QSettings().clear();
+        QVERIFY( !update::UpdateSettings::consentAsked() );
+        emit service->consentRequired();
+
+        QMessageBox* box = waitForBox( "Check for Updates Automatically?" );
+        QVERIFY( box );
+        QVERIFY( box->informativeText().contains( "github.com" ) );        // says who is contacted
+        QVERIFY( box->informativeText().contains( "Preferences" ) );        // says how to change it
+        QPushButton* yes = buttonLabelled( box, "Check Automatically" );
+        QPushButton* no  = buttonLabelled( box, "Don't Check" );
+        QVERIFY( yes && no );
+        QVERIFY( box->defaultButton() == no );                             // the safe answer is the default
+
+        emit service->consentRequired();                                   // a second request must not stack a dialog
+        int boxes = 0;
+        for ( QWidget* w : QApplication::topLevelWidgets() )
+        {
+                boxes += qobject_cast<QMessageBox*>( w ) && w->isVisible() ? 1 : 0;
+        }
+        QCOMPARE( boxes, 1 );
+
+        box->close();                                                      // closing without answering = no
+        QTRY_VERIFY_WITH_TIMEOUT( update::UpdateSettings::consentAsked(), 5000 );
+        QVERIFY( !update::UpdateSettings::autoCheck() );
+
+        // --- "Check Automatically" ---
+        QSettings().clear();
+        emit service->consentRequired();
+        box = waitForBox( "Check for Updates Automatically?" );
+        QVERIFY( box );
+        buttonLabelled( box, "Check Automatically" )->click();
+        QTRY_VERIFY_WITH_TIMEOUT( update::UpdateSettings::autoCheck(), 5000 );
+        QVERIFY( update::UpdateSettings::consentAsked() );
 }

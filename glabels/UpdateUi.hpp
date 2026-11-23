@@ -68,6 +68,7 @@ namespace glabels
                 void checkForUpdatesRequested();
 
         private slots:
+                void onConsentRequired();
                 void onUpdateAvailable( const update::UpdateManifest& manifest, bool userInitiated );
                 void onCheckFinished( update::UpdateService::CheckResult result, bool userInitiated, const QString& message );
                 void onUpdateReady( const QString& version );
@@ -84,6 +85,7 @@ namespace glabels
                 void showOffer( const update::UpdateManifest& manifest );
 
                 QPointer<QMessageBox> mOffer;
+                QPointer<QMessageBox> mConsent;
                 bool                  mUserWaitingForCheck{false};
                 bool                  mUserRequestedInstall{false};
                 bool                  mUserShowsProgress{false};

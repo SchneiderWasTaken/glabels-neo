@@ -74,8 +74,14 @@ namespace glabels::update
         ///
         namespace UpdateSettings
         {
+                /// Look for updates in the background.  Off until the user opts in (see consentAsked());
+                /// "Check for Updates..." in the Help menu works regardless, because the user asked for it.
                 bool autoCheck();
-                void setAutoCheck( bool enabled );
+                void setAutoCheck( bool enabled );      ///< also records that the user has answered
+
+                /// True once the user has been asked, or has set the preference themselves.
+                bool consentAsked();
+                void setConsentAsked( bool asked );
 
                 /// Download and stage without asking first.
                 bool autoInstall();

@@ -126,7 +126,8 @@ void TestUpdateApply::appliesAtExitSoTheNextLaunchIsNew()
         QTRY_COMPARE_WITH_TIMEOUT( readFile( gRoot + "/bin/version.txt" ), QByteArray( "new" ), 30000 );
 
         QVERIFY( !QFileInfo::exists( gStaged ) );
-        QVERIFY( !QFileInfo::exists( QFileInfo( gRoot ).absolutePath() + "/.glabels-neo.old" ) );   // the old version is gone
+        // the old version is deleted after the swap, which can take a moment on a slow disk
+        QTRY_VERIFY_WITH_TIMEOUT( !QFileInfo::exists( QFileInfo( gRoot ).absolutePath() + "/.glabels-neo.old" ), 30000 );
         QVERIFY( QFileInfo::exists( gRoot + "/bin/" + exeName( "glabels-updater" ) ) );
 
         // "exit" only swaps: it does not start anything

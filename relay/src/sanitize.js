@@ -109,9 +109,15 @@ export function validateReport(raw) {
 }
 
 /** Issue title and body for a validated report. */
-export function formatIssue(report) {
+export function formatIssue(report, meta = {}) {
   const title = `[Bug]: ${neutralizeMarkdown(report.summary)}`.slice(0, 200);
-  const parts = [MARKER, '### What happened?', '', neutralizeMarkdown(report.description), ''];
+  // Bookkeeping for the relay's own rate limits (see limits.js).  Both values come from the relay, never from the
+  // report, and are validated here so nothing can be smuggled into the comment.
+  const track =
+    /^[0-9a-f]{8,64}$/.test(meta.reporter ?? '') && /^[A-Za-z0-9_-]{8,64}$/.test(meta.nonce ?? '')
+      ? [`<!-- reporter:${meta.reporter} nonce:${meta.nonce} -->`]
+      : [];
+  const parts = [MARKER, ...track, '### What happened?', '', neutralizeMarkdown(report.description), ''];
   if (report.diagnostics) {
     parts.push('### Environment', '', fenced(report.diagnostics), '');
   }

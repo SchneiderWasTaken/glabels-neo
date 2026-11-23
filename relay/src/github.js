@@ -1,5 +1,5 @@
 // Minimal GitHub client: authenticates as a GitHub App (or with a fine-grained token) and files issues.
-// Uses only fetch and WebCrypto, so it runs unchanged on Cloudflare Workers and Node.
+// Uses only fetch and WebCrypto, so it runs unchanged on Node, DigitalOcean Functions and Cloudflare Workers.
 
 const API = 'https://api.github.com';
 const enc = new TextEncoder();
@@ -118,4 +118,31 @@ export async function createIssue(env, { title, body, comments }, labels, fetchF
     }).catch(() => {});
   }
   return { number: issue.number, url: issue.html_url };
+}
+
+/**
+ * Reports filed by the relay since `sinceMs` (issues labelled "from-app"), newest first: [{ created_at, body }].
+ * Used as the relay's own state (see limits.js).  Throws when GitHub cannot be reached.
+ */
+export async function listRecentReports(env, sinceMs, fetchFn = fetch) {
+  const token = await getToken(env, fetchFn);
+  const since = new Date(sinceMs).toISOString();
+  const url = `${API}/repos/${env.GITHUB_REPO}/issues?labels=from-app&state=all&since=${encodeURIComponent(since)}` +
+    '&sort=created&direction=desc&per_page=100';
+  const res = await fetchFn(url, { headers: headers(token) });
+  if (!res.ok) throw new Error(`listing recent reports failed: ${res.status}`);
+  const issues = await res.json();
+  return issues
+    .filter((i) => !i.pull_request && Date.parse(i.created_at) >= sinceMs)
+    .map((i) => ({ number: i.number, created_at: i.created_at, body: i.body ?? '', labels: (i.labels ?? []).map((l) => (typeof l === 'string' ? l : l.name)) }));
+}
+
+/** Close an issue the relay has just filed because it turned out to be a duplicate or over the limits. */
+export async function closeAsRejected(env, number, why, fetchFn = fetch) {
+  const token = await getToken(env, fetchFn);
+  const base = `${API}/repos/${env.GITHUB_REPO}/issues/${number}`;
+  await fetchFn(`${base}/comments`, { method: 'POST', headers: headers(token), body: JSON.stringify({ body: `Closed automatically by the report relay: ${why}` }) });
+  await fetchFn(`${base}/labels`, { method: 'POST', headers: headers(token), body: JSON.stringify({ labels: ['relay-rejected'] }) });
+  const res = await fetchFn(base, { method: 'PATCH', headers: headers(token), body: JSON.stringify({ state: 'closed', state_reason: 'not_planned' }) });
+  if (!res.ok) throw new Error(`closing the issue failed: ${res.status}`);
 }

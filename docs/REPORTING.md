@@ -31,10 +31,10 @@ untick that box or remove the data first.
 
 Path of a report:
 
-1. The app asks the **report relay** (`relay/`, a Cloudflare Worker run by the maintainer) for a one-time
+1. The app asks the **report relay** (`relay/`, a DigitalOcean Function run by the maintainer) for a one-time
    challenge, solves it (about a second of computer time, to deter spam), and sends the report over HTTPS.
-2. The relay files the issue on GitHub. The relay stores no report text; it keeps short-lived anonymous counters
-   (a salted hash of your IP address, used only for rate limiting, expires within a day).
+2. The relay files the issue on GitHub. The relay stores nothing itself. For rate limiting, the issue it files carries a hidden note with a salted hash of your
+   IP address (not the address itself) and the one-time challenge id.
 3. Automation reads the issue to label it, look for duplicates and sometimes propose a fix.
    See [AUTOMATION.md](AUTOMATION.md).
 

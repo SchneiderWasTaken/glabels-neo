@@ -1,0 +1,23 @@
+# DigitalOcean Functions project for the report relay (see ../README.md).
+# Deploy with deploy.ps1 (it stages the sources, supplies the secrets and prints the URL).
+packages:
+  - name: relay
+    functions:
+      - name: report
+        runtime: nodejs:18
+        web: raw
+        limits:
+          timeout: 20000
+          memory: 256
+        environment:
+          GITHUB_REPO: SchneiderWasTaken/glabels-neo
+          LIMITS_BACKEND: github
+          ENABLED: "true"
+          POW_BITS: "18"
+          LIMIT_PER_HOUR: "3"
+          LIMIT_PER_DAY: "8"
+          LIMIT_GLOBAL_PER_DAY: "100"
+          RECONCILE_DELAY_MS: "3000"
+          # Secrets come from a private env file at deploy time (deploy.ps1); never commit values here.
+          GITHUB_TOKEN: "${GITHUB_TOKEN}"
+          CHALLENGE_SECRET: "${CHALLENGE_SECRET}"

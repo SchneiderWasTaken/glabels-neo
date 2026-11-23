@@ -7,8 +7,8 @@
 // The app never holds a GitHub credential.  This service does, scoped to creating issues in one
 // repository, and it only ever creates issues with the fixed labels below.
 
-import { createIssue } from './github.js';
-import { claimReport, sha256Hex } from './limits.js';
+import { closeAsRejected, createIssue } from './github.js';
+import { claimReport, reconcile, sha256Hex } from './limits.js';
 import { issueChallenge, verifySolution } from './pow.js';
 import { LIMITS, ValidationError, formatIssue, validateReport } from './sanitize.js';
 
@@ -68,13 +68,17 @@ export async function handle(request, env, ctx, deps = {}) {
     }
 
     // 3. single use + rate limits
-    // (cf-connecting-ip is set by Cloudflare itself; behind any other proxy it must be the trusted client address.)
-    const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
-    const limit = await claimReport(
-      env,
-      { nonce: pow.nonce, nonceExpires: pow.expires * 1000, reporter: (await sha256Hex(`${env.CHALLENGE_SECRET}|${ip}`)).slice(0, 24) },
-      now,
-    );
+    // (x-client-ip is set by the platform adapter from the trusted proxy chain; cf-connecting-ip by Cloudflare, if ever used.)
+    const ip = request.headers.get('x-client-ip') ?? request.headers.get('cf-connecting-ip') ?? 'unknown';
+    const reporter = (await sha256Hex(`${env.CHALLENGE_SECRET}|${ip}`)).slice(0, 24);
+    let limit;
+    try {
+      limit = await (deps.claimReport ?? claimReport)(env, { nonce: pow.nonce, reporter }, now);
+    } catch (e) {
+      // Fail closed: without the limits we cannot tell abuse from use.
+      console.error('limits unavailable:', e instanceof Error ? e.message : e);
+      return json(503, { ok: false, error: 'temporarily unavailable' });
+    }
     if (!limit.ok && limit.kind === 'nonce') return json(400, { ok: false, error: 'challenge already used' });
     if (!limit.ok) {
       return json(
@@ -86,7 +90,19 @@ export async function handle(request, env, ctx, deps = {}) {
 
     // 4. file it
     try {
-      const issue = await create(env, formatIssue(report), LABELS);
+      const issue = await create(env, formatIssue(report, { reporter, nonce: pow.nonce }), LABELS);
+
+      // The limits above are checked against a list that can lag; look again a moment later and withdraw this report
+      // if an earlier one made it a duplicate or pushed it over a limit (see limits.js).
+      if (env.LIMITS_BACKEND === 'github') {
+        const wait = Number(env.RECONCILE_DELAY_MS ?? 3000);
+        if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+        const verdict = await (deps.reconcile ?? reconcile)(env, { number: issue.number, nonce: pow.nonce, reporter }, Date.now());
+        if (!verdict.ok) {
+          await (deps.close ?? closeAsRejected)(env, issue.number, verdict.why).catch(() => {});
+          return json(429, { ok: false, error: 'too many reports, please try again later' }, { 'retry-after': '3600' });
+        }
+      }
       return json(201, { ok: true, number: issue.number, url: issue.url });
     } catch (e) {
       console.error('issue creation failed:', e instanceof Error ? e.message : e);
@@ -96,14 +112,3 @@ export async function handle(request, env, ctx, deps = {}) {
 
   return json(404, { ok: false, error: 'not found' });
 }
-
-export { Limiter } from './limiter.js';
-
-export default {
-  fetch(request, env, ctx) {
-    return handle(request, env, ctx).catch((e) => {
-      console.error('unhandled:', e instanceof Error ? e.message : e);
-      return json(500, { ok: false, error: 'internal error' });
-    });
-  },
-};

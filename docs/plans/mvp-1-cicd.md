@@ -110,7 +110,7 @@ build (all matrix legs), tests, format, static analysis, CodeQL, license check, 
   winget/Homebrew/Scoop manifests, code signing (SignPath / Apple notarization) once accounts exist,
   weekly upstream-sync PR, required-status-check ruleset.
 
-### Known gaps to close before the first stable release
+### Known gaps (license texts and notices closed in the compliance PR)
 Found by the wave 1 review and the license inventory; edge builds ship with these open, stable releases must not.
 - **Third-party license texts:** packages ship the gLabels, glbarcode (LGPL), template (MIT) and QXlsx texts and
   Qt's `LICENSES/` when present, but not yet those of libzint (BSD-3-Clause), libqrencode (LGPL-2.1+), ICU

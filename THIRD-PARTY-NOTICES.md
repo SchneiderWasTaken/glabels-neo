@@ -10,9 +10,7 @@ included in the gLabels Neo source repository and/or bundled into its binary
 releases (Windows, macOS, Linux, and the standalone `glabels-fill-sfx` kiosk).
 Full license texts are provided in the accompanying `licenses/` directory.
 
-> **Maintainer note:** This file is being finalized together with the release pipeline (MVP 1). Placeholders formatted as `<VERSION>` are replaced
-> automatically by the release build pipeline from the build manifest (e.g., Qt
-> patch version, vcpkg/Homebrew/MSYS2/apt package versions).
+> The exact versions of the libraries in a given package are listed in the `VERSIONS.txt` file inside it.
 
 ---
 
@@ -52,7 +50,7 @@ Full license texts are provided in the accompanying `licenses/` directory.
 ## 2. Core Application & Runtime Dependencies
 
 ### Qt 6 (QtBase, QtSvg, QtWaylandClient, QtTranslations)
-- **Version:** `<QT_VERSION>` (e.g., `6.8.x`)
+- **Version:** see `VERSIONS.txt`
 - **SPDX License:** `LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only`
   *(Dynamic releases use Qt under `LGPL-3.0-only`; static `glabels-fill-sfx`
   kiosk releases use Qt under `GPL-3.0-only` / `LGPL-3.0-only` with full
@@ -67,21 +65,21 @@ Full license texts are provided in the accompanying `licenses/` directory.
 - **License Text:** `licenses/LGPL-3.0.txt`, `licenses/GPL-3.0.txt`, and `licenses/qt/`
 
 ### QXlsx
-- **Version:** `v1.5.1.1` *(or `<QXLSX_VERSION>` if built against system package; omitted in `glabels-fill-sfx`)*
+- **Version:** `v1.5.1.1` **
 - **SPDX License:** `MIT`
 - **Project URL:** <https://github.com/QtExcel/QXlsx>
 - **Copyright:** Copyright (c) 2013–2015 Debao Zhang; Copyright (c) 2017–2025 QXlsx contributors
 - **License Text:** `licenses/QXlsx-MIT.txt`
 
 ### Zint (`libzint` Barcode Encoding Backend)
-- **Version:** `<ZINT_VERSION>` (e.g., `2.15.0`)
+- **Version:** see `VERSIONS.txt`
 - **SPDX License:** `BSD-3-Clause` *(applies to the `libzint` backend library linked by gLabels Neo)*
 - **Project URL:** <https://www.zint.org.uk/> / <https://github.com/zint/zint>
 - **Copyright:** Copyright (C) 2006–2025 Robin Stuart and Zint contributors
 - **License Text:** `licenses/libzint-BSD-3-Clause.txt`
 
 ### libqrencode
-- **Version:** `<QRENCODE_VERSION>` (e.g., `4.1.1`)
+- **Version:** see `VERSIONS.txt`
 - **SPDX License:** `LGPL-2.1-or-later`
 - **Project URL:** <https://fukuchi.org/works/qrencode/> / <https://github.com/fukuchi/libqrencode>
 - **Copyright:** Copyright (C) 2006–2020 Kentaro Fukuchi
@@ -90,28 +88,28 @@ Full license texts are provided in the accompanying `licenses/` directory.
 - **License Text:** `licenses/LGPL-2.1.txt`
 
 ### GNU Barcode *(Optional — included only in builds where `HAVE_GNU_BARCODE=1`)*
-- **Version:** `<GNUBARCODE_VERSION>` *(omitted in default GitHub release builds)*
+- **Version:** see `VERSIONS.txt` *(omitted in default GitHub release builds)*
 - **SPDX License:** `GPL-3.0-or-later` (v0.99+) / `GPL-2.0-or-later` (v0.98)
 - **Project URL:** <https://www.gnu.org/software/barcode/>
 - **Copyright:** Copyright (C) Free Software Foundation, Inc. / Alessandro Rubini and contributors
 - **License Text:** `licenses/GPL-3.0.txt`
 
 ### zlib
-- **Version:** `<ZLIB_VERSION>`
+- **Version:** see `VERSIONS.txt`
 - **SPDX License:** `Zlib`
 - **Project URL:** <https://zlib.net/>
 - **Copyright:** Copyright (C) 1995–2024 Jean-loup Gailly and Mark Adler
 - **License Text:** `licenses/zlib.txt`
 
 ### ICU — International Components for Unicode *(Bundled on platforms where linked by Qt)*
-- **Version:** `<ICU_VERSION>`
+- **Version:** see `VERSIONS.txt`
 - **SPDX License:** `Unicode-3.0` *(verify exact version if older than ICU 72)*
 - **Project URL:** <https://icu.unicode.org/> / <https://github.com/unicode-org/icu>
 - **Copyright:** Copyright (c) 1991–2025 Unicode, Inc. All rights reserved.
 - **License Text:** `licenses/ICU-Unicode-3.0.txt`
 
 ### OpenSSL *(Included ONLY if bundled with TLS plugin; must be OpenSSL 3.0+)*
-- **Version:** `<OPENSSL_VERSION>` *(omitted when using OS native TLS backends)*
+- **Version:** see `VERSIONS.txt` *(omitted when using OS native TLS backends)*
 - **SPDX License:** `Apache-2.0` *(OpenSSL 3.x only — do NOT bundle OpenSSL 1.1.x)*
 - **Project URL:** <https://www.openssl.org/>
 - **Copyright:** Copyright (c) The OpenSSL Project Authors
@@ -127,22 +125,22 @@ as transitively used by Qt image/font/text codecs:
 
 | Component | Version | SPDX License | Project URL | License File |
 | :--- | :--- | :--- | :--- | :--- |
-| **GCC Runtime (`libgcc`, `libstdc++`)** | `<GCC_VERSION>` | `GPL-3.0-or-later WITH GCC-exception-3.1` | <https://gcc.gnu.org/> | `licenses/GPL-3.0.txt`, `licenses/GCC-exception-3.1.txt` |
-| **MinGW-w64 `winpthreads`** | `<MINGW_VERSION>` | `MIT AND BSD-3-Clause` | <https://www.mingw-w64.org/> | `licenses/winpthreads.txt` |
-| **FreeType** | `<FREETYPE_VERSION>` | `FTL OR GPL-2.0-or-later` | <https://freetype.org/> | `licenses/FreeType-FTL.txt` *(Portions of this software are copyright © The FreeType Project (www.freetype.org). All rights reserved.)* |
-| **HarfBuzz** | `<HARFBUZZ_VERSION>` | `MIT` | <https://harfbuzz.github.io/> | `licenses/HarfBuzz-MIT.txt` |
-| **SIL Graphite2** | `<GRAPHITE2_VERSION>` | `MIT OR MPL-2.0 OR LGPL-2.1-or-later OR GPL-2.0-or-later` | <https://github.com/silnrsi/graphite> | `licenses/Graphite2-MIT.txt` |
-| **libpng** | `<LIBPNG_VERSION>` | `libpng-2.0` | <http://www.libpng.org/pub/png/libpng.html> | `licenses/libpng-2.0.txt` |
-| **libjpeg-turbo** | `<LIBJPEG_TURBO_VERSION>` | `IJG AND BSD-3-Clause AND Zlib` | <https://libjpeg-turbo.org/> | `licenses/libjpeg-turbo.txt` *(This software is based in part on the work of the Independent JPEG Group.)* |
-| **libtiff** | `<LIBTIFF_VERSION>` | `libtiff` | <https://libtiff.gitlab.io/libtiff/> | `licenses/libtiff.txt` |
-| **libwebp** | `<LIBWEBP_VERSION>` | `BSD-3-Clause` | <https://chromium.googlesource.com/webm/libwebp> | `licenses/libwebp-BSD-3-Clause.txt` |
-| **Zstandard (`zstd`)** | `<ZSTD_VERSION>` | `BSD-3-Clause OR GPL-2.0-only` | <https://github.com/facebook/zstd> | `licenses/zstd-BSD-3-Clause.txt` |
-| **bzip2** | `<BZIP2_VERSION>` | `bzip2-1.0.6` | <https://sourceware.org/bzip2/> | `licenses/bzip2-1.0.6.txt` |
-| **Brotli** | `<BROTLI_VERSION>` | `MIT` | <https://github.com/google/brotli> | `licenses/Brotli-MIT.txt` |
-| **PCRE2** | `<PCRE2_VERSION>` | `BSD-3-Clause WITH PCRE2-exception` | <https://github.com/PCRE2Project/pcre2> | `licenses/PCRE2-BSD-3-Clause.txt` |
-| **MD4C** | `<MD4C_VERSION>` | `MIT` | <https://github.com/mity/md4c> | `licenses/MD4C-MIT.txt` |
-| **double-conversion** | `<DOUBLE_CONVERSION_VERSION>` | `BSD-3-Clause` | <https://github.com/google/double-conversion> | `licenses/double-conversion-BSD-3-Clause.txt` |
-| **libb2** | `<LIBB2_VERSION>` | `CC0-1.0` | <https://github.com/BLAKE2/libb2> | `licenses/CC0-1.0.txt` |
+| **GCC Runtime (`libgcc`, `libstdc++`)** | see `VERSIONS.txt` | `GPL-3.0-or-later WITH GCC-exception-3.1` | <https://gcc.gnu.org/> | `licenses/GPL-3.0.txt`, `licenses/GCC-exception-3.1.txt` |
+| **MinGW-w64 `winpthreads`** | see `VERSIONS.txt` | `MIT AND BSD-3-Clause` | <https://www.mingw-w64.org/> | `licenses/winpthreads.txt` |
+| **FreeType** | see `VERSIONS.txt` | `FTL OR GPL-2.0-or-later` | <https://freetype.org/> | `licenses/FreeType-FTL.txt` *(Portions of this software are copyright © The FreeType Project (www.freetype.org). All rights reserved.)* |
+| **HarfBuzz** | see `VERSIONS.txt` | `MIT` | <https://harfbuzz.github.io/> | `licenses/HarfBuzz-MIT.txt` |
+| **SIL Graphite2** | see `VERSIONS.txt` | `MIT OR MPL-2.0 OR LGPL-2.1-or-later OR GPL-2.0-or-later` | <https://github.com/silnrsi/graphite> | `licenses/Graphite2-MIT.txt` |
+| **libpng** | see `VERSIONS.txt` | `libpng-2.0` | <http://www.libpng.org/pub/png/libpng.html> | `licenses/libpng-2.0.txt` |
+| **libjpeg-turbo** | see `VERSIONS.txt` | `IJG AND BSD-3-Clause AND Zlib` | <https://libjpeg-turbo.org/> | `licenses/libjpeg-turbo.txt` *(This software is based in part on the work of the Independent JPEG Group.)* |
+| **libtiff** | see `VERSIONS.txt` | `libtiff` | <https://libtiff.gitlab.io/libtiff/> | `licenses/libtiff.txt` |
+| **libwebp** | see `VERSIONS.txt` | `BSD-3-Clause` | <https://chromium.googlesource.com/webm/libwebp> | `licenses/libwebp-BSD-3-Clause.txt` |
+| **Zstandard (`zstd`)** | see `VERSIONS.txt` | `BSD-3-Clause OR GPL-2.0-only` | <https://github.com/facebook/zstd> | `licenses/zstd-BSD-3-Clause.txt` |
+| **bzip2** | see `VERSIONS.txt` | `bzip2-1.0.6` | <https://sourceware.org/bzip2/> | `licenses/bzip2-1.0.6.txt` |
+| **Brotli** | see `VERSIONS.txt` | `MIT` | <https://github.com/google/brotli> | `licenses/Brotli-MIT.txt` |
+| **PCRE2** | see `VERSIONS.txt` | `BSD-3-Clause WITH PCRE2-exception` | <https://github.com/PCRE2Project/pcre2> | `licenses/PCRE2-BSD-3-Clause.txt` |
+| **MD4C** | see `VERSIONS.txt` | `MIT` | <https://github.com/mity/md4c> | `licenses/MD4C-MIT.txt` |
+| **double-conversion** | see `VERSIONS.txt` | `BSD-3-Clause` | <https://github.com/google/double-conversion> | `licenses/double-conversion-BSD-3-Clause.txt` |
+| **libb2** | see `VERSIONS.txt` | `CC0-1.0` | <https://github.com/BLAKE2/libb2> | `licenses/CC0-1.0.txt` |
 
 *(Windows MSVC builds also include the Microsoft Visual C++ runtime DLLs, redistributed under Microsoft's redistribution terms for Visual Studio "Redistributable Code".)*
 
@@ -181,7 +179,7 @@ that bundled notices always match the shipped binaries:
 
 ## 5. Release Notes Source-Availability Statement (GPLv3 §6 / LGPLv3 §4)
 
-This is the template that the release workflow fills in for every GitHub Release description (replacing `<TAG>`, `<REPO_URL>`, `<QT_VERSION>`, and `<SOURCE_ARCHIVE_URL>`):
+This is the template that the release workflow fills in for every GitHub Release description (replacing `<TAG>`, `<REPO_URL>`, see `VERSIONS.txt`, and `<SOURCE_ARCHIVE_URL>`):
 
 ```markdown
 ### License & Corresponding Source Code
@@ -204,8 +202,8 @@ no charge from the same release page and git tag:
 - **Exact third-party dependency sources & build manifest:** Included in the
   attached `glabels-neo-<TAG>-corresponding-source-manifest.json` (and bundled
   source archives for statically linked / LGPL dependencies, including Qt
-  `<QT_VERSION>`, QXlsx `v1.5.1.1`, Zint `<ZINT_VERSION>`, and libqrencode
-  `<QRENCODE_VERSION>`).
+  see `VERSIONS.txt`, QXlsx `v1.5.1.1`, Zint see `VERSIONS.txt`, and libqrencode
+  see `VERSIONS.txt`).
 
 Dynamically linked desktop releases use Qt 6 under the LGPL-3.0-only license;
 users may replace the bundled Qt shared libraries with interface-compatible

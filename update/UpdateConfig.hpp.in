@@ -1,0 +1,53 @@
+//  UpdateConfig.hpp  (generated from UpdateConfig.hpp.in by CMake -- do not edit)
+//
+//  Copyright (C) 2026  gLabels Neo contributors
+//
+//  This file is part of gLabels-qt.
+//
+//  gLabels-qt is free software: you can redistribute it and/or modify
+//  it under the terms of the GNU General Public License as published by
+//  the Free Software Foundation, either version 3 of the License, or
+//  (at your option) any later version.
+//
+//  gLabels-qt is distributed in the hope that it will be useful,
+//  but WITHOUT ANY WARRANTY; without even the implied warranty of
+//  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+//  GNU General Public License for more details.
+//
+//  You should have received a copy of the GNU General Public License
+//  along with gLabels-qt.  If not, see <http://www.gnu.org/licenses/>.
+//
+
+#ifndef update_UpdateConfig_hpp
+#define update_UpdateConfig_hpp
+
+
+#include <QString>
+
+
+namespace glabels::update
+{
+
+        ///
+        /// Build-time facts the self-updater needs.
+        ///
+        namespace Config
+        {
+                /// Release channel this build follows: "stable", "edge", or "" when the build
+                /// was not produced by the release pipeline (self-update is then disabled).
+                const QString CHANNEL = "@UPDATE_CHANNEL@";
+
+                /// GitHub repository ("owner/name") that publishes the releases.
+                const QString REPO = "@GLABELS_UPDATE_REPO@";
+
+                /// Full commit hash this build was made from (identifies an "edge" build).
+                const QString COMMIT = "@UPDATE_COMMIT@";
+
+                /// Release tag this build was made from, e.g. "v1.2.0" (identifies a "stable" build).
+                const QString TAG = "@UPDATE_TAG@";
+        }
+
+}
+
+
+#endif // update_UpdateConfig_hpp

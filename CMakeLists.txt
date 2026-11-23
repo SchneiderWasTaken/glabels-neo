@@ -90,6 +90,9 @@ endif ()
 
 set(LONG_VERSION_STRING "${VERSION_STRING} (${COMMIT_HASH} ${COMMIT_DATE})")
 
+# Which release channel this build follows for self-update (stable / edge / none)
+include (cmake/UpdateChannel.cmake)
+
 # Auto-generate version file
 configure_file (VERSION.txt.in VERSION.txt @ONLY)
 
@@ -226,6 +229,8 @@ endif ()
 add_subdirectory (glbarcode)
 add_subdirectory (backends)
 add_subdirectory (model)
+add_subdirectory (updater)
+add_subdirectory (update)
 add_subdirectory (glabels)
 add_subdirectory (glabels-batch)
 add_subdirectory (glabels-fill)

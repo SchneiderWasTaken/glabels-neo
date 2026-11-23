@@ -61,7 +61,9 @@ namespace glabels
                 // Life Cycle
                 /////////////////////////////////
         public:
-                explicit ReportBugDialog( const model::Model* model = nullptr, QWidget *parent = nullptr );
+                /// `endpointOverride` replaces the relay address compiled into the build (used by tests).
+                explicit ReportBugDialog( const model::Model* model = nullptr, QWidget *parent = nullptr,
+                                          const QString& endpointOverride = QString() );
 
 
                 /////////////////////////////////
@@ -94,6 +96,7 @@ namespace glabels
                 QString labelText() const;
 
                 const model::Model*   mModel;
+                QString               mEndpoint;       // relay base URL, or empty (browser flow only)
                 QNetworkAccessManager mNetwork;
                 bool                  mBusy = false;
                 bool                  mCancelled = false;

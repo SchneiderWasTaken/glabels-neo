@@ -56,9 +56,9 @@ namespace glabels
                 const int MAX_POW_BITS = 24;                // refuse absurd work from a misconfigured relay
                 const int MIN_DESCRIPTION_CHARS = 10;
 
-                QString endpoint()
+                QString normalizeEndpoint( const QString& configured )
                 {
-                        QString base = model::Version::REPORT_ENDPOINT.trimmed();
+                        QString base = configured.trimmed();
                         while ( base.endsWith( '/' ) )
                         {
                                 base.chop( 1 );
@@ -105,9 +105,11 @@ namespace glabels
         ///
         /// Constructor
         ///
-        ReportBugDialog::ReportBugDialog( const model::Model* model, QWidget *parent )
+        ReportBugDialog::ReportBugDialog( const model::Model* model, QWidget *parent, const QString& endpointOverride )
                 : QDialog( parent ), mModel( model )
         {
+                mEndpoint = normalizeEndpoint( endpointOverride.isEmpty() ? model::Version::REPORT_ENDPOINT : endpointOverride );
+
                 setWindowTitle( tr( "%1 - Report a Problem" ).arg( model::Branding::DISPLAY_NAME ) );
                 setMinimumWidth( 620 );
 
@@ -194,7 +196,7 @@ namespace glabels
                 connect( mLabelCheck,      &QCheckBox::toggled,           this, &ReportBugDialog::onInputChanged );
                 connect( mLogCheck,        &QCheckBox::toggled,           this, &ReportBugDialog::onInputChanged );
 
-                if ( endpoint().isEmpty() )
+                if ( mEndpoint.isEmpty() )
                 {
                         mSendButton->setVisible( false );
                         mBrowserButton->setDefault( true );
@@ -352,7 +354,7 @@ namespace glabels
         ///
         void ReportBugDialog::onSendClicked()
         {
-                if ( endpoint().isEmpty() )
+                if ( mEndpoint.isEmpty() )
                 {
                         onBrowserClicked();
                         return;
@@ -365,7 +367,7 @@ namespace glabels
 
         void ReportBugDialog::fetchChallenge()
         {
-                QNetworkReply* reply = mNetwork.get( makeRequest( endpoint() + "/v1/challenge" ) );
+                QNetworkReply* reply = mNetwork.get( makeRequest( mEndpoint + "/v1/challenge" ) );
                 connect( reply, &QNetworkReply::finished, this, [this, reply]() {
                         reply->deleteLater();
                         if ( mCancelled )
@@ -414,7 +416,7 @@ namespace glabels
 
                 setBusy( true, tr( "Sending your report..." ) );
 
-                QNetworkRequest request = makeRequest( endpoint() + "/v1/reports" );
+                QNetworkRequest request = makeRequest( mEndpoint + "/v1/reports" );
                 request.setHeader( QNetworkRequest::ContentTypeHeader, "application/json" );
                 QNetworkReply* reply = mNetwork.post( request, body );
                 connect( reply, &QNetworkReply::finished, this, [this, reply]() {

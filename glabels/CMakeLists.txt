@@ -99,7 +99,6 @@ set (glabels_forms
   ui/PreferencesDialog.ui
   ui/PrintView.ui
   ui/PropertiesView.ui
-  ui/ReportBugDialog.ui
   ui/SelectProductDialog.ui
   ui/StartupView.ui
   ui/TemplateDesignerIntroPage.ui

@@ -1791,7 +1791,7 @@ namespace glabels
         ///
         void MainWindow::helpReportBug()
         {
-                Help::displayReportBug( this );
+                Help::displayReportBug( this, mModel.get() );
         }
 
 

@@ -42,9 +42,9 @@ namespace glabels
         ///
         /// Display Help->"Report Bug" Dialog
         ///
-        void Help::displayReportBug( QWidget *parent )
+        void Help::displayReportBug( QWidget *parent, const model::Model* model )
         {
-                ReportBugDialog dialog( parent );
+                ReportBugDialog dialog( model, parent );
                 dialog.exec();
         }
 

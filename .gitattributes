@@ -3,3 +3,5 @@
 *.bash text eol=lf
 *.yml  text eol=lf
 *.yaml text eol=lf
+
+relay/** text eol=lf

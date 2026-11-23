@@ -22,6 +22,10 @@ set (DESKTOP_FILE_NAME "org.glabels.glabels-qt")
 set (WEBSITE  "glabels.org")
 set (BUG_WEBSITE  "https://github.com/SchneiderWasTaken/glabels-neo/issues")
 
+# Base URL of the report relay (relay/README.md).  Empty = the app falls back to the browser flow.
+set (GLABELS_REPORT_ENDPOINT "" CACHE STRING "Base URL of the in-app bug report relay")
+set (REPORT_ENDPOINT "${GLABELS_REPORT_ENDPOINT}")
+
 execute_process(
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
   COMMAND git symbolic-ref --short HEAD

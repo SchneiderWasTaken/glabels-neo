@@ -60,7 +60,9 @@ set (Model_sources
   Units.cpp
   Variable.cpp
   Variables.cpp
+  BugReport.cpp
   Branding.cpp
+  LogBuffer.cpp
   Version.cpp
   Vendor.cpp
   XmlCategoryParser.cpp

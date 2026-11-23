@@ -52,8 +52,10 @@ on:
         default: dry-run
 
 # Publishing runs are queued, never cancelled mid-publish; only superseded PR dry runs are cancelled.
+# One queue per ref, whatever started the run: a push to main and a dispatch on main (the merge automation starts
+# edge builds that way) must not publish concurrently, or an older commit could finish last and become "edge".
 concurrency:
-  group: release-${{ github.event_name }}-${{ github.ref }}
+  group: release-${{ github.event_name == 'pull_request' && format('pr-{0}', github.ref) || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
@@ -427,6 +429,19 @@ jobs:
         if: env.CHANNEL == 'edge'
         run: |
           set -euo pipefail
+          # Never publish an edge build that a newer commit has already superseded: clients treat "edge" as the newest
+          # build, so publishing an older one would move them backwards.
+          # (Only commits that start their own build count: documentation-only commits are excluded from this
+          # workflow's push trigger, so they must not make an earlier build look superseded.)
+          tip="$(gh api "repos/${GITHUB_REPOSITORY}/commits/main" --jq .sha)"
+          if [ "$tip" != "$GITHUB_SHA" ]; then
+            newer="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${GITHUB_SHA}...${tip}" \
+              --jq '[.files[].filename | select(test("^(docs|brand)/|^README[.]md$|^SECURITY[.]md$|^[.]github/(ISSUE_TEMPLATE/|PULL_REQUEST_TEMPLATE[.]md$|CODEOWNERS$|dependabot[.]yml$)") | not)] | length')"
+            if [ "$newer" -gt 0 ]; then
+              echo "edge build of ${GITHUB_SHA::7} is superseded by ${tip::7}; not publishing it"
+              exit 0
+            fi
+          fi
           if gh release view edge >/dev/null 2>&1; then
             gh api --method PATCH "repos/${GITHUB_REPOSITORY}/git/refs/tags/edge" \
               -f sha="$GITHUB_SHA" -F force=true >/dev/null

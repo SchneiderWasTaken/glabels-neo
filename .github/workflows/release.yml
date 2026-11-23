@@ -44,6 +44,12 @@ on:
       - 'glbarcode/LICENSE'
       - 'templates/LICENSE'
   workflow_dispatch:
+    inputs:
+      publish:
+        description: 'On main only: "edge" publishes the edge prerelease (used by the merge automation, whose pushes do not trigger workflows)'
+        type: choice
+        options: [dry-run, edge]
+        default: dry-run
 
 # Publishing runs are queued, never cancelled mid-publish; only superseded PR dry runs are cancelled.
 concurrency:
@@ -64,10 +70,14 @@ jobs:
     steps:
       - name: Resolve
         id: resolve
+        env:
+          PUBLISH: ${{ inputs.publish }}
         run: |
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             echo "channel=stable" >> "$GITHUB_OUTPUT"
           elif [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            echo "channel=edge" >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$GITHUB_REF" == "refs/heads/main" && "$PUBLISH" == "edge" ]]; then
             echo "channel=edge" >> "$GITHUB_OUTPUT"
           else
             echo "channel=dry-run" >> "$GITHUB_OUTPUT"

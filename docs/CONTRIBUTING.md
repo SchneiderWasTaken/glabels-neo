@@ -2,7 +2,7 @@ gLabels Neo notes
 =================
 
 gLabels Neo is an independent, modernized fork of [gLabels](https://github.com/j-evins/glabels-qt).
-Issues and pull requests for **this fork** are welcome here: use the issue forms for bugs,
+Issues and pull requests for **this fork** are welcom here: use the issue forms for bugs,
 features, label templates and printer compatibility.  Please use Conventional Commit titles
 (`fix(print): ...`, `feat(fill): ...`).
 

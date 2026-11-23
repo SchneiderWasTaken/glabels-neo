@@ -8,6 +8,12 @@ name: Auto-merge
 
 on:
   workflow_dispatch:
+  # Event-driven first: when CI or Lint finishes on any branch (the script only acts on council-approved agent PRs).
+  # Runs from the default branch and never checks out the PR.
+  workflow_run:
+    workflows: [CI, Lint]
+    types: [completed]
+  # The scheduler is best-effort (it may skip or delay runs), so it is only a backstop.
   schedule:
     - cron: '*/20 * * * *'
 

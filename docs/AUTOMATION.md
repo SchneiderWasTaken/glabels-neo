@@ -65,14 +65,17 @@ comment. Model text appears only in short, sanitised fields. It never closes iss
 ## 2. Fix agent (`agent-fix.yml`)
 
 Starts when a maintainer adds `agent-fix` (checked: the person must have write access), or when triage marks the issue
-`agent-ready` at level 3+. In one job:
+`agent-ready` at level 3+. Up to three rounds, each made of three steps:
 
-1. builds the baseline;
-2. lets a model **read and edit files only** (no shell, no network tool; reads outside the checkout are denied);
-3. builds and runs the unit tests itself - with all credentials removed from the environment - and feeds failures back
-   (up to 3 attempts);
-4. classifies the diff (below) and scans it for secrets.
+1. **prepare** (no model credential): copy the working tree into a plain directory - *without `.git`*;
+2. **agent** (the only step with the model credential): the model **reads and edits files in that copy** - no shell, no
+   network tool, reads outside the directory are denied, and there is no git configuration it could poison. Changed files
+   and its answer are scanned for credentials while the step still holds them;
+3. **verify** (no model credential, and not a child of the agent step): copy the edited files over the real checkout,
+   classify the diff (below) and - only if it is not `blocked` - build and run the unit tests. Failures are fed back to the
+   next round.
 
+So the credential is never present where model-written code is compiled or run.
 A separate job, with no model credential, re-validates the patch and opens a **draft PR** from an `agent/issue-N-*`
 branch. Daily cap: `FIX_MAX_PER_DAY`.
 

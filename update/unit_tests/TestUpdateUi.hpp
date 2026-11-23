@@ -33,4 +33,5 @@ private slots:
         void preferencesPageIsDisabledWhenUpdatesAreUnavailable();
         void offerDialogHasTheThreeChoices();
         void preferencesPageStoresTheChoices();
+        void consentDialogAsksOnceAndStoresTheAnswer();
 };

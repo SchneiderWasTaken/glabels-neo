@@ -47,6 +47,7 @@ namespace glabels
         {
                 auto* service = UpdateService::instance();
 
+                connect( service, &UpdateService::consentRequired, this, &UpdateUi::onConsentRequired );
                 connect( service, &UpdateService::updateAvailable, this, &UpdateUi::onUpdateAvailable );
                 connect( service, &UpdateService::checkFinished,   this, &UpdateUi::onCheckFinished );
                 connect( service, &UpdateService::updateReady,     this, &UpdateUi::onUpdateReady );
@@ -188,6 +189,49 @@ namespace glabels
                 case UpdateService::CheckResult::UpdateAvailable:
                         break;   // the offer is shown by onUpdateAvailable()
                 }
+        }
+
+
+        void UpdateUi::onConsentRequired()
+        {
+                if ( mConsent && mConsent->isVisible() )
+                {
+                        return;   // already asking
+                }
+
+                auto* service = UpdateService::instance();
+
+                auto* box = new QMessageBox( QMessageBox::Question, tr( "Check for Updates Automatically?" ),
+                                             tr( "Should %1 look for new versions in the background?" ).arg( model::Branding::DISPLAY_NAME ),
+                                             QMessageBox::NoButton, parentWindow() );
+                box->setAttribute( Qt::WA_DeleteOnClose );
+                box->setInformativeText(
+                        tr( "If you agree, the program asks github.com for a small file (about 1 KB) every %1 hours or so, "
+                            "and GitHub sees your IP address as with any download. Nothing else is sent, and there is no "
+                            "account or identifier.\n\n"
+                            "Nothing is downloaded or installed until you say so. You can change this at any time in "
+                            "Edit > Preferences > Updates, or use Help > Check for Updates to look once." )
+                        .arg( service->build().channel == "edge" ? 6 : 12 ) );
+
+                QPushButton* yes = box->addButton( tr( "Check Automatically" ), QMessageBox::AcceptRole );
+                QPushButton* no  = box->addButton( tr( "Don't Check" ), QMessageBox::RejectRole );
+                box->setDefaultButton( no );     // the privacy-preserving answer is the default
+                box->setEscapeButton( no );
+
+                mConsent = box;
+                connect( box, &QMessageBox::finished, this,
+                         [box, yes]()
+                         {
+                                 // Closing the box any other way than "Check Automatically" is a no.
+                                 const bool agreed = box->clickedButton() == yes;
+                                 UpdateSettings::setAutoCheck( agreed );
+                                 if ( agreed )
+                                 {
+                                         UpdateService::instance()->checkNow( false );
+                                 }
+                         } );
+
+                box->open();   // does not block the main window
         }
 
 

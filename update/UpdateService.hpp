@@ -171,6 +171,10 @@ namespace glabels::update
         signals:
                 void stateChanged( State state );
                 void checkFinished( CheckResult result, bool userInitiated, const QString& message );
+                /// Background checking is not allowed yet and the user has not been asked: the UI should
+                /// ask whether to check automatically, store the answer with UpdateSettings::setAutoCheck(),
+                /// and may call checkNow() right away if it was yes.  Emitted at most once per session.
+                void consentRequired();
                 void updateAvailable( const UpdateManifest& manifest, bool userInitiated );
                 void downloadProgress( qint64 received, qint64 total );
                 void updateReady( const QString& version );
@@ -200,6 +204,7 @@ namespace glabels::update
 
                 UpdateServiceConfig             mConfig;
                 bool                            mSupported{false};
+                bool                            mConsentRequested{false};
                 QString                         mUnsupportedReason;
                 State                           mState{State::Disabled};
                 QNetworkAccessManager           mNetwork;

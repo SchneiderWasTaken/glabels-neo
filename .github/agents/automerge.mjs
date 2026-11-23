@@ -9,7 +9,7 @@
 
 import { REPO, api, gh } from './lib.mjs';
 import { parseDiff } from './diff-lib.mjs';
-import { classifyChange, mayAutoMerge, maxRisk, parseLevel } from './policy.mjs';
+import { classifyChange, isShippable, mayAutoMerge, maxRisk, parseLevel } from './policy.mjs';
 
 const level = parseLevel(process.env.AUTOMATION_LEVEL);
 const now = new Date();
@@ -82,7 +82,11 @@ for (const p of prs) {
   }
 
   // A merge made with the workflow token does not trigger the push-based edge build; start it.
-  gh(['workflow', 'run', 'release.yml', '--repo', REPO, '--ref', 'main', '-f', 'publish=edge']);
+  if (files.some((f) => isShippable(f.path))) {
+    gh(['workflow', 'run', 'release.yml', '--repo', REPO, '--ref', 'main', '-f', 'publish=edge']);
+  } else {
+    console.log(`${tag}: nothing user-visible changed; no edge build needed`);
+  }
 
   const issue = Number(/Fixes #(\d+)/.exec(p.body ?? '')?.[1]);
   if (Number.isInteger(issue)) {

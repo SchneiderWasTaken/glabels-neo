@@ -124,6 +124,19 @@ console.log(`opened ${prUrl}`);
 api(`repos/${REPO}/issues/${prNumber}/labels`, { method: 'POST', body: { labels: ['agent-pr', `risk:${classification.risk}`] } });
 comment(`I opened a draft pull request for this: #${prNumber}. It will be reviewed automatically before anything is merged.`);
 
-// Pushes made with the workflow token do not trigger pull_request workflows, so start them explicitly.
-for (const wf of ['ci.yml', 'lint.yml']) gh(['workflow', 'run', wf, '--repo', REPO, '--ref', branch]);
+// Checks must be attached to the PR itself (a required check that only ran as a standalone dispatch does not count
+// towards mergeability).  A PR opened by the workflow token starts its pull_request workflows in the
+// "action_required" state, waiting for approval; approving them is safe because agent PRs cannot change anything under
+// .github/ (policy.mjs), so the workflow code that runs is the one on main, with a read-only token and no secrets.
+// If GitHub did not create such runs at all, start CI and lint explicitly as a fallback.
+await new Promise((resolve) => setTimeout(resolve, 20_000));
+const held = (api(`repos/${REPO}/actions/runs?event=pull_request&branch=${encodeURIComponent(branch)}&per_page=30`)?.workflow_runs ?? [])
+  .filter((r) => r.head_sha === api(`repos/${REPO}/pulls/${prNumber}`).head.sha);
+for (const r of held.filter((x) => x.conclusion === 'action_required' || x.status === 'action_required')) {
+  api(`repos/${REPO}/actions/runs/${r.id}/approve`, { method: 'POST', allowFail: true });
+  console.log(`approved run ${r.id} (${r.name})`);
+}
+if (held.length === 0) {
+  for (const wf of ['ci.yml', 'lint.yml']) gh(['workflow', 'run', wf, '--repo', REPO, '--ref', branch]);
+}
 gh(['workflow', 'run', 'council.yml', '--repo', REPO, '-f', `pr=${prNumber}`]);

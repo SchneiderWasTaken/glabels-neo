@@ -193,17 +193,28 @@ namespace glabels::update
 
                 if ( probeWritable )
                 {
-                        for ( const auto& u : layout.units )
+                        const QString problem = layout.writableProblem();
+                        if ( !problem.isEmpty() )
                         {
-                                if ( !canReplaceIn( QFileInfo( u.installed ).absoluteDir().absolutePath() ) )
-                                {
-                                        return unsupported( tr( QT_TRANSLATE_NOOP( "InstallLayout", "The program is installed in a location that cannot be modified without administrator rights. Move it to a folder you own to enable automatic updates." ) ) );
-                                }
+                                return unsupported( problem );
                         }
                 }
 
                 layout.supported = true;
                 return layout;
+        }
+
+
+        QString InstallLayout::writableProblem() const
+        {
+                for ( const auto& u : units )
+                {
+                        if ( !canReplaceIn( QFileInfo( u.installed ).absoluteDir().absolutePath() ) )
+                        {
+                                return tr( QT_TRANSLATE_NOOP( "InstallLayout", "The program is installed in a location that cannot be modified without administrator rights. Move it to a folder you own to enable automatic updates." ) );
+                        }
+                }
+                return QString();
         }
 
 

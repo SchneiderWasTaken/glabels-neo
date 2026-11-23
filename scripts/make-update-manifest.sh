@@ -10,20 +10,22 @@
 # (versioned schema) rather than GitHub's.  It names the release, the commit it was built from and,
 # per platform, the package with its size and SHA-256; the application verifies both after download.
 #
-# Usage:  scripts/make-update-manifest.sh DIST_DIR CHANNEL TAG COMMIT REPO
+# Usage:  scripts/make-update-manifest.sh DIST_DIR CHANNEL TAG COMMIT REPO [COMMIT_TIME]
 #
 #   DIST_DIR  directory holding the release packages (glabels-neo-*)
 #   CHANNEL   stable | edge
 #   TAG       tag the packages are attached to: "v1.3.0" for stable, "edge" for edge
 #   COMMIT    full hash of the commit the packages were built from
 #   REPO      GitHub repository, owner/name
+#   COMMIT_TIME  committer time of COMMIT, seconds since the epoch; default: asked of git (needs COMMIT
+#             in the current repository).  Clients order edge builds by it, so they never move backwards.
 #
 # Writes DIST_DIR/glabels-neo-update-manifest.json.  Needs jq.
 # The schema is read by glabels/update/UpdateManifest.cpp; keep the two in step.
 set -euo pipefail
 
-if [ "$#" -ne 5 ]; then
-   echo "usage: $0 DIST_DIR CHANNEL TAG COMMIT REPO" >&2
+if [ "$#" -lt 5 ] || [ "$#" -gt 6 ]; then
+   echo "usage: $0 DIST_DIR CHANNEL TAG COMMIT REPO [COMMIT_TIME]" >&2
    exit 2
 fi
 
@@ -32,6 +34,7 @@ channel="$2"
 tag="$3"
 commit="$4"
 repo="$5"
+commit_time="${6:-}"
 
 case "$channel" in
    stable|edge) ;;
@@ -40,6 +43,14 @@ esac
 
 if ! [[ "$commit" =~ ^[0-9a-f]{40}$ ]]; then
    echo "commit must be a full 40-character hash: '$commit'" >&2
+   exit 2
+fi
+
+if [ -z "$commit_time" ]; then
+   commit_time="$(git show -s --format=%ct "$commit" 2>/dev/null || true)"
+fi
+if ! [[ "$commit_time" =~ ^[0-9]+$ ]]; then
+   echo "cannot determine the commit time of $commit (pass it as the 6th argument)" >&2
    exit 2
 fi
 
@@ -90,10 +101,11 @@ jq -n \
    --arg channel "$channel" \
    --arg version "$tag" \
    --arg commit "$commit" \
+   --argjson commit_time "$commit_time" \
    --arg published "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
    --arg notes "https://github.com/$repo/releases/tag/$tag" \
    --argjson assets "$assets" \
-   '{schema: 1, channel: $channel, version: $version, commit: $commit,
+   '{schema: 1, channel: $channel, version: $version, commit: $commit, commit_time: $commit_time,
      published: $published, notes_url: $notes, assets: $assets}' \
    > "$dist/glabels-neo-update-manifest.json"
 

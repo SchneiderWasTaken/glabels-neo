@@ -43,6 +43,10 @@ namespace glabels::update
                 /// Full commit hash this build was made from (identifies an "edge" build).
                 const QString COMMIT = "@UPDATE_COMMIT@";
 
+                /// Committer time of that commit (seconds since the epoch, 0 if unknown).  Edge releases are
+                /// ordered by it, so a build is never offered an older one.
+                const qint64 COMMIT_TIME = @UPDATE_COMMIT_TIME@;
+
                 /// Release tag this build was made from, e.g. "v1.2.0" (identifies a "stable" build).
                 const QString TAG = "@UPDATE_TAG@";
         }

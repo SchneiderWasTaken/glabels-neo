@@ -59,6 +59,39 @@ namespace glabels::update
                 }
 
 
+                bool isReleaseAssetUrl( const QUrl& url, const QString& repo, const QString& tag, const QString& name )
+                {
+                        if ( url.scheme() != "https" || url.host() != "github.com" || url.port() != -1 ||
+                             !url.userInfo().isEmpty() || url.hasQuery() || url.hasFragment() )
+                        {
+                                return false;
+                        }
+
+                        // /<owner>/<name>/releases/download/<tag>/<file>, exactly, compared as sent
+                        QStringList want = repo.split( '/' );
+                        want << "releases" << "download" << tag << name;
+
+                        const QString path = url.path( QUrl::FullyEncoded );
+                        if ( !path.startsWith( '/' ) )
+                        {
+                                return false;
+                        }
+                        const QStringList have = path.mid( 1 ).split( '/' );
+                        if ( have != want )
+                        {
+                                return false;
+                        }
+                        for ( const QString& segment : have )
+                        {
+                                if ( segment.isEmpty() || segment == "." || segment == ".." || segment.contains( '%' ) )
+                                {
+                                        return false;
+                                }
+                        }
+                        return true;
+                }
+
+
                 QString shortCommit( const QString& commit )
                 {
                         return commit.left( 7 );
@@ -108,9 +141,21 @@ namespace glabels::update
                 {
                         return fail( error, "missing or malformed commit" );
                 }
-                if ( m.channel == "stable" && parseTag( m.version ).isNull() )
+                // The version is shown to the user, so it must look like one (no markup, no free text).
+                static const QRegularExpression tagRe( "^v?[0-9]+(\\.[0-9]+){1,3}$" );
+                if ( m.channel == "stable" && !tagRe.match( m.version ).hasMatch() )
                 {
-                        return fail( error, "stable release tag '" + m.version + "' is not a version number" );
+                        return fail( error, "stable release tag is not a version number" );
+                }
+                if ( m.channel == "edge" && m.version != "edge" )
+                {
+                        return fail( error, "an edge manifest must describe the 'edge' release" );
+                }
+
+                m.commitTime = static_cast<qint64>( root.value( "commit_time" ).toDouble( 0 ) );
+                if ( m.channel == "edge" && m.commitTime <= 0 )
+                {
+                        return fail( error, "missing commit_time" );   // edge releases are ordered by it
                 }
 
                 m.published = QDateTime::fromString( root.value( "published" ).toString(), Qt::ISODate );
@@ -122,7 +167,6 @@ namespace glabels::update
 
                 static const QRegularExpression sha256Re( "^[0-9a-f]{64}$" );
                 static const QRegularExpression nameRe( "^[A-Za-z0-9._-]+$" );
-                const QString pathPrefix = "/" + repo + "/releases/download/";
 
                 QJsonObject assets = root.value( "assets" ).toObject();
                 for ( auto it = assets.begin(); it != assets.end(); ++it )
@@ -147,9 +191,10 @@ namespace glabels::update
                         {
                                 return fail( error, "bad size for " + it.key() );
                         }
-                        // Downloads may only come from this project's release assets on github.com.
-                        if ( strictUrls && ( a.url.scheme() != "https" || a.url.host() != "github.com" ||
-                                             !a.url.path().startsWith( pathPrefix ) || !a.url.path().endsWith( "/" + a.name ) ) )
+                        // Downloads may only come from this project's release assets on github.com:
+                        //   https://github.com/<repo>/releases/download/<this release's tag>/<file name>
+                        // and nothing else (no port, credentials, query, fragment, dot segments or escapes).
+                        if ( strictUrls && !isReleaseAssetUrl( a.url, repo, m.version, a.name ) )
                         {
                                 return fail( error, "download URL for " + it.key() + " is not a release asset of " + repo );
                         }
@@ -221,8 +266,9 @@ namespace glabels::update
                         return compareTags( manifest.version, current.tag ) > 0;
                 }
 
-                // edge
-                return !current.commit.isEmpty() && manifest.commit != current.commit.toLower();
+                // edge: a different commit that is strictly newer than this build's
+                return !current.commit.isEmpty() && manifest.commit != current.commit.toLower() &&
+                       manifest.commitTime > current.commitTime;
         }
 
 }

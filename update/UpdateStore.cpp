@@ -82,6 +82,7 @@ namespace glabels::update
                 p.version  = o.value( "version" ).toString();
                 p.channel  = o.value( "channel" ).toString();
                 p.sha256   = o.value( "sha256" ).toString();
+                p.commitTime = static_cast<qint64>( o.value( "commitTime" ).toDouble( 0 ) );
                 p.stagedAt = QDateTime::fromString( o.value( "stagedAt" ).toString(), Qt::ISODate );
                 p.attempts = o.value( "attempts" ).toInt( 0 );
 
@@ -102,6 +103,7 @@ namespace glabels::update
                 o["version"]  = version;
                 o["channel"]  = channel;
                 o["sha256"]   = sha256;
+                o["commitTime"] = commitTime;
                 o["stagedAt"] = stagedAt.toString( Qt::ISODate );
                 o["attempts"] = attempts;
 

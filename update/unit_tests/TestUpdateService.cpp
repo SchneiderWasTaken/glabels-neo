@@ -189,7 +189,8 @@ namespace
         }
 
 
-        QByteArray manifestFor( const QString& version, const QByteArray& package, const QString& sha256 = QString() )
+        QByteArray manifestFor( const QString& version, const QByteArray& package, const QString& sha256 = QString(),
+                                 const QString& published = "2026-11-22T12:00:00Z" )
         {
                 const QString digest = sha256.isEmpty()
                                        ? QString::fromLatin1( QCryptographicHash::hash( package, QCryptographicHash::Sha256 ).toHex() )
@@ -205,7 +206,7 @@ namespace
                         { "channel", "stable" },
                         { "version", version },
                         { "commit", COMMIT },
-                        { "published", "2026-11-22T12:00:00Z" },
+                        { "published", published },
                         { "assets", QJsonObject{ { platformKey(), asset } } },
                 } ).toJson();
         }
@@ -576,6 +577,40 @@ void TestUpdateService::backgroundChecksNeedConsent()
         QVERIFY( checked.wait( 10000 ) );
         QVERIFY( !g.server->requests.isEmpty() );
 }
+
+void TestUpdateService::freshStableReleasesSoakBeforeBeingOffered()
+{
+        auto publishedAgo = []( int hours )
+        {
+                return QDateTime::currentDateTimeUtc().addSecs( -hours * 3600 ).toString( Qt::ISODate );
+        };
+
+        auto svc = makeService();
+        QSignalSpy checked( svc.get(), &UpdateService::checkFinished );
+        QSignalSpy offered( svc.get(), &UpdateService::updateAvailable );
+
+        // out for an hour: automatic checks leave it alone, so that a bad release can still be pulled ...
+        g.server->routes["/manifest.json"] = { 200, manifestFor( "v1.1.0", "x", QString(), publishedAgo( 1 ) ) };
+        svc->checkNow( false );
+        QVERIFY( checked.wait( 10000 ) );
+        QCOMPARE( resultOf( checked, 0 ), CheckResult::UpToDate );
+        QCOMPARE( offered.count(), 0 );
+        QVERIFY( !svc->availableUpdate().has_value() );
+
+        // ... but a user who asks is not made to wait
+        svc->checkNow( true );
+        QVERIFY( checked.wait( 10000 ) );
+        QCOMPARE( resultOf( checked, 1 ), CheckResult::UpdateAvailable );
+        QCOMPARE( offered.count(), 1 );
+
+        // a day later it is offered to automatic checks too
+        g.server->routes["/manifest.json"] = { 200, manifestFor( "v1.1.0", "x", QString(), publishedAgo( 25 ) ) };
+        svc->checkNow( false );
+        QVERIFY( checked.wait( 10000 ) );
+        QCOMPARE( resultOf( checked, 2 ), CheckResult::UpdateAvailable );
+        QCOMPARE( offered.count(), 2 );
+}
+
 
 
 ///////////////////////////////////////////////////////////////////////////////////////

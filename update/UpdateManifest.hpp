@@ -63,6 +63,7 @@ namespace glabels::update
                 QString                     channel;    ///< "stable" or "edge"
                 QString                     version;    ///< release tag ("v1.3.0") or "edge"
                 QString                     commit;     ///< full commit hash the packages were built from
+                qint64                      commitTime{0};  ///< committer time of `commit`, seconds since the epoch (required for edge)
                 QDateTime                   published;
                 QUrl                        notesUrl;   ///< human readable release page
                 QMap<QString,UpdateAsset>   assets;     ///< keyed by platform, e.g. "windows-x86_64"
@@ -95,6 +96,7 @@ namespace glabels::update
                 QString channel;    ///< "stable", "edge" or "" (self-update disabled)
                 QString tag;        ///< release tag of this build ("v1.2.0"), if any
                 QString commit;     ///< full commit hash of this build, if known
+                qint64  commitTime{0};  ///< committer time of `commit`, seconds since the epoch (0 = unknown)
 
                 /// Same notion of identity as UpdateManifest::id()
                 QString id() const;
@@ -105,8 +107,9 @@ namespace glabels::update
         /// True if `manifest` describes a release this build should offer to install.
         ///
         ///  - stable: the manifest's tag is a strictly higher version number than this build's tag.
-        ///  - edge:   the manifest was built from a different commit than this build.  (Edge only ever
-        ///            moves forward, and an edge build compares itself to nothing else.)
+        ///  - edge:   the manifest was built from a different commit *and* that commit is strictly newer
+        ///            (committer time).  Without the time rule an out-of-order publish, a stale cached
+        ///            manifest or a replayed old one would move clients backwards, or back and forth.
         bool isUpdateAvailable( const BuildIdentity& current, const UpdateManifest& manifest );
 
 

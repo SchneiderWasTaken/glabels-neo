@@ -35,6 +35,11 @@ private slots:
         void stableIsAvailableOnlyWhenNewer_data();
         void stableIsAvailableOnlyWhenNewer();
         void edgeIsAvailableWhenCommitDiffers();
+        void edgeNeverMovesBackwards();
+        void edgeManifestNeedsACommitTime();
+        void rejectsSneakyDownloadUrls_data();
+        void rejectsSneakyDownloadUrls();
+        void versionMustLookLikeAVersion();
         void channelMismatchIsNeverAvailable();
         void parsesWhatTheReleaseScriptProduces();
 };

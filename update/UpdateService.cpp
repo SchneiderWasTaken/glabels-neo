@@ -34,7 +34,9 @@
 #include <QProcess>
 #include <QProcessEnvironment>
 #include <QStandardPaths>
+#include <QThreadPool>
 
+#include <atomic>
 #include <functional>
 
 
@@ -43,6 +45,13 @@ namespace glabels::update
 
         namespace
         {
+
+                /// A manifest is about 1 KB; anything larger is not one.
+                constexpr qint64 MAX_MANIFEST_BYTES = 64 * 1024;
+
+                /// A stable release is offered to automatic checks only after it has been out this long (see
+                /// onManifestReply), which leaves time to pull a bad release.  "Check for Updates" skips the wait.
+                constexpr qint64 STABLE_SOAK_HOURS = 24;
 
                 QString tr( const char* text )
                 {
@@ -191,6 +200,53 @@ namespace glabels::update
                 }
 
 
+                /// Remove a directory tree without making the user interface wait for it.  An unpacked update has
+                /// thousands of files, and deleting them (with a virus scanner looking at each) can take seconds.
+                /// The tree is first renamed out of the way, which is instant on the same volume, so its old name
+                /// is free again at once; the files are then deleted on a worker thread.
+                void removeTreeAsync( const QString& path, bool alreadyAside = false )
+                {
+                        static std::atomic<int> counter{0};
+
+                        QFileInfo info( path );
+                        if ( !info.exists() && !info.isSymLink() )
+                        {
+                                return;
+                        }
+                        if ( info.isSymLink() || !info.isDir() )
+                        {
+                                QFile::remove( path );
+                                return;
+                        }
+
+                        QString target = path;
+                        if ( !alreadyAside )
+                        {
+                                const QString aside = info.absolutePath() + "/." + info.fileName() + ".trash-" +
+                                                      QString::number( QCoreApplication::applicationPid() ) + "-" + QString::number( ++counter );
+                                if ( QDir().rename( path, aside ) )
+                                {
+                                        target = aside;
+                                }
+                        }
+                        QThreadPool::globalInstance()->start( [target]() { QDir( target ).removeRecursively(); } );
+                }
+
+
+                /// Leftovers of removeTreeAsync() from a run that ended before the deletion did.
+                void removeTrashBesides( const QString& installedPath )
+                {
+                        const QFileInfo info( installedPath );
+                        QDir parent( info.absolutePath() );
+                        const QStringList stale = parent.entryList( { "." + info.fileName() + ".trash-*" },
+                                                                    QDir::Dirs | QDir::NoDotAndDotDot | QDir::Hidden );
+                        for ( const QString& name : stale )
+                        {
+                                removeTreeAsync( parent.absoluteFilePath( name ), true );
+                        }
+                }
+
+
                 void removeFilesIn( const QString& dirPath )
                 {
                         QDir dir( dirPath );
@@ -238,11 +294,13 @@ namespace glabels::update
                 c.build.channel = Config::CHANNEL;
                 c.build.tag     = Config::TAG;
                 c.build.commit  = Config::COMMIT;
+                c.build.commitTime = Config::COMMIT_TIME;
                 c.repo          = Config::REPO;
                 c.platformKey   = glabels::update::platformKey();
                 c.manifestUrl   = manifestUrlFor( c.repo, c.build.channel );
-                c.layout        = InstallLayout::detect( QCoreApplication::applicationFilePath(), currentOs(),
-                                                         !c.build.channel.isEmpty() );
+                // No writes to the install location here: that waits until the user has asked for, or agreed to, checks
+                // (see UpdateService::verifyWritable).
+                c.layout        = InstallLayout::detect( QCoreApplication::applicationFilePath(), currentOs(), false );
                 return c;
         }
 
@@ -274,7 +332,7 @@ namespace glabels::update
                 mState     = mSupported ? State::Idle : State::Disabled;
 
                 QNetworkProxyFactory::setUseSystemConfiguration( true );
-                mNetwork.setRedirectPolicy( QNetworkRequest::NoLessSafeRedirectPolicy );
+                mNetwork.setRedirectPolicy( QNetworkRequest::UserVerifiedRedirectPolicy );   // see watchRedirects()
 
                 mTimer.setInterval( 30 * 60 * 1000 );
                 connect( &mTimer, &QTimer::timeout, this, &UpdateService::onTimer );
@@ -397,6 +455,51 @@ namespace glabels::update
         // Checking
         ///////////////////////////////////////////////////////////////////////////////////////
 
+        bool UpdateService::verifyWritable()
+        {
+                if ( mWritableChecked )
+                {
+                        return mSupported;
+                }
+                mWritableChecked = true;
+
+                const QString problem = mConfig.layout.writableProblem();
+                if ( !problem.isEmpty() )
+                {
+                        mUnsupportedReason = problem;
+                        mSupported         = false;
+                        setState( State::Disabled );
+                        UpdateStore::log( "not updating: " + problem );
+                }
+                return mSupported;
+        }
+
+
+        void UpdateService::watchRedirects( QNetworkReply* reply )
+        {
+                // Only follow redirects that stay on GitHub (github.com hands release downloads to its asset
+                // hosts, *.githubusercontent.com).  The package is protected by its digest, but the manifest
+                // that carries the digest is whatever its final redirect target says.
+                connect( reply, &QNetworkReply::redirected, this,
+                         [this, reply]( const QUrl& url )
+                         {
+                                 const QString host = url.host().toLower();
+                                 const bool allowed = !mConfig.strictUrls ||
+                                                      ( url.scheme() == "https" &&
+                                                        ( host == "github.com" || host.endsWith( ".githubusercontent.com" ) ) );
+                                 if ( allowed )
+                                 {
+                                         emit reply->redirectAllowed();
+                                 }
+                                 else
+                                 {
+                                         UpdateStore::log( "refusing redirect to " + url.host() );
+                                         reply->abort();
+                                 }
+                         } );
+        }
+
+
         void UpdateService::checkNow( bool userInitiated )
         {
                 if ( !mSupported )
@@ -413,6 +516,12 @@ namespace glabels::update
                         return;  // already busy: checking, downloading, or waiting for a restart
                 }
 
+                if ( !verifyWritable() )
+                {
+                        emit checkFinished( CheckResult::Unsupported, userInitiated, mUnsupportedReason );
+                        return;
+                }
+
                 setState( State::Checking );
 
                 QNetworkRequest request( mConfig.manifestUrl );
@@ -421,6 +530,17 @@ namespace glabels::update
                 request.setTransferTimeout( 30 * 1000 );
 
                 QNetworkReply* reply = mNetwork.get( request );
+                watchRedirects( reply );
+
+                // A manifest is about 1 KB: stop reading a response that is not one instead of buffering it.
+                connect( reply, &QNetworkReply::downloadProgress, reply,
+                         [reply]( qint64 received, qint64 )
+                         {
+                                 if ( received > MAX_MANIFEST_BYTES )
+                                 {
+                                         reply->abort();
+                                 }
+                         } );
                 connect( reply, &QNetworkReply::finished, this, [this, reply, userInitiated]() { onManifestReply( reply, userInitiated ); } );
         }
 
@@ -444,8 +564,8 @@ namespace glabels::update
                         return;
                 }
 
-                QByteArray body = reply->read( 64 * 1024 + 1 );
-                if ( body.size() > 64 * 1024 )
+                QByteArray body = reply->read( MAX_MANIFEST_BYTES + 1 );
+                if ( body.size() > MAX_MANIFEST_BYTES )
                 {
                         failed( tr( QT_TRANSLATE_NOOP( "UpdateService", "The update information is too large." ) ) );
                         return;
@@ -465,6 +585,18 @@ namespace glabels::update
                 {
                         mAvailable.reset();
                         UpdateStore::log( "check: up to date (" + mConfig.build.displayVersion() + ")" );
+                        emit checkFinished( CheckResult::UpToDate, userInitiated, QString() );
+                        return;
+                }
+
+                // Soak time: a stable release is not offered automatically until it has been out for a day, so that
+                // pulling a bad release (deleting it, or its manifest) stops the rollout before it reaches anyone.
+                // A check the user asked for is not held back.
+                if ( !userInitiated && manifest->channel == "stable" && manifest->published.isValid() &&
+                     manifest->published.secsTo( QDateTime::currentDateTimeUtc() ) < STABLE_SOAK_HOURS * 3600 )
+                {
+                        mAvailable.reset();
+                        UpdateStore::log( "check: " + manifest->displayVersion() + " is newer but still in its soak period" );
                         emit checkFinished( CheckResult::UpToDate, userInitiated, QString() );
                         return;
                 }
@@ -587,6 +719,7 @@ namespace glabels::update
 
                 mDownload = mNetwork.get( request );
                 QNetworkReply* reply = mDownload;
+                watchRedirects( reply );
 
                 connect( reply, &QNetworkReply::readyRead, this,
                          [this, reply]()
@@ -708,7 +841,9 @@ namespace glabels::update
                 case Os::Linux:
                 {
                         QDir().mkpath( layout.units[0].staged );
-                        steps << Command{ "tar", { "-xzf", packagePath, "-C", layout.units[0].staged,
+                        // Absolute path: do not let a directory earlier on PATH choose the program that unpacks the download.
+                        const QString tar = QFileInfo::exists( "/usr/bin/tar" ) ? "/usr/bin/tar" : "/bin/tar";
+                        steps << Command{ tar, { "-xzf", packagePath, "-C", layout.units[0].staged,
                                                    "--strip-components=1", "--no-same-owner" } };
                         break;
                 }
@@ -798,6 +933,7 @@ namespace glabels::update
                 pending.version  = mAvailable->displayVersion();
                 pending.channel  = mAvailable->channel;
                 pending.sha256   = asset.sha256;
+                pending.commitTime = mAvailable->commitTime;
                 pending.stagedAt = QDateTime::currentDateTime();
                 if ( !pending.save() )
                 {
@@ -849,7 +985,7 @@ namespace glabels::update
         {
                 for ( const auto& u : mConfig.layout.units )
                 {
-                        QDir( u.staged ).removeRecursively();
+                        removeTreeAsync( u.staged );
                 }
         }
 
@@ -882,7 +1018,9 @@ namespace glabels::update
                 // Running the staged release (or something newer): the swap happened.
                 const bool stable = mConfig.build.channel == "stable";
                 const bool applied = ( pending->id == mConfig.build.id() );
-                const bool obsolete = stable && compareTags( pending->id, mConfig.build.tag ) <= 0;
+                const bool edge = mConfig.build.channel == "edge";
+                const bool obsolete = ( stable && compareTags( pending->id, mConfig.build.tag ) <= 0 ) ||
+                                      ( edge && pending->commitTime <= mConfig.build.commitTime );   // never move back to an older build
                 if ( applied || obsolete )
                 {
                         if ( applied )
@@ -1003,8 +1141,14 @@ namespace glabels::update
 
                 for ( const auto& u : mConfig.layout.units )
                 {
-                        QDir( u.staged ).removeRecursively();
-                        QDir( u.backup ).removeRecursively();   // previous version, if the helper could not delete it
+                        removeTreeAsync( u.staged );
+                        // The previous version, if the helper could not delete it -- but never while the install itself
+                        // is missing: then the backup is the only copy of the program.
+                        if ( QFileInfo::exists( u.installed ) )
+                        {
+                                removeTreeAsync( u.backup );
+                        }
+                        removeTrashBesides( u.installed );
                 }
                 removeFilesIn( UpdateStore::downloadDir() );
                 removeFilesIn( UpdateStore::runDir() );

@@ -40,6 +40,7 @@ private slots:
         void automaticChecksRespectSkipAndFailure();
         void autoInstallNeedsNoOffer();
         void backgroundChecksNeedConsent();
+        void freshStableReleasesSoakBeforeBeingOffered();
         void recognizesAnAppliedUpdateAtStartup();
         void dropsObsoleteOrBrokenPendingUpdates();
         void givesUpAfterRepeatedFailedSwaps();

@@ -67,13 +67,17 @@ namespace glabels::update
                 Os            os{Os::Other};
 
                 /// Work out the layout from the path of the running executable.  `probeWritable` makes
-                /// it actually test that the install location can be replaced (create/rename/remove a
-                /// scratch directory beside it).
+                /// it run writableProblem() too.
                 static InstallLayout detect( const QString& executablePath, Os os, bool probeWritable = true );
 
                 /// Check that the staged copies are complete and self-contained.  Returns a description
                 /// of the first problem, or an empty string if they are fine.
                 QString validateStaged() const;
+
+                /// Test that the install location can really be replaced (creates, renames and removes a scratch
+                /// directory beside it).  Returns the reason it cannot, or an empty string.  This writes to disk, so
+                /// the updater only does it once the user has asked for, or agreed to, update checks.
+                QString writableProblem() const;
         };
 
 }

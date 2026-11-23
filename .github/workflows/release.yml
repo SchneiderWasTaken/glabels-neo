@@ -131,7 +131,7 @@ jobs:
           tar -xzf glabels-neo-linux-x86_64.tar.gz -C smoke
           cd smoke/glabels-neo
 
-          for f in LICENSE THIRD-PARTY-NOTICES.md CREDITS.md licenses/GPL-3.0.txt licenses/LGPL-3.0.txt licenses/templates-MIT.txt licenses/libzint-BSD-3-Clause.txt licenses/LGPL-2.1.txt licenses/zlib.txt licenses/ICU-Unicode-3.0.txt licenses/qt/MIT.txt VERSIONS.txt; do
+          for f in LICENSE THIRD-PARTY-NOTICES.md CREDITS.md licenses/GPL-3.0.txt licenses/LGPL-3.0.txt licenses/templates-MIT.txt licenses/libzint-BSD-3-Clause.txt licenses/LGPL-2.1.txt licenses/zlib.txt licenses/ICU-Unicode-3.0.txt licenses/qt/MIT.txt VERSIONS.txt bin/glabels-updater glabels-batch-qt; do
             test -f "$f" || { echo "missing from package: $f"; exit 1; }
           done
 
@@ -250,7 +250,7 @@ jobs:
           if (Test-Path $dir) { Remove-Item -Recurse -Force $dir }
           Expand-Archive glabels-neo-windows-x64.zip -DestinationPath $dir
 
-          foreach ($f in 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'CREDITS.md', 'licenses\GPL-3.0.txt', 'licenses\LGPL-3.0.txt', 'licenses\templates-MIT.txt', 'licenses\libzint-BSD-3-Clause.txt', 'licenses\LGPL-2.1.txt', 'licenses\zlib.txt', 'licenses\ICU-Unicode-3.0.txt', 'licenses\qt\MIT.txt', 'VERSIONS.txt', 'bin\translations\glabels_de.qm') {
+          foreach ($f in 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'CREDITS.md', 'licenses\GPL-3.0.txt', 'licenses\LGPL-3.0.txt', 'licenses\templates-MIT.txt', 'licenses\libzint-BSD-3-Clause.txt', 'licenses\LGPL-2.1.txt', 'licenses\zlib.txt', 'licenses\ICU-Unicode-3.0.txt', 'licenses\qt\MIT.txt', 'VERSIONS.txt', 'bin\glabels-updater.exe', 'bin\glabels-batch-qt.exe', 'bin\translations\glabels_de.qm') {
             if (-not (Test-Path (Join-Path $dir $f))) { throw "missing from package: $f" }
           }
 
@@ -334,6 +334,9 @@ jobs:
             test -f "$mnt/$f" || { echo "missing from DMG: $f"; exit 1; }
           done
 
+          # The in-app updater needs its helper next to the main program; without it updates silently stop.
+          test -x "$mnt/glabels-qt.app/Contents/MacOS/glabels-updater" || { echo "update helper missing from glabels-qt.app"; exit 1; }
+
           bad=0
           for app in glabels-qt.app glabels-fill.app; do
             codesign --verify --deep --strict "$mnt/$app"
@@ -404,7 +407,9 @@ jobs:
       - name: Update manifest
         run: |
           if [ "$CHANNEL" = "edge" ]; then tag=edge; else tag="$GITHUB_REF_NAME"; fi
-          ./scripts/make-update-manifest.sh dist "$CHANNEL" "$tag" "$GITHUB_SHA" "$GITHUB_REPOSITORY"
+          # Clients order edge builds by the commit time and never move to an older one.
+          commit_time="$(git show -s --format=%ct "$GITHUB_SHA")"
+          ./scripts/make-update-manifest.sh dist "$CHANNEL" "$tag" "$GITHUB_SHA" "$GITHUB_REPOSITORY" "$commit_time"
           cat dist/glabels-neo-update-manifest.json
 
       - name: Attest build provenance
@@ -450,6 +455,11 @@ jobs:
               exit 0
             fi
           fi
+          # The manifest goes last: it must never describe a package that has not been replaced yet.
+          packages=()
+          for f in dist/*; do
+            [ "$(basename "$f")" = glabels-neo-update-manifest.json ] || packages+=("$f")
+          done
           if gh release view edge >/dev/null 2>&1; then
             gh api --method PATCH "repos/${GITHUB_REPOSITORY}/git/refs/tags/edge" \
               -f sha="$GITHUB_SHA" -F force=true >/dev/null
@@ -457,20 +467,28 @@ jobs:
               --prerelease \
               --title "Edge build (${GITHUB_SHA::7})" \
               --notes-file notes.md
-            gh release upload edge dist/* --clobber
+            gh release upload edge "${packages[@]}" --clobber
           else
-            gh release create edge dist/* \
+            gh release create edge "${packages[@]}" \
               --prerelease \
               --target "$GITHUB_SHA" \
               --title "Edge build (${GITHUB_SHA::7})" \
               --notes-file notes.md
           fi
+          gh release upload edge dist/glabels-neo-update-manifest.json --clobber
 
       - name: Publish stable release
         if: env.CHANNEL == 'stable'
         run: |
-          gh release create "$GITHUB_REF_NAME" dist/* \
+          set -euo pipefail
+          packages=()
+          for f in dist/*; do
+            [ "$(basename "$f")" = glabels-neo-update-manifest.json ] || packages+=("$f")
+          done
+          gh release create "$GITHUB_REF_NAME" "${packages[@]}" \
             --verify-tag \
             --title "gLabels Neo ${GITHUB_REF_NAME}" \
             --generate-notes \
             --notes-file notes.md
+          # Last, so that the manifest found through "latest" always has its packages in place.
+          gh release upload "$GITHUB_REF_NAME" dist/glabels-neo-update-manifest.json

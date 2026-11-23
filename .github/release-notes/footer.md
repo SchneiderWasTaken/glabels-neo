@@ -6,7 +6,7 @@
 | macOS (Apple Silicon) | `glabels-neo-macos-arm64.dmg` | Open the DMG and drag **glabels-qt** to Applications. The app is not yet notarized: on first launch, right-click it and choose **Open**. |
 | Linux (x86_64) | `glabels-neo-linux-x86_64.tar.gz` | Extract, then run `./glabels-neo/glabels-neo`. |
 
-Verify a download with `SHA256SUMS`. Build provenance attestations are published with this release (`gh attestation verify <file> --repo @REPO@`).
+Verify a download with `SHA256SUMS`. Build provenance attestations are published with this release (`gh attestation verify <file> --repo @REPO@`). `glabels-neo-update-manifest.json` is what the in-app updater reads; it is covered by the attestation but is not listed in `SHA256SUMS`.
 
 ## License and corresponding source
 

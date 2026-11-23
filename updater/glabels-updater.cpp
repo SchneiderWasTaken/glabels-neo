@@ -111,8 +111,14 @@ namespace
         std::string timestamp()
         {
                 std::time_t t = std::time( nullptr );
+                std::tm local{};
+#ifdef _WIN32
+                localtime_s( &local, &t );
+#else
+                localtime_r( &t, &local );
+#endif
                 char buf[32];
-                std::strftime( buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", std::localtime( &t ) );
+                std::strftime( buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &local );
                 return buf;
         }
 

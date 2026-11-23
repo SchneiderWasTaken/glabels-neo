@@ -133,7 +133,7 @@ namespace glabels::update
                                         if ( !ok )
                                         {
                                                 s->failed = true;
-                                                s->error  = why.isEmpty() ? tr( "%1 failed" ).arg( QFileInfo( c.program ).fileName() ) : why;
+                                                s->error  = why.isEmpty() ? tr( QT_TRANSLATE_NOOP( "UpdateService", "%1 failed" ) ).arg( QFileInfo( c.program ).fileName() ) : why;
                                                 if ( !out.trimmed().isEmpty() )
                                                 {
                                                         s->error += ": " + out.trimmed().left( 400 );
@@ -148,12 +148,12 @@ namespace glabels::update
                                           {
                                                   if ( *timedOut )
                                                   {
-                                                          conclude( false, tr( "timed out" ) );
+                                                          conclude( false, tr( QT_TRANSLATE_NOOP( "UpdateService", "timed out" ) ) );
                                                   }
                                                   else
                                                   {
                                                           conclude( status == QProcess::NormalExit && code == 0,
-                                                                    status == QProcess::NormalExit ? tr( "exited with code %1" ).arg( code ) : tr( "crashed" ) );
+                                                                    status == QProcess::NormalExit ? tr( QT_TRANSLATE_NOOP( "UpdateService", "exited with code %1" ) ).arg( code ) : tr( QT_TRANSLATE_NOOP( "UpdateService", "crashed" ) ) );
                                                   }
                                           } );
 
@@ -162,7 +162,7 @@ namespace glabels::update
                                           {
                                                   if ( error == QProcess::FailedToStart )
                                                   {
-                                                          conclude( false, tr( "could not be started" ) );
+                                                          conclude( false, tr( QT_TRANSLATE_NOOP( "UpdateService", "could not be started" ) ) );
                                                   }
                                           } );
 
@@ -256,15 +256,15 @@ namespace glabels::update
         {
                 if ( mConfig.build.channel.isEmpty() )
                 {
-                        mUnsupportedReason = tr( "This build was not produced by the release pipeline, so it does not update itself." );
+                        mUnsupportedReason = tr( QT_TRANSLATE_NOOP( "UpdateService", "This build was not produced by the release pipeline, so it does not update itself." ) );
                 }
                 else if ( mConfig.platformKey.isEmpty() )
                 {
-                        mUnsupportedReason = tr( "There is no update package for this platform." );
+                        mUnsupportedReason = tr( QT_TRANSLATE_NOOP( "UpdateService", "There is no update package for this platform." ) );
                 }
                 else if ( !mConfig.manifestUrl.isValid() )
                 {
-                        mUnsupportedReason = tr( "No update source is configured." );
+                        mUnsupportedReason = tr( QT_TRANSLATE_NOOP( "UpdateService", "No update source is configured." ) );
                 }
                 else if ( !mConfig.layout.supported )
                 {
@@ -424,7 +424,7 @@ namespace glabels::update
                 const int status = reply->attribute( QNetworkRequest::HttpStatusCodeAttribute ).toInt();
                 if ( reply->error() != QNetworkReply::NoError )
                 {
-                        failed( status == 404 ? tr( "The latest release does not carry update information." )
+                        failed( status == 404 ? tr( QT_TRANSLATE_NOOP( "UpdateService", "The latest release does not carry update information." ) )
                                               : reply->errorString() );
                         return;
                 }
@@ -432,7 +432,7 @@ namespace glabels::update
                 QByteArray body = reply->read( 64 * 1024 + 1 );
                 if ( body.size() > 64 * 1024 )
                 {
-                        failed( tr( "The update information is too large." ) );
+                        failed( tr( QT_TRANSLATE_NOOP( "UpdateService", "The update information is too large." ) ) );
                         return;
                 }
 
@@ -440,7 +440,7 @@ namespace glabels::update
                 auto manifest = UpdateManifest::parse( body, mConfig.repo, mConfig.build.channel, mConfig.strictUrls, &parseError );
                 if ( !manifest )
                 {
-                        failed( tr( "The update information is not valid: %1" ).arg( parseError ) );
+                        failed( tr( QT_TRANSLATE_NOOP( "UpdateService", "The update information is not valid: %1" ) ).arg( parseError ) );
                         return;
                 }
 
@@ -524,7 +524,7 @@ namespace glabels::update
                 if ( !mAvailable->assetFor( mConfig.platformKey ) )
                 {
                         UpdateStore::log( "no package for " + mConfig.platformKey );
-                        emit installFailed( tr( "The release has no package for this platform." ) );
+                        emit installFailed( tr( QT_TRANSLATE_NOOP( "UpdateService", "The release has no package for this platform." ) ) );
                         return;
                 }
 
@@ -535,7 +535,7 @@ namespace glabels::update
                 {
                         mLock.reset();
                         UpdateStore::log( "install: another instance is working on an update" );
-                        emit installFailed( tr( "Another window of the program is already installing an update." ) );
+                        emit installFailed( tr( QT_TRANSLATE_NOOP( "UpdateService", "Another window of the program is already installing an update." ) ) );
                         return;
                 }
 
@@ -559,7 +559,7 @@ namespace glabels::update
                 mDownloadFile = std::make_unique<QFile>( mDownloadPath + ".part" );
                 if ( !mDownloadFile->open( QIODevice::WriteOnly | QIODevice::Truncate ) )
                 {
-                        fail( tr( "Cannot write the download: %1" ).arg( mDownloadFile->errorString() ), false );
+                        fail( tr( QT_TRANSLATE_NOOP( "UpdateService", "Cannot write the download: %1" ) ).arg( mDownloadFile->errorString() ), false );
                         return;
                 }
                 mDownloadHash = std::make_unique<QCryptographicHash>( QCryptographicHash::Sha256 );
@@ -615,38 +615,44 @@ namespace glabels::update
 
                 const UpdateAsset asset = *mAvailable->assetFor( mConfig.platformKey );
 
-                mDownloadHash->addData( reply->readAll() );   // (normally nothing left)
+                // Whatever arrived after the last readyRead (normally nothing).
+                const QByteArray rest = reply->readAll();
+                if ( !rest.isEmpty() )
+                {
+                        mDownloadHash->addData( rest );
+                        mDownloadFile->write( rest );
+                }
                 mDownloadFile->close();
 
                 const int status = reply->attribute( QNetworkRequest::HttpStatusCodeAttribute ).toInt();
                 if ( reply->error() != QNetworkReply::NoError )
                 {
-                        fail( tr( "Download failed: %1" ).arg( reply->errorString() ), false );
+                        fail( tr( QT_TRANSLATE_NOOP( "UpdateService", "Download failed: %1" ) ).arg( reply->errorString() ), false );
                         return;
                 }
                 if ( status != 200 )
                 {
-                        fail( tr( "Download failed: HTTP status %1" ).arg( status ), false );
+                        fail( tr( QT_TRANSLATE_NOOP( "UpdateService", "Download failed: HTTP status %1" ) ).arg( status ), false );
                         return;
                 }
 
                 if ( QFileInfo( mDownloadFile->fileName() ).size() != asset.size )
                 {
-                        fail( tr( "The downloaded file has the wrong size." ), false );
+                        fail( tr( QT_TRANSLATE_NOOP( "UpdateService", "The downloaded file has the wrong size." ) ), false );
                         return;
                 }
                 if ( QString::fromLatin1( mDownloadHash->result().toHex() ) != asset.sha256 )
                 {
                         // Not marked permanent: the "edge" package may have been replaced by a newer
                         // build between reading the manifest and downloading it.
-                        fail( tr( "The downloaded file is corrupt (checksum mismatch)." ), false );
+                        fail( tr( QT_TRANSLATE_NOOP( "UpdateService", "The downloaded file is corrupt (checksum mismatch)." ) ), false );
                         return;
                 }
 
                 QFile::remove( mDownloadPath );
                 if ( !QFile::rename( mDownloadFile->fileName(), mDownloadPath ) )
                 {
-                        fail( tr( "Cannot store the download." ), false );
+                        fail( tr( QT_TRANSLATE_NOOP( "UpdateService", "Cannot store the download." ) ), false );
                         return;
                 }
                 mDownloadFile.reset();
@@ -710,7 +716,7 @@ namespace glabels::update
                 }
 
                 default:
-                        fail( tr( "Automatic updates are not available on this operating system." ), true );
+                        fail( tr( QT_TRANSLATE_NOOP( "UpdateService", "Automatic updates are not available on this operating system." ) ), true );
                         return;
                 }
 
@@ -725,14 +731,14 @@ namespace glabels::update
 
                                      if ( !ok )
                                      {
-                                             fail( tr( "Unpacking the update failed: %1" ).arg( error ), true );
+                                             fail( tr( QT_TRANSLATE_NOOP( "UpdateService", "Unpacking the update failed: %1" ) ).arg( error ), true );
                                              return;
                                      }
 
                                      const QString problem = mConfig.layout.validateStaged();
                                      if ( !problem.isEmpty() )
                                      {
-                                             fail( tr( "The update is not usable: %1" ).arg( problem ), true );
+                                             fail( tr( QT_TRANSLATE_NOOP( "UpdateService", "The update is not usable: %1" ) ).arg( problem ), true );
                                              return;
                                      }
 
@@ -755,12 +761,12 @@ namespace glabels::update
                              {
                                      if ( !ok )
                                      {
-                                             fail( tr( "The new version does not start: %1" ).arg( error ), true );
+                                             fail( tr( QT_TRANSLATE_NOOP( "UpdateService", "The new version does not start: %1" ) ).arg( error ), true );
                                              return;
                                      }
                                      if ( !output.contains( "GLABELS NEO" ) )
                                      {
-                                             fail( tr( "The new version gave an unexpected answer." ), true );
+                                             fail( tr( QT_TRANSLATE_NOOP( "UpdateService", "The new version gave an unexpected answer." ) ), true );
                                              return;
                                      }
                                      finishReady();
@@ -780,7 +786,7 @@ namespace glabels::update
                 pending.stagedAt = QDateTime::currentDateTime();
                 if ( !pending.save() )
                 {
-                        fail( tr( "Cannot record the staged update." ), false );
+                        fail( tr( QT_TRANSLATE_NOOP( "UpdateService", "Cannot record the staged update." ) ), false );
                         return;
                 }
 

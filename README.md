@@ -34,6 +34,10 @@ The newest build of `main` is published continuously as the
 On Windows, the [auto-updating Start menu launcher](tools/windows-launcher/README.md) keeps you on it
 automatically: it checks GitHub each time you open gLabels Neo and updates first when needed.
 
+From the next release on, the program also updates itself in the background (in any folder you can write to), and
+swaps the new version in when you close it, so the next start is already current
+(Help > Check for Updates, or Preferences > Updates; see [Automatic updates](docs/AUTO-UPDATE.md)).
+
 > Installers, AppImage/Flatpak, package-manager support (winget, Homebrew, Scoop)
 > and automatic release builds on every merge are in progress - see the
 > [roadmap](docs/ROADMAP.md).

@@ -38,4 +38,28 @@ if (Qt6Test_FOUND)
   add_dependencies (TestUpdateService FakeGlabelsBatch)
   add_test (NAME UpdateService COMMAND TestUpdateService)
 
+  #=======================================
+  # Test applying a staged update with real processes: a running program is swapped out and restarted
+  #=======================================
+  add_executable (UpdateApplyHarness apply_harness.cpp)    # plays the running program
+  target_link_libraries (UpdateApplyHarness Update)
+  qt6_wrap_cpp (TestUpdateApply_moc_sources TestUpdateApply.hpp)
+  add_executable (TestUpdateApply TestUpdateApply.cpp ${TestUpdateApply_moc_sources})
+  target_link_libraries (TestUpdateApply Update Qt6::Test)
+  target_compile_definitions (TestUpdateApply PRIVATE
+    HARNESS_EXE="$<TARGET_FILE:UpdateApplyHarness>"
+    UPDATER_EXE="$<TARGET_FILE:glabels-updater>"
+    FAKE_PROGRAM_EXE="$<TARGET_FILE:FakeGlabelsBatch>")
+  add_dependencies (TestUpdateApply UpdateApplyHarness glabels-updater FakeGlabelsBatch)
+  add_test (NAME UpdateApply COMMAND TestUpdateApply)
+
+  #=======================================
+  # Test the user interface pieces (Help menu entry, Preferences page), offscreen
+  #=======================================
+  qt6_wrap_cpp (TestUpdateUi_moc_sources TestUpdateUi.hpp)
+  add_executable (TestUpdateUi TestUpdateUi.cpp ${TestUpdateUi_moc_sources})
+  target_link_libraries (TestUpdateUi glabels_lib Qt6::Test)
+  add_test (NAME UpdateUi COMMAND TestUpdateUi)
+  set_tests_properties (UpdateUi PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
 endif (Qt6Test_FOUND)

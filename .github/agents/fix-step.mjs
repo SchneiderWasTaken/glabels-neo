@@ -174,8 +174,9 @@ async function agent() {
 }
 
 // ------------------------------------------------------------------------------------------------- verify
-function currentChange() {
-  sh('git', ['add', '-A']);
+function currentChange(changed) {
+  // Stage only the files the model changed (the checkout also holds build caches and other untracked files).
+  sh('git', ['add', '--', ...changed]);
   const nameStatus = sh('git', ['diff', '--cached', '--name-status', '--no-renames']).stdout.trim().split('\n').filter(Boolean);
   const numstat = sh('git', ['diff', '--cached', '--numstat', '--no-renames']).stdout.trim().split('\n').filter(Boolean);
   const oddModes = new Map();
@@ -238,7 +239,7 @@ function verify() {
   const changed = existsSync(CHANGES) ? listFiles(CHANGES) : [];
   copyInto('.', CHANGES, changed);
 
-  const change = currentChange();
+  const change = currentChange(changed);
   console.log(`change: ${change.files.length} files, risk ${change.classification.risk}`);
   let feedback = '';
   if (change.files.length === 0) {

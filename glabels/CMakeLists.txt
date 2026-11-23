@@ -322,3 +322,10 @@ if (WIN32)
     endif (MINGW)
 
 endif (WIN32)
+
+#=====================================
+# Unit tests
+#=====================================
+if (Qt6Test_FOUND)
+  add_subdirectory (unit_tests)
+endif ()

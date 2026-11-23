@@ -614,8 +614,8 @@ namespace glabels
                 helpContentsAction->setStatusTip( tr("Open gLabels manual") );
                 connect( helpContentsAction, SIGNAL(triggered()), this, SLOT(helpContents()) );
 
-                helpReportBugAction = new QAction( tr("&Report Bug..."), this );
-                helpReportBugAction->setStatusTip( tr("Report a bug to the developers") );
+                helpReportBugAction = new QAction( tr("&Report a Problem..."), this );
+                helpReportBugAction->setStatusTip( tr("Report a problem to the developers") );
                 connect( helpReportBugAction, SIGNAL(triggered()), this, SLOT(helpReportBug()) );
 
                 helpAboutAction = new QAction( tr("&About..."), this );

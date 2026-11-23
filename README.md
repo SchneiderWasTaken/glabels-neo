@@ -29,6 +29,11 @@ Get the latest build for your system from the
 | macOS (Apple Silicon) | `glabels-neo-macos-arm64.dmg` |
 | Linux (x86_64) | `glabels-neo-linux-x86_64.tar.gz` |
 
+The newest build of `main` is published continuously as the
+[edge prerelease](https://github.com/SchneiderWasTaken/glabels-neo/releases/tag/edge).
+On Windows, the [auto-updating Start menu launcher](tools/windows-launcher/README.md) keeps you on it
+automatically: it checks GitHub each time you open gLabels Neo and updates first when needed.
+
 > Installers, AppImage/Flatpak, package-manager support (winget, Homebrew, Scoop)
 > and automatic release builds on every merge are in progress - see the
 > [roadmap](docs/ROADMAP.md).

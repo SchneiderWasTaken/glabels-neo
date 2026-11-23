@@ -140,3 +140,26 @@ in `policy.mjs` and covered by tests.
 - Branch protection: `main` requires `CI OK` and `Lint OK`; repository admins can bypass for maintenance.
 - Labels used: `from-app`, `needs-triage`, `triaged`, `needs-info`, `needs-human`, `agent-ready`, `agent-fix`, `agent-pr`,
   `council-approved`, `council-rejected`, `risk:low|high|blocked`, `area:*`.
+
+## Setup checklist
+
+Already in place: the `CLAUDE_OAUTH_TOKEN` secret, the labels, the `main` ruleset (`CI OK` + `Lint OK` required, admins may
+bypass) and the setting that lets Actions create pull requests.
+
+Still to do by the maintainer, once:
+
+1. **Relay** - follow [`relay/README.md`](../relay/README.md): a fine-grained token (or GitHub App) and a Cloudflare API token +
+   account id as Actions secrets, then `RELAY_DEPLOY=true`, run *Deploy report relay*, and set `REPORT_ENDPOINT` to the URL it
+   prints. Until then the app offers only the browser flow.
+2. **Level** - set `AUTOMATION_LEVEL` (see above). It was rehearsed end to end at level 3.
+3. **Releases** - set `RELEASE_TRAIN` to `on` when you want the 10:00 / 14:00 schedule to start.
+4. **Optional council members** - `OPENROUTER_API_KEY` (DeepSeek / GLM flash) and `GEMINI_API_KEY`.
+
+## Rehearsal log
+
+The pipeline was exercised on a planted documentation typo (issue #9): the issue was triaged and labelled `agent-ready`; the fix
+agent proposed the one-word change; the first attempt was *blocked by the safety rules* (the verify job had staged the
+workspace's cache directory - since fixed to stage only the model's files); the retry produced PR #11, which the council
+(opus + haiku) approved as low risk; CI ran on the PR; the merge policy merged it and commented on the issue.
+Things the rehearsal found and fixed: staging scope, CI runs held for approval on bot-opened PRs (required checks must belong to
+the PR), a flaky runner (the merge policy now retries a failed CI/Lint once).

@@ -134,7 +134,7 @@ jobs:
         working-directory: relay
         run: |
           node --version
-          node --test test/
+          node --test
 
   # Single, stable status for branch protection: require "CI OK".
   ci-ok:

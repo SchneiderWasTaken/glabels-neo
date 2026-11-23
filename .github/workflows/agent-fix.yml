@@ -3,8 +3,9 @@
 # Started by a maintainer applying the `agent-fix` label, or (level >= 3) by triage marking an issue `agent-ready`.
 #
 # Security shape - the issue text is untrusted input to a model that can edit files:
-#   attempt:  holds the model credential. The model can only read/edit files (no shell, no network tool); this job
-#             builds and tests with credentials stripped from the environment, then classifies the diff.
+#   attempt:  three rounds of prepare / agent / verify steps. Only the "agent" step holds the model credential; the model
+#             can only read/edit files in a plain copy of the tree (no shell, no network tool, no .git). Classifying,
+#             building and testing happen in separate steps that never hold the credential.
 #   publish:  holds write access but NO model credential. Re-validates the patch and opens a draft PR.
 # Changes to .github/, build files, scripts, packaging or credentials are refused by policy (policy.mjs).
 
@@ -115,13 +116,29 @@ jobs:
             -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           cmake --build build -j"$(nproc)"
 
-      - name: Run the fix agent
-        env:
-          GH_TOKEN: ${{ github.token }}
-          ISSUE_NUMBER: ${{ needs.gate.outputs.issue }}
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
-          FIX_MODEL: ${{ vars.FIX_MODEL }}
-        run: node .github/agents/fix.mjs
+      - name: Fix round 1
+        uses: ./.github/actions/fix-round
+        with:
+          issue: ${{ needs.gate.outputs.issue }}
+          model: ${{ vars.FIX_MODEL }}
+          github-token: ${{ github.token }}
+          claude-token: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
+
+      - name: Fix round 2
+        uses: ./.github/actions/fix-round
+        with:
+          issue: ${{ needs.gate.outputs.issue }}
+          model: ${{ vars.FIX_MODEL }}
+          github-token: ${{ github.token }}
+          claude-token: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
+
+      - name: Fix round 3
+        uses: ./.github/actions/fix-round
+        with:
+          issue: ${{ needs.gate.outputs.issue }}
+          model: ${{ vars.FIX_MODEL }}
+          github-token: ${{ github.token }}
+          claude-token: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
 
       - name: Upload result
         if: always()

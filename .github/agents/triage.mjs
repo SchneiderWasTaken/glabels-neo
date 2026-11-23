@@ -22,6 +22,13 @@ if (labels.includes('triaged')) {
   writeJson('triage-result.json', { skip: 'already triaged' });
   process.exit(0);
 }
+// The report relay withdraws duplicates and over-limit reports a few seconds after filing them: do not spend a model
+// call on those.
+if (issue.state !== 'open' || labels.includes('relay-rejected')) {
+  console.log('closed or withdrawn by the relay; not triaging');
+  writeJson('triage-result.json', { skip: 'closed or withdrawn' });
+  process.exit(0);
+}
 
 const fromApp = labels.includes('from-app') && String(issue.body ?? '').includes('<!-- glabels-neo-report:v1 -->');
 

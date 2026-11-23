@@ -263,33 +263,121 @@ test('a huge run of backticks cannot blow past the fence or the size limit', () 
   assert.ok(comments[0].length < 65000);
 });
 
-test('Durable Object limiter: a nonce is claimed once, limits hold under concurrency', async () => {
-  const { Limiter } = await import('../src/limiter.js');
-  const data = new Map();
-  const state = {
-    storage: {
-      get: async (k) => data.get(k),
-      put: async (obj) => { for (const [k, v] of Object.entries(obj)) data.set(k, v); },
-      getAlarm: async () => null,
-      setAlarm: async () => {},
-      deleteAll: async () => data.clear(),
-    },
-  };
-  const limiter = new Limiter(state);
-  // A real Durable Object serialises requests; emulate that with a promise chain.
-  let chain = Promise.resolve();
-  const env = {
-    LIMITER: {
-      idFromName: () => 'global',
-      get: () => ({ fetch: (url, init) => (chain = chain.then(() => limiter.fetch(new Request(url, init)))) }),
-    },
-    LIMIT_PER_HOUR: '2',
-  };
-  const { claimReport } = await import('../src/limits.js');
+// ---- GitHub-backed limits (the relay has no storage of its own) -----------------------------------------------------
+
+import { claimReport } from '../src/limits.js';
+
+const track = (reporter, nonce) => `<!-- glabels-neo-report:v1 -->\n<!-- reporter:${reporter} nonce:${nonce} -->\nbody`;
+
+function githubEnv(extra = {}) {
+  return { GITHUB_TOKEN: 't', GITHUB_REPO: 'o/r', LIMITS_BACKEND: 'github', ...extra };
+}
+
+function listing(rows) {
+  return async () => new Response(JSON.stringify(rows), { status: 200 });
+}
+
+test('github limits: a nonce already in a filed report is refused; a new one is accepted', async () => {
   const now = Date.now();
-  const claim = (nonce) => claimReport(env, { nonce, nonceExpires: now + 600_000, reporter: 'r1' }, now);
-  const results = await Promise.all([claim('a'), claim('a'), claim('b'), claim('c')]);
-  assert.equal(results.filter((r) => r.ok).length, 2); // the duplicate nonce and the third report are refused
-  assert.ok(results.some((r) => r.kind === 'nonce'));
-  assert.ok(results.some((r) => r.kind === 'limit'));
+  const rows = [{ created_at: new Date(now - 60_000).toISOString(), body: track('aaaaaaaaaaaa', 'nonce-used-001') }];
+  assert.deepEqual(await claimReport(githubEnv(), { nonce: 'nonce-used-001', reporter: 'bbbbbbbbbbbb' }, now, listing(rows)), { ok: false, kind: 'nonce' });
+  assert.equal((await claimReport(githubEnv(), { nonce: 'nonce-fresh-002', reporter: 'bbbbbbbbbbbb' }, now, listing(rows))).ok, true);
+});
+
+test('github limits: per-reporter hourly cap, other reporters unaffected, old reports ignored', async () => {
+  const now = Date.now();
+  const mk = (ageMs, reporter, n) => ({ created_at: new Date(now - ageMs).toISOString(), body: track(reporter, `nonce-${n}-0000`) });
+  const rows = [mk(60_000, 'aaaaaaaaaaaa', 1), mk(120_000, 'aaaaaaaaaaaa', 2), mk(180_000, 'aaaaaaaaaaaa', 3), mk(2 * 86_400_000, 'cccccccccccc', 4)];
+  const env = githubEnv({ LIMIT_PER_HOUR: '3' });
+  const limited = await claimReport(env, { nonce: 'nonce-new-0001', reporter: 'aaaaaaaaaaaa' }, now, listing(rows));
+  assert.equal(limited.ok, false);
+  assert.equal(limited.scope, 'reporter');
+  assert.equal((await claimReport(env, { nonce: 'nonce-new-0002', reporter: 'bbbbbbbbbbbb' }, now, listing(rows))).ok, true);
+});
+
+test('github limits: the global daily cap is a circuit breaker', async () => {
+  const now = Date.now();
+  const rows = Array.from({ length: 5 }, (_, i) => ({ created_at: new Date(now - 1000 * (i + 1)).toISOString(), body: track(`${i}`.repeat(12), `nonce-g-${i}-0000`) }));
+  const r = await claimReport(githubEnv({ LIMIT_GLOBAL_PER_DAY: '5' }), { nonce: 'nonce-new-0003', reporter: 'dddddddddddd' }, now, listing(rows));
+  assert.equal(r.ok, false);
+  assert.equal(r.scope, 'global');
+});
+
+test('github limits: when GitHub cannot be reached the report is refused (fail closed)', async () => {
+  resetMemoryLimits();
+  const res = await postReport({}, {}, { createIssue: async () => ({ number: 1, url: 'u' }) }, env({ LIMITS_BACKEND: 'github' }));
+  // postReport uses the default fetch, which has no network or token here: it must not file anything.
+  assert.ok([503, 502].includes(res.status));
+});
+
+test('formatIssue embeds validated tracking markers only', () => {
+  const r = validateReport({ schema: 1, description: 'x'.repeat(20) });
+  assert.match(formatIssue(r, { reporter: 'abcdef012345', nonce: 'AbC_-123xyz' }).body, /<!-- reporter:abcdef012345 nonce:AbC_-123xyz -->/);
+  assert.ok(!formatIssue(r, { reporter: 'x --> <b>', nonce: 'n' }).body.includes('reporter:'));
+});
+
+// ---- DigitalOcean Functions adapter ----------------------------------------------------------------------------------
+
+test('DO adapter: raw web invocation round trip (health, challenge, client address, settings)', async () => {
+  const { execFileSync } = await import('node:child_process');
+  const { fileURLToPath } = await import('node:url');
+  execFileSync(process.execPath, [fileURLToPath(new URL('../do/stage.mjs', import.meta.url))]);
+  const adapter = await import('../do/packages/relay/report/adapter.mjs');
+
+  assert.equal(adapter.clientIp({ 'x-forwarded-for': '1.2.3.4, 9.9.9.9' }), '9.9.9.9'); // only the edge's entry is trusted
+  assert.equal(adapter.clientIp({}), 'unknown');
+  assert.deepEqual(adapter.settingsFrom({ ENABLED: 'true', EVIL: 'x', POW_BITS: 18 }, {}), { ENABLED: 'true', POW_BITS: '18' });
+
+  const health = await adapter.main({ __ow_method: 'get', __ow_path: '/v1/health', __ow_headers: {} });
+  assert.equal(health.statusCode, 200);
+  assert.equal(JSON.parse(health.body).ok, true);
+
+  // without a signing secret configured the relay refuses to hand out challenges
+  const notConfigured = await adapter.main({ __ow_method: 'get', __ow_path: '/v1/challenge', __ow_headers: {} });
+  assert.equal(notConfigured.statusCode, 503);
+
+  const challenge = await adapter.main({ __ow_method: 'get', __ow_path: '/v1/challenge', __ow_headers: {}, CHALLENGE_SECRET: 's3cret', POW_BITS: '8' });
+  assert.equal(challenge.statusCode, 200);
+  assert.ok(JSON.parse(challenge.body).challenge);
+});
+
+// ---- reconciliation after filing -------------------------------------------------------------------------------------
+
+import { reconcile } from '../src/limits.js';
+
+const row = (number, ageMs, reporter, nonce, labels = ['from-app']) => ({
+  number, created_at: new Date(Date.now() - ageMs).toISOString(), body: track(reporter, nonce), labels: labels.map((name) => ({ name })),
+});
+
+test('reconcile: an earlier report with the same challenge wins; the later one withdraws', async () => {
+  const rows = [row(20, 5000, 'aaaaaaaaaaaa', 'nonce-dup-0001'), row(21, 4000, 'aaaaaaaaaaaa', 'nonce-dup-0001')];
+  const f = listing(rows);
+  assert.equal((await reconcile(githubEnv(), { number: 20, nonce: 'nonce-dup-0001', reporter: 'aaaaaaaaaaaa' }, Date.now(), f)).ok, true);
+  const later = await reconcile(githubEnv(), { number: 21, nonce: 'nonce-dup-0001', reporter: 'aaaaaaaaaaaa' }, Date.now(), f);
+  assert.equal(later.ok, false);
+  assert.match(later.why, /already submitted/);
+});
+
+test('reconcile: a burst beyond the per-reporter hourly limit is cut off after the first N; rejected ones do not count', async () => {
+  const rows = [1, 2, 3, 4, 5].map((n) => row(30 + n, 5000 - n * 100, 'bbbbbbbbbbbb', `nonce-b-${n}-00000`));
+  const env = githubEnv({ LIMIT_PER_HOUR: '3' });
+  const f = listing(rows);
+  const verdicts = await Promise.all(rows.map((r, i) => reconcile(env, { number: r.number, nonce: `nonce-b-${i + 1}-00000`, reporter: 'bbbbbbbbbbbb' }, Date.now(), f)));
+  assert.deepEqual(verdicts.map((v) => v.ok), [true, true, true, false, false]);
+
+  const withRejected = [...rows.slice(0, 3), row(40, 1000, 'bbbbbbbbbbbb', 'nonce-b-9-00000', ['from-app', 'relay-rejected'])];
+  assert.equal((await claimReport(env, { nonce: 'nonce-new-1234', reporter: 'cccccccccccc' }, Date.now(), listing(withRejected))).ok, true);
+});
+
+test('handler withdraws a report that reconciliation rejects (and answers 429)', async () => {
+  resetMemoryLimits();
+  let closed;
+  const res = await postReport({}, {}, {
+    claimReport: async () => ({ ok: true }),
+    createIssue: async () => ({ number: 77, url: 'u' }),
+    reconcile: async () => ({ ok: false, why: 'duplicate' }),
+    close: async (_e, n, why) => { closed = { n, why }; },
+  }, env({ LIMITS_BACKEND: 'github', RECONCILE_DELAY_MS: '0', GITHUB_TOKEN: 't' }));
+  assert.equal(res.status, 429);
+  assert.deepEqual(closed, { n: 77, why: 'duplicate' });
 });

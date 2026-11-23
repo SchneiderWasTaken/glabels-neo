@@ -48,7 +48,6 @@ Other switches (repository variables):
 |:--|:--|
 | `RELEASE_TRAIN` | `on` enables scheduled stable releases (default: off). |
 | `REPORT_ENDPOINT` | the relay URL embedded in builds. Empty = the app only offers the browser flow. |
-| `RELAY_DEPLOY` | `true` lets the relay deploy workflow run. |
 | `FIX_MODEL`, `TRIAGE_MODEL` | model alias for the fix agent / triage (default `sonnet`). |
 | `COUNCIL_OPENROUTER_MODELS`, `COUNCIL_GEMINI_MODEL` | extra council members (see below). |
 | `TRIAGE_MAX_PER_HOUR`, `FIX_MAX_PER_DAY` | budget guards (defaults 30 and 8). |
@@ -134,7 +133,7 @@ in `policy.mjs` and covered by tests.
 ## Operating notes
 
 - Secrets used: `CLAUDE_OAUTH_TOKEN` (required), `OPENROUTER_API_KEY`, `GEMINI_API_KEY` (optional council members), the
-  relay's `RELAY_*` and Cloudflare secrets.
+  relay's GitHub token (kept only as an encrypted value of the DigitalOcean Function, never in the repository).
 - Repository setting needed: *Settings > Actions > General > Workflow permissions > Allow GitHub Actions to create and
   approve pull requests*.
 - Branch protection: `main` requires `CI OK` and `Lint OK`; repository admins can bypass for maintenance.
@@ -148,9 +147,8 @@ bypass) and the setting that lets Actions create pull requests.
 
 Still to do by the maintainer, once:
 
-1. **Relay** - follow [`relay/README.md`](../relay/README.md): a fine-grained token (or GitHub App) and a Cloudflare API token +
-   account id as Actions secrets, then `RELAY_DEPLOY=true`, run *Deploy report relay*, and set `REPORT_ENDPOINT` to the URL it
-   prints. Until then the app offers only the browser flow.
+1. **Relay** - deployed as a DigitalOcean Function (`relay/README.md`). Set `REPORT_ENDPOINT` to its URL; builds made afterwards
+   embed it. Until then the app offers only the browser flow.
 2. **Level** - set `AUTOMATION_LEVEL` (see above). It was rehearsed end to end at level 3.
 3. **Releases** - set `RELEASE_TRAIN` to `on` when you want the 10:00 / 14:00 schedule to start.
 4. **Optional council members** - `OPENROUTER_API_KEY` (DeepSeek / GLM flash) and `GEMINI_API_KEY`.

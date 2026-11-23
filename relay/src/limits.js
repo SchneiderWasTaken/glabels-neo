@@ -1,24 +1,23 @@
-// Rate limiting.  Counters live in a Cloudflare KV namespace (binding RATE) when available; otherwise
-// in memory, which is only meaningful for local development and tests.
+// Rate limiting and single-use challenges.
 //
-// KV is eventually consistent and has no atomic increment, so the limits are deliberately approximate:
-// they stop floods and casual abuse, they are not an accounting system.
+// The relay may run as a stateless function (DigitalOcean Functions), which has no storage of its own, so the
+// production backend ("github") uses the repository as its state: every report the relay files carries a hidden marker
+// with the reporter's hash and the challenge's nonce, and a new report is accepted only if the recent reports in the
+// issue tracker leave room for it.  That list is strongly consistent, so a challenge cannot be replayed once its issue
+// exists (only a burst of truly simultaneous requests can slip through, which the global cap still bounds).
+//
+// The in-memory backend is for local development and tests.
 
-const memory = new Map();
+import { listRecentReports } from './github.js';
 
-async function get(env, key) {
-  if (env.RATE) return Number((await env.RATE.get(key)) ?? 0);
-  const e = memory.get(key);
-  return e && e.exp > Date.now() ? e.n : 0;
-}
+const HOUR = 3600_000;
+const DAY = 86_400_000;
+const MARKER_RE = /<!-- reporter:([0-9a-f]{8,64}) nonce:([A-Za-z0-9_-]{8,64}) -->/;
 
-async function put(env, key, n, ttlSeconds) {
-  if (env.RATE) return env.RATE.put(key, String(n), { expirationTtl: Math.max(60, ttlSeconds) });
-  memory.set(key, { n, exp: Date.now() + ttlSeconds * 1000 });
-}
+const memory = [];  // { at, reporter, nonce } of accepted reports
 
 export function resetMemoryLimits() {
-  memory.clear();
+  memory.length = 0;
 }
 
 export async function sha256Hex(text) {
@@ -26,58 +25,67 @@ export async function sha256Hex(text) {
   return [...new Uint8Array(d)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-/** Remember a proof-of-work nonce; false when it was already used. */
-export async function claimNonce(env, nonce, ttlSeconds) {
-  const key = `pow:${nonce}`;
-  if ((await get(env, key)) > 0) return false;
-  await put(env, key, 1, ttlSeconds);
-  return true;
+function limitsOf(env) {
+  const num = (v, d) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : d);
+  return {
+    perHour: num(env.LIMIT_PER_HOUR, 3),
+    perDay: num(env.LIMIT_PER_DAY, 8),
+    global: num(env.LIMIT_GLOBAL_PER_DAY, 100),
+  };
+}
+
+/** Reports filed in the last day, oldest first, without those the relay itself rejected afterwards. */
+async function githubHistory(env, now, fetchFn) {
+  const recent = await listRecentReports(env, now - DAY, fetchFn);
+  return recent
+    .filter((r) => !r.labels?.includes('relay-rejected'))
+    .map((r) => {
+      const m = MARKER_RE.exec(r.body ?? '');
+      return { number: r.number, at: Date.parse(r.created_at), reporter: m ? m[1] : '', nonce: m ? m[2] : '' };
+    })
+    .filter((h) => Number.isFinite(h.at))
+    .sort((a, b) => (a.number ?? 0) - (b.number ?? 0));
 }
 
 /**
- * Check the per-reporter hourly/daily limits and the global daily limit, and count this report.
- * Returns { ok: true } or { ok: false, scope, retryAfter }.
+ * Optimistic filing needs a second look: GitHub's issue list can lag a second or two, so a burst (or a replayed
+ * challenge) can pass the first check several times.  A moment after filing, each report looks at who came before it
+ * and, if it was a duplicate or over a limit, withdraws itself.  Earlier reports always win, so the outcome is the same
+ * on every invocation.  Returns { ok: true } or { ok: false, why }.
  */
-export async function checkAndCount(env, reporterId, now = Date.now()) {
-  const num = (v, d) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : d);
-  const perHour = num(env.LIMIT_PER_HOUR, 3);
-  const perDay = num(env.LIMIT_PER_DAY, 8);
-  const global = num(env.LIMIT_GLOBAL_PER_DAY, 100);
+export async function reconcile(env, { number, nonce, reporter }, now = Date.now(), fetchFn = fetch) {
+  const lim = limitsOf(env);
+  const history = await githubHistory(env, now, fetchFn);
+  const before = history.filter((h) => (h.number ?? 0) < number);
+  const result = decide(before, { nonce, reporter }, now, lim);
+  return result.ok ? { ok: true } : { ok: false, why: result.kind === 'nonce' ? 'this report was already submitted' : 'too many reports from this sender or overall' };
+}
 
-  const hour = Math.floor(now / 3600000);
-  const day = Math.floor(now / 86400000);
-  const kh = `h:${reporterId}:${hour}`;
-  const kd = `d:${reporterId}:${day}`;
-  const kg = `g:${day}`;
-
-  const [h, d, g] = await Promise.all([get(env, kh), get(env, kd), get(env, kg)]);
-  if (g >= global) return { ok: false, scope: 'global', retryAfter: 3600 };
-  if (h >= perHour) return { ok: false, scope: 'reporter', retryAfter: 3600 - Math.floor((now % 3600000) / 1000) };
-  if (d >= perDay) return { ok: false, scope: 'reporter', retryAfter: 86400 - Math.floor((now % 86400000) / 1000) };
-
-  await Promise.all([put(env, kh, h + 1, 3700), put(env, kd, d + 1, 86500), put(env, kg, g + 1, 86500)]);
+/** Decide from a list of earlier reports [{ at, reporter, nonce }]. */
+function decide(history, { nonce, reporter }, now, lim) {
+  const inDay = history.filter((h) => now - h.at < DAY);
+  if (inDay.some((h) => h.nonce === nonce)) return { ok: false, kind: 'nonce' };
+  if (inDay.length >= lim.global) return { ok: false, kind: 'limit', scope: 'global', retryAfter: 3600 };
+  const mine = inDay.filter((h) => h.reporter === reporter);
+  if (mine.filter((h) => now - h.at < HOUR).length >= lim.perHour) {
+    return { ok: false, kind: 'limit', scope: 'reporter', retryAfter: 3600 };
+  }
+  if (mine.length >= lim.perDay) return { ok: false, kind: 'limit', scope: 'reporter', retryAfter: 6 * 3600 };
   return { ok: true };
 }
 
 /**
- * The single entry point used by the request handler: claim the challenge (single use) and count the report against
- * the limits, atomically when the LIMITER Durable Object is bound, approximately (KV or memory) otherwise.
- * Returns { ok: true } | { ok: false, kind: 'nonce' } | { ok: false, kind: 'limit', scope, retryAfter }.
+ * Claim a report.  Returns { ok: true } | { ok: false, kind: 'nonce' } | { ok: false, kind: 'limit', scope, retryAfter }.
+ * Throws when the backend cannot be reached (callers must fail closed).
  */
-export async function claimReport(env, { nonce, nonceExpires, reporter }, now = Date.now()) {
-  const num = (v, d) => (Number.isFinite(Number(v)) && Number(v) > 0 ? Number(v) : d);
-  if (env.LIMITER) {
-    const stub = env.LIMITER.get(env.LIMITER.idFromName('global'));
-    const res = await stub.fetch('https://limiter.internal/claim', {
-      method: 'POST',
-      body: JSON.stringify({
-        nonce, nonceExpires, reporter, now,
-        perHour: num(env.LIMIT_PER_HOUR, 3), perDay: num(env.LIMIT_PER_DAY, 8), global: num(env.LIMIT_GLOBAL_PER_DAY, 100),
-      }),
-    });
-    return res.json();
+export async function claimReport(env, { nonce, reporter }, now = Date.now(), fetchFn = fetch) {
+  const lim = limitsOf(env);
+
+  if (env.LIMITS_BACKEND === 'github') {
+    return decide(await githubHistory(env, now, fetchFn), { nonce, reporter }, now, lim);
   }
-  if (!(await claimNonce(env, nonce, 900))) return { ok: false, kind: 'nonce' };
-  const r = await checkAndCount(env, reporter, now);
-  return r.ok ? { ok: true } : { ok: false, kind: 'limit', scope: r.scope, retryAfter: r.retryAfter };
+
+  const result = decide(memory, { nonce, reporter }, now, lim);
+  if (result.ok) memory.push({ at: now, reporter, nonce });
+  return result;
 }

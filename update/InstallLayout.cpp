@@ -124,7 +124,7 @@ namespace glabels::update
                 QFileInfo exe( executablePath );
                 if ( os == Os::Other )
                 {
-                        return unsupported( tr( "Automatic updates are not available on this operating system." ) );
+                        return unsupported( tr( QT_TRANSLATE_NOOP( "InstallLayout", "Automatic updates are not available on this operating system." ) ) );
                 }
 
                 if ( os == Os::MacOs )
@@ -136,7 +136,7 @@ namespace glabels::update
                         if ( macosDir.dirName() != "MacOS" || !contents.cdUp() || contents.dirName() != "Contents" ||
                              !bundle.cdUp() || !bundle.cdUp() || !bundle.dirName().endsWith( ".app" ) )
                         {
-                                return unsupported( tr( "This copy of the program is not an installed application bundle." ) );
+                                return unsupported( tr( QT_TRANSLATE_NOOP( "InstallLayout", "This copy of the program is not an installed application bundle." ) ) );
                         }
 
                         layout.helperRel = "Contents/MacOS/glabels-updater";
@@ -162,7 +162,7 @@ namespace glabels::update
                         QDir root   = binDir;
                         if ( binDir.dirName().compare( "bin", Qt::CaseInsensitive ) != 0 || !root.cdUp() || root.isRoot() )
                         {
-                                return unsupported( tr( "This copy of the program is not an installed release package." ) );
+                                return unsupported( tr( QT_TRANSLATE_NOOP( "InstallLayout", "This copy of the program is not an installed release package." ) ) );
                         }
 
                         const QString exeSuffix = ( os == Os::Windows ) ? ".exe" : "";
@@ -176,7 +176,7 @@ namespace glabels::update
                         parent.cdUp();
                         if ( os == Os::Windows && root.dirName() == "app" && QFileInfo::exists( parent.absoluteFilePath( "installed.json" ) ) )
                         {
-                                return unsupported( tr( "This copy is kept up to date by the gLabels Neo launcher." ) );
+                                return unsupported( tr( QT_TRANSLATE_NOOP( "InstallLayout", "This copy is kept up to date by the gLabels Neo launcher." ) ) );
                         }
 
                         layout.units.append( makeUnit( root.absolutePath() ) );
@@ -188,7 +188,7 @@ namespace glabels::update
 
                 if ( !QFileInfo( layout.helperPath ).isFile() )
                 {
-                        return unsupported( tr( "This build does not include the update helper." ) );
+                        return unsupported( tr( QT_TRANSLATE_NOOP( "InstallLayout", "This build does not include the update helper." ) ) );
                 }
 
                 if ( probeWritable )
@@ -197,7 +197,7 @@ namespace glabels::update
                         {
                                 if ( !canReplaceIn( QFileInfo( u.installed ).absoluteDir().absolutePath() ) )
                                 {
-                                        return unsupported( tr( "The program is installed in a location that cannot be modified without administrator rights. Move it to a folder you own to enable automatic updates." ) );
+                                        return unsupported( tr( QT_TRANSLATE_NOOP( "InstallLayout", "The program is installed in a location that cannot be modified without administrator rights. Move it to a folder you own to enable automatic updates." ) ) );
                                 }
                         }
                 }
@@ -211,14 +211,14 @@ namespace glabels::update
         {
                 if ( units.isEmpty() )
                 {
-                        return tr( "nothing to install" );
+                        return tr( QT_TRANSLATE_NOOP( "InstallLayout", "nothing to install" ) );
                 }
 
                 for ( const auto& u : units )
                 {
                         if ( !QFileInfo( u.staged ).isDir() )
                         {
-                                return tr( "the unpacked update is missing" );
+                                return tr( QT_TRANSLATE_NOOP( "InstallLayout", "the unpacked update is missing" ) );
                         }
                 }
 
@@ -227,7 +227,7 @@ namespace glabels::update
                 {
                         if ( !QFileInfo( units[0].staged + "/" + rel ).isFile() )
                         {
-                                return tr( "the update package is incomplete (%1 is missing)" ).arg( rel );
+                                return tr( QT_TRANSLATE_NOOP( "InstallLayout", "the update package is incomplete (%1 is missing)" ) ).arg( rel );
                         }
                 }
 
@@ -252,7 +252,7 @@ namespace glabels::update
                                         if ( !( target + "/" ).startsWith( root ) &&
                                              !( QFileInfo( target ).canonicalFilePath() + "/" ).startsWith( root ) )
                                         {
-                                                return tr( "the update package contains a link that leaves its folder (%1)" ).arg( info.fileName() );
+                                                return tr( QT_TRANSLATE_NOOP( "InstallLayout", "the update package contains a link that leaves its folder (%1)" ) ).arg( info.fileName() );
                                         }
                                 }
                         }

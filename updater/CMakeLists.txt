@@ -17,7 +17,7 @@ if (WIN32)
    if (MSVC)
       target_link_options (glabels-updater PRIVATE /ENTRY:wmainCRTStartup)
       # Static runtime: the copy in the temp directory must not need the install's DLLs.
-      set_property (TARGET glabels-updater PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded")
+      set_property (TARGET glabels-updater PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
    else ()
       target_link_options (glabels-updater PRIVATE -municode -static -static-libgcc -static-libstdc++)
    endif ()

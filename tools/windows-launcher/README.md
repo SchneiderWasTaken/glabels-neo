@@ -72,3 +72,9 @@ Removes the shortcut and the install folder. Your `.glabels` files and the progr
   SmartScreen does not prompt. The builds are not code-signed yet.
 - The shortcut currently shows the program's built-in icon; the new logo will be used once the icon
   pipeline lands.
+
+## Relationship to the built-in updater
+
+Releases from now on also update themselves from inside the program (see
+[Automatic updates](../../docs/AUTO-UPDATE.md)). A copy installed by this launcher is recognised and left to the
+launcher, so the two never work on the same folder; the launcher keeps working exactly as described above.

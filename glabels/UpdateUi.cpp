@@ -151,7 +151,10 @@ namespace glabels
 
         void UpdateUi::onCheckFinished( UpdateService::CheckResult result, bool userInitiated, const QString& message )
         {
-                if ( !userInitiated || !mUserWaitingForCheck )
+                // Only report back if the user is waiting for an answer (also when their request joined a check
+                // that the background timer had just started).
+                Q_UNUSED( userInitiated )
+                if ( !mUserWaitingForCheck )
                 {
                         return;
                 }

@@ -18,8 +18,9 @@ let why = run ? 'enabled' : `automation level ${level} < ${MIN_LEVEL[stage]}`;
 
 // Scheduled releases are opt-in: set the repository variable RELEASE_TRAIN to "on".
 if (stage === 'release') {
-  run = process.env.RELEASE_TRAIN === 'on';
-  why = run ? 'RELEASE_TRAIN is on' : 'RELEASE_TRAIN is not "on"';
+  // (A maintainer's dry run is always allowed: it only prints the decision.)
+  run = process.env.RELEASE_TRAIN === 'on' || process.env.RELEASE_DRY_RUN === 'true';
+  why = run ? 'RELEASE_TRAIN is on, or this is a dry run' : 'RELEASE_TRAIN is not "on"';
 }
 
 if (run && stage === 'triage') {
@@ -37,7 +38,10 @@ if (run && stage === 'triage') {
 if (run && stage === 'fix') {
   // Daily cap on fix attempts (each one builds the project and spends model budget).
   const since = new Date(Date.now() - 24 * 3600_000).toISOString();
-  const runs = api(`repos/${REPO}/actions/workflows/agent-fix.yml/runs?created=%3E${encodeURIComponent(since)}&per_page=100`)?.total_count ?? 0;
+  // The `labeled` trigger starts a (skipped) run for every label added to any issue: only runs whose gate let the
+  // work through count against the cap, and this run does not count against itself.
+  const listed = api(`repos/${REPO}/actions/workflows/agent-fix.yml/runs?created=%3E${encodeURIComponent(since)}&per_page=100`)?.workflow_runs ?? [];
+  const runs = listed.filter((r) => r.conclusion !== 'skipped' && String(r.id) !== String(process.env.GITHUB_RUN_ID)).length;
   const cap = Number(process.env.FIX_MAX_PER_DAY || 8);
   if (runs > cap) {
     run = false;

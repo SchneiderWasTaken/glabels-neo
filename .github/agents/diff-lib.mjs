@@ -13,7 +13,12 @@ export function parseDiff(diffText) {
   for (const block of blocks) {
     const lines = block.split('\n');
     const header = /^a\/(.+?) b\/(.+)$/.exec(lines[0]);
-    if (!header) throw new Error('unparseable diff header');
+    if (!header) {
+      // Quoted or otherwise unusual paths: fail closed. The placeholder is outside every allowed directory, so the
+      // change is classified "blocked" and a human has to look.
+      files.push({ path: '<unparseable path>', status: 'modified', additions: 0, deletions: 0, binary: false, mode: undefined });
+      continue;
+    }
     let oldPath = header[1];
     let newPath = header[2];
     let status = 'modified';
@@ -54,7 +59,7 @@ export function parseDiff(diffText) {
 
     if (status === 'renamed') {
       files.push({ path: oldPath, status: 'removed', additions: 0, deletions, binary, mode: undefined });
-      files.push({ path: newPath, status: 'added', additions, deletions: 0, binary, mode: undefined });
+      files.push({ path: newPath, status: 'added', additions, deletions: 0, binary, mode });
     } else {
       files.push({ path: status === 'removed' ? oldPath : newPath, status, additions, deletions, binary, mode });
     }

@@ -4,7 +4,7 @@
 // reads the text in its prompt - and its answer is validated and written to triage-result.json.  Applying
 // labels and comments happens in a different job (triage-apply.mjs) that has no model credential.
 
-import { REPO, UNTRUSTED_NOTICE, api, assertNoSecrets, runClaude, secretsFromEnv, untrusted, writeJson } from './lib.mjs';
+import { REPO, UNTRUSTED_NOTICE, api, assertNoSecrets, issueHash, runClaude, secretsFromEnv, untrusted, writeJson } from './lib.mjs';
 import { TRIAGE_SCHEMA, validateTriage } from './triage-lib.mjs';
 
 const number = Number(process.env.ISSUE_NUMBER);
@@ -73,7 +73,7 @@ const result = await runClaude({
 });
 
 const triage = validateTriage(result.structured, others.map((o) => o.number));
-const output = { number, fromApp, existingLabels: labels, triage, cost: result.cost };
+const output = { number, fromApp, existingLabels: labels, triage, bodySha: issueHash(issue.title, issue.body), cost: result.cost };
 assertNoSecrets(JSON.stringify(output), secretsFromEnv('CLAUDE_CODE_OAUTH_TOKEN', 'GH_TOKEN'));
 writeJson('triage-result.json', output);
 console.log(`triaged #${number}: ${triage.category}/${triage.area}, fixable=${triage.agent_fixable}, cost ${result.cost.toFixed(4)} USD`);

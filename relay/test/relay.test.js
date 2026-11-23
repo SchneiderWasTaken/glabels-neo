@@ -248,3 +248,48 @@ test('installation token is requested with minimal permissions and cached', asyn
   assert.match(calls[0].url, /installations\/99\/access_tokens$/);
   assert.deepEqual(calls[0].body, { repositories: ['repo'], permissions: { issues: 'write' } });
 });
+
+test('neutralizeMarkdown defuses images, links and cross-repo references', () => {
+  const out = neutralizeMarkdown('![x](http://t.example/p.png) [click](http://e.example) see other/repo#12');
+  assert.ok(!out.includes('!['));
+  assert.ok(!out.includes(']('));
+  assert.ok(!/other\/repo#12/.test(out));
+});
+
+test('a huge run of backticks cannot blow past the fence or the size limit', () => {
+  const { comments } = formatIssue(validateReport({
+    schema: 1, description: 'x'.repeat(20), attachments: [{ kind: 'log', name: 'l', text: '`'.repeat(60000) }],
+  }));
+  assert.ok(comments[0].length < 65000);
+});
+
+test('Durable Object limiter: a nonce is claimed once, limits hold under concurrency', async () => {
+  const { Limiter } = await import('../src/limiter.js');
+  const data = new Map();
+  const state = {
+    storage: {
+      get: async (k) => data.get(k),
+      put: async (obj) => { for (const [k, v] of Object.entries(obj)) data.set(k, v); },
+      getAlarm: async () => null,
+      setAlarm: async () => {},
+      deleteAll: async () => data.clear(),
+    },
+  };
+  const limiter = new Limiter(state);
+  // A real Durable Object serialises requests; emulate that with a promise chain.
+  let chain = Promise.resolve();
+  const env = {
+    LIMITER: {
+      idFromName: () => 'global',
+      get: () => ({ fetch: (url, init) => (chain = chain.then(() => limiter.fetch(new Request(url, init)))) }),
+    },
+    LIMIT_PER_HOUR: '2',
+  };
+  const { claimReport } = await import('../src/limits.js');
+  const now = Date.now();
+  const claim = (nonce) => claimReport(env, { nonce, nonceExpires: now + 600_000, reporter: 'r1' }, now);
+  const results = await Promise.all([claim('a'), claim('a'), claim('b'), claim('c')]);
+  assert.equal(results.filter((r) => r.ok).length, 2); // the duplicate nonce and the third report are refused
+  assert.ok(results.some((r) => r.kind === 'nonce'));
+  assert.ok(results.some((r) => r.kind === 'limit'));
+});

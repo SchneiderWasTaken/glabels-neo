@@ -1,45 +1,48 @@
-// Stage 2: let a model attempt a fix for one issue, in rounds.  One round is three workflow steps:
+// Stage 2: let a model attempt a fix for one issue.  A round is two JOBS, on separate machines:
 //
-//   prepare  (no model credential)  snapshot the working tree into ./agent-work (a plain directory, NO .git),
-//                                   fetch the issue
-//   agent    (model credential)     the model edits files in ./agent-work.  It has no shell and no network tool, reads
-//                                   outside the directory are denied, and there is no .git directory whose config it
-//                                   could poison.  Nothing else runs in this step.
-//   verify   (no model credential)  copy the edited files over the real checkout, classify the diff against the
-//                                   policy, and only if it is not "blocked" build and run the tests
+//   agent job   (holds the model credential)  prepare + agent
+//       prepare  copy the checkout into ./agent-work (a plain directory, NO .git), fetch the issue and check that it
+//                is still the text that was approved, overlay the previous round's edits
+//       agent    the model edits files in ./agent-work.  It has no shell and no network tool; reads outside the
+//                directory are denied; there is no git configuration to poison.  The changed files are collected and
+//                scanned for credentials.  NOTHING the model wrote is built or run here.
+//   verify job  (holds NO secret, fresh machine)  verify
+//       verify   overlay the changed files, classify the diff against the policy and - only if it is not "blocked" -
+//                build and run the tests.  Model-written code runs only here.
 //
-// The step that holds the credential never builds or runs anything the model wrote, and the steps that build and run
-// it never hold the credential - and they are not descendants of the step that does, so they cannot read its
-// environment either.  Nothing is pushed here; fix-publish.mjs (no model credential) opens the draft PR.
+// Separate machines matter: code that runs in the verify job (a unit test the model wrote, say) cannot reach the
+// credential through the process table, the environment, the file system or the runner's file commands.
+// Nothing is pushed here; fix-publish.mjs (no model credential) opens the draft PR.
 
 import { spawnSync } from 'node:child_process';
-import {
-  copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync,
-} from 'node:fs';
 import { createHash } from 'node:crypto';
+import {
+  appendFileSync, copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync,
+} from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 
 import {
-  REPO, UNTRUSTED_NOTICE, api, assertNoSecrets, readJson, runClaude, sanitizeForComment, secretsFromEnv, untrusted, writeJson,
+  REPO, UNTRUSTED_NOTICE, api, assertNoSecrets, issueHash, readJson, runClaude, sanitizeForComment, secretsFromEnv, untrusted,
+  writeJson,
 } from './lib.mjs';
 import { addedLinesOf, classifyChange } from './policy.mjs';
 
 const mode = process.argv[2];
 const WORK = 'agent-work';
-const STATE = 'fix-state.json';
-const MAX_ROUNDS = Number(process.env.FIX_MAX_ROUNDS || 3);
-
-const TERMINAL = new Set(['ok', 'cannot-fix', 'blocked', 'failed']);
-const state = existsSync(STATE) ? readJson(STATE) : { round: 0, status: 'continue', feedback: '' };
-const finished = () => TERMINAL.has(state.status);
+const CHANGES = 'agent-changes';
+const ROUND = Number(process.env.ROUND || 1);
+const MAX_ROUNDS = Number(process.env.FIX_MAX_ROUNDS || 2);
+const MAX_CHANGED_FILES = 40;
+const MAX_FILE_BYTES = 2 * 1024 * 1024;
 
 function sh(cmd, args, opts = {}) {
   return spawnSync(cmd, args, { encoding: 'utf8', maxBuffer: 256 * 1024 * 1024, ...opts });
 }
 const tail = (text, lines) => String(text).split('\n').slice(-lines).join('\n');
 const sha256 = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
+const setOutput = (k, v) => process.env.GITHUB_OUTPUT && appendFileSync(process.env.GITHUB_OUTPUT, `${k}=${v}\n`);
 
-/** All regular files under dir (relative paths); throws on symlinks and other oddities. */
+/** All regular files under dir (relative, forward slashes); throws on symlinks and other oddities. */
 function listFiles(dir) {
   const out = [];
   (function walk(d) {
@@ -55,45 +58,50 @@ function listFiles(dir) {
   return out;
 }
 
+const safeRelative = (p) => !p.startsWith('/') && !p.split('/').some((s) => s === '..' || s === '.git' || s === '');
+
+function copyInto(destRoot, srcRoot, files) {
+  for (const f of files) {
+    if (!safeRelative(f)) throw new Error(`unsafe path in agent output: ${f}`);
+    if (statSync(join(srcRoot, f)).size > MAX_FILE_BYTES) throw new Error(`file too large: ${f}`);
+    mkdirSync(dirname(join(destRoot, f)), { recursive: true });
+    copyFileSync(join(srcRoot, f), join(destRoot, f));
+  }
+}
+
 // ----------------------------------------------------------------------------------------------- prepare
 function prepare() {
-  if (finished()) return;
-  state.round += 1;
-
-  // Keep our own bookkeeping files out of "git add -A" (local exclude file; the agent never sees .git).
-  const exclude = '.git/info/exclude';
-  const have = existsSync(exclude) ? readFileSync(exclude, 'utf8') : '';
-  if (!have.includes('# fix-step')) {
-    mkdirSync(dirname(exclude), { recursive: true });
-    const patterns = ['# fix-step', '/agent-work/', '/fix-*.json', '/agent-answer.json', '/fix.patch', '/commit-message.txt', '/pr-body.md'];
-    writeFileSync(exclude, `${have}\n${patterns.join('\n')}\n`);
+  const number = Number(process.env.ISSUE_NUMBER);
+  if (!Number.isInteger(number) || number <= 0) throw new Error('ISSUE_NUMBER is required');
+  const issue = api(`repos/${REPO}/issues/${number}`);
+  if (issue.pull_request) throw new Error('not an issue');
+  if (process.env.BODY_SHA && issueHash(issue.title, issue.body) !== process.env.BODY_SHA) {
+    throw new Error('the issue was edited after it was approved for a fix attempt; stopping');
   }
-
-  if (!existsSync('fix-issue.json')) {
-    const number = Number(process.env.ISSUE_NUMBER);
-    if (!Number.isInteger(number) || number <= 0) throw new Error('ISSUE_NUMBER is required');
-    const issue = api(`repos/${REPO}/issues/${number}`);
-    if (issue.pull_request) throw new Error('not an issue');
-    writeJson('fix-issue.json', { number, title: issue.title, body: issue.body ?? '' });
-  }
+  writeJson('fix-issue.json', { number, title: issue.title, body: issue.body ?? '' });
 
   rmSync(WORK, { recursive: true, force: true });
   mkdirSync(WORK);
-  // Tracked and untracked (non-ignored) files of the current working tree, without .git.
-  const list = sh('git', ['ls-files', '-z', '--cached', '--others', '--exclude-standard']);
+  // Tracked files of the clean checkout, without .git.
+  const list = sh('git', ['ls-files', '-z']);
   if (list.status !== 0) throw new Error('git ls-files failed');
   const paths = list.stdout.split('\0').filter(Boolean);
   const manifest = {};
   for (const p of paths) {
-    const src = p;
-    if (!existsSync(src) || lstatSync(src).isSymbolicLink() || !lstatSync(src).isFile()) continue;
+    if (!existsSync(p) || lstatSync(p).isSymbolicLink() || !lstatSync(p).isFile()) continue;
     mkdirSync(dirname(join(WORK, p)), { recursive: true });
-    copyFileSync(src, join(WORK, p));
-    manifest[p] = sha256(src);
+    copyFileSync(p, join(WORK, p));
+    manifest[p] = sha256(p);
   }
   writeJson('fix-manifest.json', manifest);
-  writeJson(STATE, state);
-  console.log(`round ${state.round}: snapshot of ${paths.length} files`);
+
+  // Continue from the previous round's edits, if any.
+  if (existsSync('prev-changes')) {
+    const prev = listFiles('prev-changes');
+    copyInto(WORK, 'prev-changes', prev);
+    console.log(`overlaid ${prev.length} files from the previous round`);
+  }
+  console.log(`round ${ROUND}: snapshot of ${paths.length} files`);
 }
 
 // -------------------------------------------------------------------------------------------------- agent
@@ -126,18 +134,18 @@ const rules = `Rules:
 - You cannot run the build; it is run for you after you finish, and failures are reported back to you.`;
 
 async function agent() {
-  if (finished()) return;
   const issue = readJson('fix-issue.json');
+  const feedback = existsSync('prev-feedback.txt') ? readFileSync('prev-feedback.txt', 'utf8') : '';
   const model = process.env.FIX_MODEL || 'sonnet';
   const prompt = [
     UNTRUSTED_NOTICE, '', repoGuidance, '', rules, '', 'Fix this issue.',
     untrusted('issue-title', issue.title, 300),
     untrusted('issue-body', issue.body, 12000),
-    state.feedback ? `\nYour previous attempt had problems:\n${untrusted('feedback', state.feedback, 6000)}\nFix them.` : '',
+    feedback ? `\nYour previous attempt had problems:\n${untrusted('feedback', feedback, 6000)}\nFix them.` : '',
     '', 'When finished, answer with the JSON object requested (summary: what you changed and why, in plain words).',
   ].join('\n');
 
-  console.log(`round ${state.round}/${MAX_ROUNDS}: asking ${model}`);
+  console.log(`round ${ROUND}/${MAX_ROUNDS}: asking ${model}`);
   const result = await runClaude({
     prompt, model, tools: 'Read,Glob,Grep,Edit,Write', permissionMode: 'acceptEdits', schema: FIX_SCHEMA,
     cwd: WORK, maxBudgetUsd: Number(process.env.FIX_BUDGET_USD || 3), timeoutMs: 25 * 60 * 1000,
@@ -145,24 +153,27 @@ async function agent() {
   });
   const answer = result.structured ?? { cannot_fix: true, reason: 'no structured answer', summary: '', tests_added: false };
 
-  // Scan everything that changed (and the answer) for credentials, while we still hold them.
+  // Collect what changed relative to the clean checkout, scanning for credentials while we still hold them.
   const secrets = secretsFromEnv('CLAUDE_CODE_OAUTH_TOKEN');
   const manifest = readJson('fix-manifest.json');
+  const changed = [];
   for (const f of listFiles(WORK)) {
-    const changed = manifest[f] === undefined || sha256(join(WORK, f)) !== manifest[f];
-    if (changed) assertNoSecrets(readFileSync(join(WORK, f), 'latin1'), secrets);
+    if (manifest[f] === undefined || sha256(join(WORK, f)) !== manifest[f]) {
+      assertNoSecrets(readFileSync(join(WORK, f), 'latin1'), secrets);
+      changed.push(f);
+    }
   }
+  if (changed.length > MAX_CHANGED_FILES) throw new Error(`too many changed files (${changed.length})`);
   assertNoSecrets(JSON.stringify(answer), secrets);
+
+  rmSync(CHANGES, { recursive: true, force: true });
+  mkdirSync(CHANGES);
+  copyInto(CHANGES, WORK, changed);
   writeJson('agent-answer.json', answer);
+  console.log(`${changed.length} files changed`);
 }
 
 // ------------------------------------------------------------------------------------------------- verify
-function cleanEnv() {
-  const env = { ...process.env };
-  for (const k of Object.keys(env)) if (/TOKEN|SECRET|PASSWORD|CREDENTIAL|^ANTHROPIC_|^CLAUDE_/i.test(k)) delete env[k];
-  return env;
-}
-
 function currentChange() {
   sh('git', ['add', '-A']);
   const nameStatus = sh('git', ['diff', '--cached', '--name-status', '--no-renames']).stdout.trim().split('\n').filter(Boolean);
@@ -186,48 +197,52 @@ function currentChange() {
       mode: oddModes.get(path),
     };
   });
-  return { files, patch, classification: classifyChange(files, addedLinesOf(patch)) };
+  return { files, patch, classification: classifyChange(files, addedLinesOf(patch), { diffChars: patch.length }) };
 }
 
 function buildAndTest() {
-  const env = cleanEnv();
   const cpus = Number.parseInt(sh('nproc', []).stdout, 10) || 2;
-  const build = sh('cmake', ['--build', 'build', '-j', String(cpus)], { env });
+  const build = sh('cmake', ['--build', 'build', '-j', String(cpus)]);
   if (build.status !== 0) return { ok: false, log: `BUILD FAILED\n${tail(build.stdout + build.stderr, 80)}` };
-  const test = sh('ctest', ['--test-dir', 'build', '--output-on-failure', '--timeout', '120'], { env });
+  // The unit tests are Qt programs: they need a display (CI uses xvfb-run too).
+  const test = sh('xvfb-run', ['-a', 'ctest', '--test-dir', 'build', '--output-on-failure', '--timeout', '120']);
   if (test.status !== 0) return { ok: false, log: `TESTS FAILED\n${tail(test.stdout + test.stderr, 80)}` };
   return { ok: true, log: tail(test.stdout, 15) };
 }
 
 function finish(outcome) {
-  state.status = outcome.status;
-  writeJson(STATE, state);
-  writeJson('fix-result.json', { number: readJson('fix-issue.json').number, title: readJson('fix-issue.json').title, outcome });
+  const issue = readJson('fix-issue.json');
+  writeJson('fix-result.json', { number: issue.number, title: issue.title, outcome });
+  setOutput('status', outcome.status);
   console.log(`result: ${outcome.status}`);
 }
 
-function verify() {
-  if (finished()) return;
-  const answer = readJson('agent-answer.json');
+/** Keep our own bookkeeping files out of "git add -A" (local exclude file). */
+function excludeBookkeeping() {
+  const exclude = '.git/info/exclude';
+  const have = existsSync(exclude) ? readFileSync(exclude, 'utf8') : '';
+  const patterns = ['/agent-changes/', '/agent-work/', '/agent-answer.json', '/fix-issue.json', '/fix-manifest.json', '/fix-result.json',
+    '/fix.patch', '/feedback.txt', '/prev-changes/', '/prev-feedback.txt', '/commit-message.txt', '/pr-body.md'];
+  mkdirSync(dirname(exclude), { recursive: true });
+  writeFileSync(exclude, `${have}\n${patterns.join('\n')}\n`);
+}
 
+function verify() {
+  excludeBookkeeping();
+  const answer = readJson('agent-answer.json');
   if (answer.cannot_fix) {
     return finish({ status: 'cannot-fix', reason: sanitizeForComment(answer.reason ?? '', 400) });
   }
 
-  // Overlay the agent's files onto the real checkout (regular files only; it cannot delete anything).
-  const manifest = readJson('fix-manifest.json');
-  for (const f of listFiles(WORK)) {
-    if (/(^|\/)\.git(\/|$)/.test(f) || f.includes('..')) continue;
-    const src = join(WORK, f);
-    if (manifest[f] !== undefined && sha256(src) === manifest[f]) continue;
-    mkdirSync(dirname(f) || '.', { recursive: true });
-    copyFileSync(src, f);
-  }
+  // Overlay the agent's files onto the checkout (regular files only; it cannot delete anything).
+  const changed = existsSync(CHANGES) ? listFiles(CHANGES) : [];
+  copyInto('.', CHANGES, changed);
 
   const change = currentChange();
   console.log(`change: ${change.files.length} files, risk ${change.classification.risk}`);
+  let feedback = '';
   if (change.files.length === 0) {
-    state.feedback = 'You made no changes.';
+    feedback = 'You made no changes.';
   } else if (change.classification.risk === 'blocked') {
     return finish({ status: 'blocked', reasons: change.classification.reasons.slice(0, 10).map((r) => sanitizeForComment(r, 200)) });
   } else {
@@ -241,16 +256,16 @@ function verify() {
         testsAdded: Boolean(answer.tests_added),
         classification: change.classification,
         files: change.files.map((f) => f.path),
-        attempts: state.round,
+        attempts: ROUND,
       });
     }
-    state.feedback = built.log;
+    feedback = built.log;
   }
 
-  if (state.round >= MAX_ROUNDS) {
-    return finish({ status: 'failed', reason: sanitizeForComment(state.feedback, 600) });
-  }
-  writeJson(STATE, state);
+  if (ROUND >= MAX_ROUNDS) return finish({ status: 'failed', reason: sanitizeForComment(feedback, 600) });
+  writeFileSync('feedback.txt', feedback);
+  setOutput('status', 'continue');
+  console.log('this round did not pass; the next round gets the feedback');
 }
 
 if (mode === 'prepare') prepare();

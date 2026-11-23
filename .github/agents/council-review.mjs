@@ -51,7 +51,8 @@ async function viaGemini() {
     method: 'POST',
     headers: { 'x-goog-api-key': process.env.GEMINI_API_KEY, 'content-type': 'application/json' },
     body: JSON.stringify({
-      contents: [{ role: 'user', parts: [{ text: prompt + '\n\nReply with ONE JSON object matching this JSON schema and nothing else: ' + JSON.stringify(VERDICT_SCHEMA) }] }],
+      systemInstruction: { parts: [{ text: 'You are a strict, fair code reviewer. Reply with ONE JSON object matching this JSON schema and nothing else: ' + JSON.stringify(VERDICT_SCHEMA) }] },
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
       generationConfig: { responseMimeType: 'application/json', temperature: 0.1 },
     }),
     signal: AbortSignal.timeout(10 * 60 * 1000),
@@ -64,8 +65,18 @@ async function viaGemini() {
 const providers = { claude: viaClaude, openrouter: viaOpenRouter, gemini: viaGemini };
 const out = { id: reviewer.id, model: reviewer.model, sha: input.sha };
 
+/** Two attempts: transient provider errors should not veto a good change (a missing answer blocks approval). */
+async function withRetry(fn) {
+  try {
+    return await fn();
+  } catch (first) {
+    console.log(`retrying after: ${String(first instanceof Error ? first.message : first).slice(0, 120)}`);
+    return fn();
+  }
+}
+
 try {
-  const verdict = validateVerdict(await providers[reviewer.provider]());
+  const verdict = validateVerdict(await withRetry(providers[reviewer.provider]));
   assertNoSecrets(JSON.stringify(verdict), secretsFromEnv('CLAUDE_CODE_OAUTH_TOKEN', 'OPENROUTER_API_KEY', 'GEMINI_API_KEY', 'GH_TOKEN'));
   out.verdict = verdict;
   console.log(`${reviewer.id}: ${verdict.verdict}, risk ${verdict.risk}`);

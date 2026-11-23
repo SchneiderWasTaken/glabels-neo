@@ -1,0 +1,146 @@
+# One round of the fix agent (called by agent-fix.yml). Two jobs on SEPARATE machines:
+#   agent:  holds the model credential. The model edits files in a plain copy of the tree (no .git, no shell, no
+#           network tool). Nothing it wrote is built or run here.
+#   verify: holds NO secret. Applies the edits, classifies the diff against the policy and, if allowed, builds and runs
+#           the tests. Model-written code runs only here.
+# See .github/agents/fix-step.mjs.
+
+name: Agent fix round
+
+on:
+  workflow_call:
+    inputs:
+      round:
+        type: number
+        required: true
+      prev_round:
+        description: The round whose output this one continues from (0 for the first round)
+        type: number
+        default: 0
+      issue:
+        type: string
+        required: true
+      body_sha:
+        type: string
+        required: true
+    secrets:
+      CLAUDE_OAUTH_TOKEN:
+        required: true
+    outputs:
+      status:
+        description: continue | ok | cannot-fix | blocked | failed
+        value: ${{ jobs.verify.outputs.status }}
+
+permissions: {}
+
+jobs:
+  agent:
+    name: Agent (round ${{ inputs.round }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      issues: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Claude Code
+        uses: ./.github/actions/setup-claude
+
+      - name: Download the previous round
+        if: inputs.prev_round > 0
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: '*-${{ inputs.prev_round }}'
+          path: previous
+
+      - name: Place the previous round's files
+        if: inputs.prev_round > 0
+        run: |
+          mv previous/changes-*/agent-changes prev-changes
+          cp previous/feedback-*/feedback.txt prev-feedback.txt
+
+      - name: Prepare (no model credential)
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ inputs.issue }}
+          BODY_SHA: ${{ inputs.body_sha }}
+          ROUND: ${{ inputs.round }}
+        run: node .github/agents/fix-step.mjs prepare
+
+      - name: Agent (model credential; edits files only)
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
+          FIX_MODEL: ${{ vars.FIX_MODEL }}
+          ROUND: ${{ inputs.round }}
+        run: node .github/agents/fix-step.mjs agent
+
+      - name: Upload the model's changes
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: changes-${{ inputs.round }}
+          path: |
+            agent-changes
+            agent-answer.json
+            fix-issue.json
+          retention-days: 7
+
+  verify:
+    name: Verify (round ${{ inputs.round }})
+    needs: agent
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    permissions:
+      contents: read
+    outputs:
+      status: ${{ steps.verify.outputs.status }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up build environment
+        uses: ./.github/actions/setup-build
+        with:
+          cache-key: agent-fix
+
+      - name: Build the baseline
+        run: |
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+          cmake --build build -j"$(nproc)"
+
+      - name: Download the model's changes
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: changes-${{ inputs.round }}
+
+      - name: Classify, build and test
+        id: verify
+        env:
+          ROUND: ${{ inputs.round }}
+        run: node .github/agents/fix-step.mjs verify
+
+      - name: Upload feedback for the next round
+        if: steps.verify.outputs.status == 'continue'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: feedback-${{ inputs.round }}
+          path: feedback.txt
+          retention-days: 7
+
+      - name: Upload the result
+        if: steps.verify.outputs.status != 'continue'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: fix-result
+          path: |
+            fix-result.json
+            fix.patch
+          if-no-files-found: ignore
+          retention-days: 7

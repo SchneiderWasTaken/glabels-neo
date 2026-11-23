@@ -35,5 +35,5 @@ console.log(`#${number}: labels ${labels.join(', ')}`);
 
 if (ready) {
   console.log('handing to the fix agent');
-  gh(['workflow', 'run', 'agent-fix.yml', '--repo', REPO, '-f', `issue=${number}`]);
+  gh(['workflow', 'run', 'agent-fix.yml', '--repo', REPO, '-f', `issue=${number}`, '-f', `body_sha=${data.bodySha ?? ''}`]);
 }

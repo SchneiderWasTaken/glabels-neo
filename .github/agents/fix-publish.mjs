@@ -31,12 +31,15 @@ function needsHuman(note) {
 }
 
 if (outcome.status !== 'ok') {
+  // The artifact is data: whatever it carries is sanitised again here before it is posted anywhere public.
+  const clean = (t, n) => sanitizeForComment(t ?? '', n);
   const why =
     outcome.status === 'cannot-fix'
-      ? `The fix agent decided it could not fix this safely: ${outcome.reason || 'no reason given'}`
+      ? `The fix agent decided it could not fix this safely: ${clean(outcome.reason, 400) || 'no reason given'}`
       : outcome.status === 'blocked'
-        ? `The fix agent's change was rejected by the safety rules (${(outcome.reasons ?? []).join('; ')}).`
-        : `The fix agent could not produce a passing change${outcome.reason ? ` (${outcome.reason.slice(0, 300)})` : ''}.`;
+        ? `The fix agent's change was rejected by the safety rules (${(outcome.reasons ?? []).slice(0, 10).map((r) => clean(r, 200)).join('; ')}).`
+        : `The fix agent could not produce a passing change${outcome.reason ? ` (${clean(outcome.reason, 300)})` : ''}.`;
+  assertNoSecrets(why, []);
   needsHuman(`I tried to prepare a fix automatically and could not.\n\n${why}\n\nA maintainer needs to look at this one.`);
   console.log(`no PR: ${outcome.status}`);
   process.exit(0);
@@ -63,7 +66,7 @@ for (const f of files) {
   if (summaryLines.some((l) => l.includes('delete mode') && l.endsWith(` ${f.path}`))) f.status = 'removed';
   if (summaryLines.some((l) => l.includes('create mode') && l.endsWith(` ${f.path}`))) f.status = 'added';
 }
-const classification = classifyChange(files, addedLinesOf(patch));
+const classification = classifyChange(files, addedLinesOf(patch), { diffChars: patch.length });
 if (classification.risk === 'blocked') {
   needsHuman(`The fix agent's change was rejected by the safety rules (${classification.reasons.slice(0, 5).join('; ')}).`);
   console.log('no PR: blocked on re-check');

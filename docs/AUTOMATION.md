@@ -65,17 +65,17 @@ comment. Model text appears only in short, sanitised fields. It never closes iss
 ## 2. Fix agent (`agent-fix.yml`)
 
 Starts when a maintainer adds `agent-fix` (checked: the person must have write access), or when triage marks the issue
-`agent-ready` at level 3+. Up to three rounds, each made of three steps:
+`agent-ready` at level 3+. The issue text is **pinned** by a fingerprint: if it is edited after it was approved, the attempt
+stops. Up to two rounds; each round is two jobs on **separate machines**:
 
-1. **prepare** (no model credential): copy the working tree into a plain directory - *without `.git`*;
-2. **agent** (the only step with the model credential): the model **reads and edits files in that copy** - no shell, no
-   network tool, reads outside the directory are denied, and there is no git configuration it could poison. Changed files
-   and its answer are scanned for credentials while the step still holds them;
-3. **verify** (no model credential, and not a child of the agent step): copy the edited files over the real checkout,
-   classify the diff (below) and - only if it is not `blocked` - build and run the unit tests. Failures are fed back to the
-   next round.
+1. **agent job** (the only place with the model credential): the model **reads and edits files in a plain copy of the
+   tree** - without `.git`, with no shell and no network tool; reads outside the directory are denied. Changed files and
+   its answer are scanned for credentials. Nothing the model wrote is built or run here.
+2. **verify job** (no secret at all): applies the edits, classifies the diff (below) and - only if it is not `blocked` -
+   builds and runs the unit tests. Failures are fed back to the next round.
 
-So the credential is never present where model-written code is compiled or run.
+So model-written code (a unit test, say) only ever runs on a machine that holds no credential, and cannot reach one through
+the process table, the environment, the runner's file commands or the file system.
 A separate job, with no model credential, re-validates the patch and opens a **draft PR** from an `agent/issue-N-*`
 branch. Daily cap: `FIX_MAX_PER_DAY`.
 
@@ -85,14 +85,14 @@ branch. Daily cap: `FIX_MAX_PER_DAY`.
 |:--|:--|:--|
 | **low** | small, local, ordinary | a UI fix, a label template, a translation, a one-file bug fix with a test |
 | **high** | sensitive area or large | printing, file format, mail-merge, barcodes, kiosk, >120 changed lines or >5 files, deleting a file |
-| **blocked** | a human must decide | any path outside the allowed source directories (build files, scripts, `.github`, packaging, licenses, dotfiles), binary files, executable bits, removed tests, >600 lines or >12 files, or **added lines that mention** process execution, networking, dynamic loading, environment variables, URLs or long encoded strings |
+| **blocked** | a human must decide | any path outside the allowed source directories (build files, scripts, `.github`, packaging, licenses, dotfiles, anything executable such as `.py`/`.js`, and the reporting/branding/attribution code), a diff longer than 60,000 characters (the council reads at most 70,000), binary files, executable bits, removed tests, >600 lines or >12 files, or **added lines that mention** process execution, networking, dynamic loading, environment variables, URLs or long encoded strings |
 
 ## 3. Council (`council.yml`)
 
 Independent reviewers see the same diff, the issue (marked untrusted) and the deterministic classification, and answer
-with a structured verdict. **Approval requires every participating reviewer to approve** (any `request_changes`,
-backdoor suspicion, scope complaint or blocking concern is a veto), at least two to take part, and the combined risk not
-to be `blocked`. The result is a commit status **`Council`** on the exact reviewed commit - a later push invalidates it.
+with a structured verdict. **Approval requires every reviewer that was asked to answer and approve** (any `request_changes`,
+backdoor suspicion, scope complaint or blocking concern is a veto; a reviewer that errors out blocks approval - it cannot
+quietly drop out of the vote), at least two to take part, and the combined risk not to be `blocked`. The result is a commit status **`Council`** on the exact reviewed commit - a later push invalidates it.
 
 Members: Claude `opus` and `haiku` (using the Claude subscription token), plus - when their secret exists - OpenRouter
 models (default `~deepseek/deepseek-flash-latest` and `~z-ai/glm-flash-latest`, from `OPENROUTER_API_KEY`) and Gemini
@@ -102,15 +102,15 @@ models (default `~deepseek/deepseek-flash-latest` and `~z-ai/glm-flash-latest`, 
 ## 4. Merge policy (`automerge.yml`)
 
 Every 20 minutes and whenever the council approves, **one** PR is merged if all of this holds on its head commit:
-opened by the automation on an `agent/issue-*` branch; not a draft; `Council` = success; `CI OK` and `Lint OK` = success;
+opened by `github-actions[bot]` on an `agent/issue-*` branch based on the current `main` (a PR that fell behind needs a human); not a draft; `Council` = success; `CI OK` and `Lint OK` = success;
 re-classified risk is not `blocked`; and the level/time rule allows it (low: level 3+ any time; high: level 4, 05:00-09:00
 Central). It is a rebase merge pinned to the checked commit, and starts the edge build (merges made with the workflow
 token do not trigger push workflows).
 
 ## 5. Release train (`release-train.yml`)
 
-Stable releases are cut at **10:00 and 14:00 Central** (the cron runs at both UTC offsets; the script checks the real
-Chicago clock), **at most two a day**, and **only if** something user-visible landed on main since the last release and
+Stable releases are cut at **10:00 and 14:00 Central** (each slot is a 90-minute window because GitHub's scheduler can start
+late; the cron runs at both UTC offsets and the script checks the real Chicago clock; a slot can be used once), **at most two a day**, and **only if** something user-visible landed on main since the last release and
 the newest commit has a successful build. No changes, no release.
 
 - **10:00** carries everything merged since the last release, including the riskier changes (merged 05:00-09:00).

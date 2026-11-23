@@ -101,10 +101,12 @@ jobs:
           cache-key: release
 
       - name: Configure
+        env:
+          REPORT_ENDPOINT: ${{ vars.REPORT_ENDPOINT }}
         run: >
           cmake -B build -G Ninja
           -DCMAKE_BUILD_TYPE=Release
-          "-DGLABELS_REPORT_ENDPOINT=${{ vars.REPORT_ENDPOINT }}"
+          "-DGLABELS_REPORT_ENDPOINT=$REPORT_ENDPOINT"
           -DCMAKE_C_COMPILER_LAUNCHER=ccache
           -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 
@@ -213,10 +215,12 @@ jobs:
         uses: ./.github/actions/setup-build
 
       - name: Configure
+        env:
+          REPORT_ENDPOINT: ${{ vars.REPORT_ENDPOINT }}
         run: >
           cmake -B build
           -DCMAKE_BUILD_TYPE=Release
-          "-DGLABELS_REPORT_ENDPOINT=${{ vars.REPORT_ENDPOINT }}"
+          "-DGLABELS_REPORT_ENDPOINT=$env:REPORT_ENDPOINT"
           "-DCMAKE_TOOLCHAIN_FILE=${{ env.TOOLCHAIN_FILE }}"
 
       - name: Build
@@ -295,10 +299,12 @@ jobs:
           cache-key: release
 
       - name: Configure
+        env:
+          REPORT_ENDPOINT: ${{ vars.REPORT_ENDPOINT }}
         run: >
           cmake -B build -G Ninja
           -DCMAKE_BUILD_TYPE=Release
-          "-DGLABELS_REPORT_ENDPOINT=${{ vars.REPORT_ENDPOINT }}"
+          "-DGLABELS_REPORT_ENDPOINT=$REPORT_ENDPOINT"
           -DCMAKE_C_COMPILER_LAUNCHER=ccache
           -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
 

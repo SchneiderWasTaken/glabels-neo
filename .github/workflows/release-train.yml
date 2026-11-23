@@ -16,7 +16,8 @@ name: Release train
 
 on:
   schedule:
-    - cron: '5 15,16,19,20 * * *'
+    # :05 and :35 so that a late scheduler still lands inside the 90-minute window of its slot (policy.mjs)
+    - cron: '5,35 15,16,17,19,20,21 * * *'
   workflow_dispatch:
     inputs:
       dry_run:
@@ -53,6 +54,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TRAIN: ${{ vars.RELEASE_TRAIN }}
+          RELEASE_DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'false' }}
         run: node .github/agents/gate.mjs release
 
       - name: Release train

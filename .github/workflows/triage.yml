@@ -1,0 +1,100 @@
+# First-pass triage of new issues (automation level >= 1).
+#
+# Security shape - issue text is untrusted input:
+#   analyze: has the model credential and read-only GitHub access. The model has no tools and only returns
+#            a JSON object, which is validated and uploaded as an artifact.
+#   apply:   has write access to issues but NO model credential. It re-validates the artifact and applies
+#            labels and a template-driven comment.
+# Neither job interpolates issue text into a shell command.
+
+name: Triage
+
+on:
+  issues:
+    types: [opened]
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: Issue number to (re)triage
+        required: true
+
+concurrency:
+  group: triage-${{ github.event.issue.number || inputs.issue }}
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  gate:
+    name: Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: read
+    outputs:
+      run: ${{ steps.gate.outputs.run }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Check automation level
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTOMATION_LEVEL: ${{ vars.AUTOMATION_LEVEL }}
+        run: node .github/agents/gate.mjs triage
+
+  analyze:
+    name: Analyze
+    needs: gate
+    if: needs.gate.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Claude Code
+        uses: ./.github/actions/setup-claude
+      - name: Triage
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
+        run: node .github/agents/triage.mjs
+      - name: Upload result
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: triage-result
+          path: triage-result.json
+          retention-days: 3
+
+  apply:
+    name: Apply
+    needs: analyze
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+      actions: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Download result
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: triage-result
+      - name: Apply labels and comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTOMATION_LEVEL: ${{ vars.AUTOMATION_LEVEL }}
+        run: node .github/agents/triage-apply.mjs

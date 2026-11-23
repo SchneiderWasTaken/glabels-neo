@@ -1,0 +1,18 @@
+name: Set up Claude Code CLI
+description: Installs the pinned Claude Code CLI used by the automation scripts.
+
+inputs:
+  version:
+    description: Claude Code CLI version (pinned; update deliberately after testing)
+    default: '2.1.318'
+
+runs:
+  using: composite
+  steps:
+    - name: Install Claude Code CLI
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+      run: |
+        npm install --global --ignore-scripts=false "@anthropic-ai/claude-code@${VERSION}"
+        claude --version

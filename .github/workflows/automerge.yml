@@ -1,0 +1,48 @@
+# Merge policy for agent-written PRs (automation level >= 3). Merges at most one approved PR per run.
+# See .github/agents/automerge.mjs and docs/AUTOMATION.md for the exact conditions.
+#
+# Runs when the council approves a PR (it dispatches this workflow), when a check finishes, and on a schedule so
+# that a PR waiting for CI or for the early-morning window (high-risk changes) is picked up.
+
+name: Auto-merge
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/20 * * * *'
+
+concurrency:
+  group: automerge
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  merge:
+    name: Merge approved PRs
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      actions: write
+    steps:
+      - name: Checkout (trusted default branch)
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Gate
+        id: gate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTOMATION_LEVEL: ${{ vars.AUTOMATION_LEVEL }}
+        run: node .github/agents/gate.mjs merge
+
+      - name: Merge
+        if: steps.gate.outputs.run == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTOMATION_LEVEL: ${{ vars.AUTOMATION_LEVEL }}
+        run: node .github/agents/automerge.mjs

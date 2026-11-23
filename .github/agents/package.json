@@ -1,0 +1,7 @@
+{
+  "name": "glabels-neo-agents",
+  "private": true,
+  "type": "module",
+  "description": "Scripts used by the issue triage, agent fix, council review, auto-merge and release workflows.",
+  "license": "GPL-3.0-or-later"
+}

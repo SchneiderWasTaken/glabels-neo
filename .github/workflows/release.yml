@@ -117,7 +117,7 @@ jobs:
           tar -xzf glabels-neo-linux-x86_64.tar.gz -C smoke
           cd smoke/glabels-neo
 
-          for f in LICENSE THIRD-PARTY-NOTICES.md CREDITS.md licenses/GPL-3.0.txt licenses/LGPL-3.0.txt licenses/templates-MIT.txt; do
+          for f in LICENSE THIRD-PARTY-NOTICES.md CREDITS.md licenses/GPL-3.0.txt licenses/LGPL-3.0.txt licenses/templates-MIT.txt licenses/libzint-BSD-3-Clause.txt licenses/LGPL-2.1.txt licenses/zlib.txt licenses/ICU-Unicode-3.0.txt licenses/qt/MIT.txt VERSIONS.txt; do
             test -f "$f" || { echo "missing from package: $f"; exit 1; }
           done
 
@@ -234,7 +234,7 @@ jobs:
           if (Test-Path $dir) { Remove-Item -Recurse -Force $dir }
           Expand-Archive glabels-neo-windows-x64.zip -DestinationPath $dir
 
-          foreach ($f in 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'CREDITS.md', 'licenses\GPL-3.0.txt', 'licenses\LGPL-3.0.txt', 'licenses\templates-MIT.txt', 'bin\translations\glabels_de.qm') {
+          foreach ($f in 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'CREDITS.md', 'licenses\GPL-3.0.txt', 'licenses\LGPL-3.0.txt', 'licenses\templates-MIT.txt', 'licenses\libzint-BSD-3-Clause.txt', 'licenses\LGPL-2.1.txt', 'licenses\zlib.txt', 'licenses\ICU-Unicode-3.0.txt', 'licenses\qt\MIT.txt', 'VERSIONS.txt', 'bin\translations\glabels_de.qm') {
             if (-not (Test-Path (Join-Path $dir $f))) { throw "missing from package: $f" }
           }
 
@@ -312,7 +312,7 @@ jobs:
           hdiutil attach -nobrowse -readonly -mountpoint "$mnt" glabels-neo-macos-arm64.dmg
           trap 'hdiutil detach "$mnt" -force || true' EXIT
 
-          for f in LICENSE THIRD-PARTY-NOTICES.md CREDITS.md licenses/GPL-3.0.txt licenses/LGPL-3.0.txt licenses/templates-MIT.txt; do
+          for f in LICENSE THIRD-PARTY-NOTICES.md CREDITS.md licenses/GPL-3.0.txt licenses/LGPL-3.0.txt licenses/templates-MIT.txt licenses/libzint-BSD-3-Clause.txt licenses/LGPL-2.1.txt licenses/zlib.txt licenses/ICU-Unicode-3.0.txt licenses/qt/MIT.txt VERSIONS.txt; do
             test -f "$mnt/$f" || { echo "missing from DMG: $f"; exit 1; }
           done
 

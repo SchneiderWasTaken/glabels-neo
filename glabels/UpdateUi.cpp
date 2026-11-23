@@ -72,6 +72,21 @@ namespace glabels
         }
 
 
+        namespace
+        {
+
+                /// A message box that shows its text exactly as given.  (The static QMessageBox functions treat text
+                /// that looks like HTML as HTML, and some of what the updater reports comes from the downloaded manifest.)
+                void showPlainBox( QMessageBox::Icon icon, QWidget* parent, const QString& title, const QString& text )
+                {
+                        QMessageBox box( icon, title, text, QMessageBox::Ok, parent );
+                        box.setTextFormat( Qt::PlainText );
+                        box.exec();
+                }
+
+        }
+
+
         UpdateUi* UpdateUi::instance()
         {
                 static UpdateUi* sInstance = new UpdateUi();
@@ -124,13 +139,13 @@ namespace glabels
 
                 if ( !service->isSupported() )
                 {
-                        QMessageBox::information( parentWindow(), tr( "Check for Updates" ), service->unsupportedReason() );
+                        showPlainBox( QMessageBox::Information, parentWindow(), tr( "Check for Updates" ), service->unsupportedReason() );
                         return;
                 }
 
                 if ( auto pending = service->pendingUpdate() )
                 {
-                        QMessageBox::information( parentWindow(), tr( "Check for Updates" ),
+                        showPlainBox( QMessageBox::Information, parentWindow(), tr( "Check for Updates" ),
                                                   tr( "%1 has already been downloaded. It will be installed the next time you start %2." )
                                                   .arg( pending->version, model::Branding::DISPLAY_NAME ) );
                         return;
@@ -165,25 +180,25 @@ namespace glabels
                 switch ( result )
                 {
                 case UpdateService::CheckResult::UpToDate:
-                        QMessageBox::information( parentWindow(), title,
+                        showPlainBox( QMessageBox::Information, parentWindow(), title,
                                                   tr( "You have the latest version of %1 (%2)." )
                                                   .arg( model::Branding::DISPLAY_NAME,
                                                         UpdateService::instance()->build().displayVersion() ) );
                         break;
 
                 case UpdateService::CheckResult::UpdateReady:
-                        QMessageBox::information( parentWindow(), title,
+                        showPlainBox( QMessageBox::Information, parentWindow(), title,
                                                   tr( "%1 has already been downloaded. It will be installed the next time you start %2." )
                                                   .arg( message, model::Branding::DISPLAY_NAME ) );
                         break;
 
                 case UpdateService::CheckResult::Failed:
-                        QMessageBox::warning( parentWindow(), title,
+                        showPlainBox( QMessageBox::Warning, parentWindow(), title,
                                               tr( "Could not check for updates.\n\n%1" ).arg( message ) );
                         break;
 
                 case UpdateService::CheckResult::Unsupported:
-                        QMessageBox::information( parentWindow(), title, message );
+                        showPlainBox( QMessageBox::Information, parentWindow(), title, message );
                         break;
 
                 case UpdateService::CheckResult::UpdateAvailable:
@@ -251,16 +266,20 @@ namespace glabels
         {
                 auto* service = UpdateService::instance();
 
-                QString details = tr( "You are using %1." ).arg( service->build().displayVersion() ) + " " +
+                // The box shows rich text (for the link), and some of what goes in it comes from the downloaded manifest:
+                // escape everything that is not ours, so that it can only ever be shown, never be markup.
+                QString details = tr( "You are using %1." ).arg( service->build().displayVersion().toHtmlEscaped() ) + " " +
                                   tr( "The update downloads quietly in the background while you work and is installed "
                                       "when you close the program, so the next start is on the new version." );
                 if ( !manifest.notesUrl.isEmpty() )
                 {
-                        details += QString( "<br><br><a href=\"%1\">%2</a>" ).arg( manifest.notesUrl.toString(), tr( "What's new" ) );
+                        details += QString( "<br><br><a href=\"%1\">%2</a>" )
+                                   .arg( QString::fromLatin1( manifest.notesUrl.toEncoded() ).toHtmlEscaped(), tr( "What's new" ).toHtmlEscaped() );
                 }
 
                 auto* box = new QMessageBox( QMessageBox::Information, tr( "Update Available" ),
-                                             tr( "%1 %2 is available." ).arg( model::Branding::DISPLAY_NAME, manifest.displayVersion() ),
+                                             tr( "%1 %2 is available." ).arg( QString( model::Branding::DISPLAY_NAME ).toHtmlEscaped(),
+                                                                                     manifest.displayVersion().toHtmlEscaped() ),
                                              QMessageBox::NoButton, parentWindow() );
                 box->setAttribute( Qt::WA_DeleteOnClose );
                 box->setTextFormat( Qt::RichText );
@@ -331,7 +350,7 @@ namespace glabels
                 // Automatic installs fail silently (and are logged); one the user asked for reports back.
                 if ( mUserRequestedInstall )
                 {
-                        QMessageBox::warning( parentWindow(), tr( "Update" ),
+                        showPlainBox( QMessageBox::Warning, parentWindow(), tr( "Update" ),
                                               tr( "The update could not be installed.\n\n%1\n\nYour current version is unchanged." ).arg( message ) );
                 }
                 mUserRequestedInstall = false;

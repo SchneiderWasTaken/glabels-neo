@@ -60,6 +60,7 @@ namespace glabels::update
                 QString   version;      ///< what to show the user
                 QString   channel;
                 QString   sha256;       ///< digest of the package that was staged
+                qint64    commitTime{0};  ///< committer time of an edge release (0 for stable)
                 QDateTime stagedAt;
                 int       attempts{0};  ///< times a swap has been started for it
 

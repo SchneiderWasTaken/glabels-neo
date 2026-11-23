@@ -189,6 +189,8 @@ namespace glabels::update
 
         private:
                 void setState( State state );
+                bool verifyWritable();
+                void watchRedirects( QNetworkReply* reply );
                 void onManifestReply( QNetworkReply* reply, bool userInitiated );
                 void startDownload();
                 void onDownloadFinished();
@@ -205,6 +207,7 @@ namespace glabels::update
                 UpdateServiceConfig             mConfig;
                 bool                            mSupported{false};
                 bool                            mConsentRequested{false};
+                bool                            mWritableChecked{false};
                 QString                         mUnsupportedReason;
                 State                           mState{State::Disabled};
                 QNetworkAccessManager           mNetwork;

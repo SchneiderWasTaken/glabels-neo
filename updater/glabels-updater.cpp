@@ -279,6 +279,18 @@ namespace
                         return SwapOutcome::AlreadyApplied;
                 }
 
+                // A previous run may have been killed (power loss, task manager) between its two renames, leaving no
+                // installed copy and the previous version as the backup.  Put that back first, so that a failure
+                // below ends with a working install instead of with none.
+                for ( const auto& u : units )
+                {
+                        if ( !fs::exists( u.installed, ec ) && fs::exists( u.backup, ec ) )
+                        {
+                                std::string ignored;
+                                renameWithRetry( u.backup, u.installed, opt, &ignored );
+                        }
+                }
+
                 // Every unit must be swappable before the first one is touched.
                 for ( const auto& u : units )
                 {

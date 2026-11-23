@@ -264,3 +264,33 @@ void TestUpdateUi::consentDialogAsksOnceAndStoresTheAnswer()
         QTRY_VERIFY_WITH_TIMEOUT( update::UpdateSettings::autoCheck(), 5000 );
         QVERIFY( update::UpdateSettings::consentAsked() );
 }
+
+
+void TestUpdateUi::manifestTextIsShownNotInterpreted()
+{
+        QSettings().clear();
+        UpdateUi::init();
+
+        update::UpdateManifest manifest;
+        manifest.channel  = "stable";
+        manifest.version  = "1.0<a href=\"https://evil.example\">click</a>";      // (the parser refuses this; the dialog does not trust it anyway)
+        manifest.commit   = "0123456789abcdef0123456789abcdef01234567";
+        manifest.notesUrl = QUrl( "https://github.com/owner/project/releases/tag/x\"><b>y" );
+
+        emit update::UpdateService::instance()->updateAvailable( manifest, false );
+        QMessageBox* box = waitForBox( "is available" );
+        QVERIFY( box );
+
+        QVERIFY2( !box->text().contains( "<a" ), qPrintable( box->text() ) );
+        QVERIFY2( box->text().contains( "&lt;a" ), qPrintable( box->text() ) );
+        QVERIFY2( !box->informativeText().contains( "<b>" ), qPrintable( box->informativeText() ) );
+
+        for ( QAbstractButton* b : box->buttons() )
+        {
+                if ( b->text() == "Not Now" )
+                {
+                        b->click();
+                }
+        }
+        QTest::qWait( 50 );
+}

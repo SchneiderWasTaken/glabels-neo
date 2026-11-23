@@ -67,6 +67,19 @@ namespace
                 };
         }
 
+        // The edge release is always called "edge", so are the download URLs under it.
+        QJsonObject edgeManifest()
+        {
+                QJsonObject a = validAsset();
+                a["url"] = "https://github.com/" + REPO + "/releases/download/edge/" + a["name"].toString();
+
+                QJsonObject o = validManifest();
+                o["channel"] = "edge";
+                o["version"] = "edge";
+                o["assets"]  = QJsonObject{ { "windows-x86_64", a } };
+                return o;
+        }
+
         QByteArray toJson( const QJsonObject& o )
         {
                 return QJsonDocument( o ).toJson();
@@ -209,19 +222,102 @@ void TestUpdateManifest::stableIsAvailableOnlyWhenNewer()
 
 void TestUpdateManifest::edgeIsAvailableWhenCommitDiffers()
 {
-        QJsonObject o = validManifest();
-        o["channel"] = "edge";
-        o["version"] = "edge";
+        QJsonObject o = edgeManifest();
+        o["commit_time"] = 2000;
         auto m = parsed( o, "edge" );
 
         QCOMPARE( m.id(), COMMIT );
         QCOMPARE( m.displayVersion(), QString( "edge 0123456" ) );
 
-        QVERIFY( isUpdateAvailable( BuildIdentity{ "edge", "", OTHER }, m ) );
-        QVERIFY( !isUpdateAvailable( BuildIdentity{ "edge", "", COMMIT }, m ) );
+        QVERIFY( isUpdateAvailable( BuildIdentity{ "edge", "", OTHER, 1000 }, m ) );
+        QVERIFY( !isUpdateAvailable( BuildIdentity{ "edge", "", COMMIT, 1000 }, m ) );
         QVERIFY( !isUpdateAvailable( BuildIdentity{ "edge", "", COMMIT.toUpper() }, m ) );
         QVERIFY( !isUpdateAvailable( BuildIdentity{ "edge", "", "" }, m ) );     // build does not know itself
 }
+
+void TestUpdateManifest::edgeNeverMovesBackwards()
+{
+        QJsonObject o = edgeManifest();
+        o["commit_time"] = 2000;
+        auto m = parsed( o, "edge" );
+        QCOMPARE( m.commitTime, qint64( 2000 ) );
+
+        QVERIFY(  isUpdateAvailable( BuildIdentity{ "edge", "", OTHER, 1999 }, m ) );    // older build: update
+        QVERIFY( !isUpdateAvailable( BuildIdentity{ "edge", "", OTHER, 2000 }, m ) );    // same time, other commit: no
+        QVERIFY( !isUpdateAvailable( BuildIdentity{ "edge", "", OTHER, 2001 }, m ) );    // newer build: stale or replayed manifest
+        QVERIFY( !isUpdateAvailable( BuildIdentity{ "edge", "", COMMIT, 1000 }, m ) );   // same commit: nothing to do
+        QVERIFY(  isUpdateAvailable( BuildIdentity{ "edge", "", OTHER, 0 }, m ) );       // build time unknown
+}
+
+
+void TestUpdateManifest::edgeManifestNeedsACommitTime()
+{
+        QJsonObject o = edgeManifest();
+
+        QVERIFY( !UpdateManifest::parse( toJson( o ), REPO, "edge" ).has_value() );      // none
+        o["commit_time"] = 0;
+        QVERIFY( !UpdateManifest::parse( toJson( o ), REPO, "edge" ).has_value() );
+        o["commit_time"] = 1700000000;
+        QVERIFY( UpdateManifest::parse( toJson( o ), REPO, "edge" ).has_value() );
+
+        o["version"] = "v1.3.0";                                                          // edge is only ever "edge"
+        QVERIFY( !UpdateManifest::parse( toJson( o ), REPO, "edge" ).has_value() );
+}
+
+
+void TestUpdateManifest::rejectsSneakyDownloadUrls_data()
+{
+        QTest::addColumn<QString>( "url" );
+
+        const QString good = "https://github.com/" + REPO + "/releases/download/v1.3.0/glabels-neo-windows-x64.zip";
+        QTest::newRow( "dot dot" )        << "https://github.com/" + REPO + "/releases/download/v1.3.0/../../../../other/repo/releases/download/v1.3.0/glabels-neo-windows-x64.zip";
+        QTest::newRow( "escaped dots" )   << "https://github.com/" + REPO + "/releases/download/%2e%2e/v1.3.0/glabels-neo-windows-x64.zip";
+        QTest::newRow( "escaped slash" )  << "https://github.com/" + REPO + "/releases/download/v1.3.0%2f/glabels-neo-windows-x64.zip";
+        QTest::newRow( "other tag" )      << "https://github.com/" + REPO + "/releases/download/v9.9.9/glabels-neo-windows-x64.zip";
+        QTest::newRow( "extra segment" )  << "https://github.com/" + REPO + "/releases/download/v1.3.0/x/glabels-neo-windows-x64.zip";
+        QTest::newRow( "empty segment" )  << "https://github.com/" + REPO + "/releases/download//glabels-neo-windows-x64.zip";
+        QTest::newRow( "query" )          << good + "?token=1";
+        QTest::newRow( "fragment" )       << good + "#x";
+        QTest::newRow( "port" )           << "https://github.com:8443/" + REPO + "/releases/download/v1.3.0/glabels-neo-windows-x64.zip";
+        QTest::newRow( "credentials" )    << "https://user:pw@github.com/" + REPO + "/releases/download/v1.3.0/glabels-neo-windows-x64.zip";
+        QTest::newRow( "look-alike host" ) << "https://github.com.evil.example/" + REPO + "/releases/download/v1.3.0/glabels-neo-windows-x64.zip";
+}
+
+
+void TestUpdateManifest::rejectsSneakyDownloadUrls()
+{
+        QFETCH( QString, url );
+
+        QJsonObject a = validAsset();
+        a["url"] = url;
+        QJsonObject o = validManifest();
+        o["assets"] = QJsonObject{ { "windows-x86_64", a } };
+        QVERIFY2( !UpdateManifest::parse( toJson( o ), REPO, "stable" ).has_value(), qPrintable( url ) );
+
+        QVERIFY( UpdateManifest::parse( toJson( validManifest() ), REPO, "stable" ).has_value() );   // the plain URL is fine
+}
+
+
+void TestUpdateManifest::versionMustLookLikeAVersion()
+{
+        // The version is shown to the user, so markup or free text in it is refused outright.
+        for ( const QString& bad : { "v1.3.0<a href=\"https://evil.example\">click</a>", "v1.3.0 (security update!)", "v1", "1.2.3.4.5", "v1.3.0\n" } )
+        {
+                QJsonObject o = validManifest();
+                o["version"] = bad;
+                QVERIFY2( !UpdateManifest::parse( toJson( o ), REPO, "stable" ).has_value(), qPrintable( bad ) );
+        }
+        for ( const QString& good : { "v1.3.0", "1.3", "v10.20.30.40" } )
+        {
+                QJsonObject a = validAsset();
+                a["url"] = "https://github.com/" + REPO + "/releases/download/" + good + "/glabels-neo-windows-x64.zip";
+                QJsonObject o = validManifest();
+                o["version"] = good;
+                o["assets"] = QJsonObject{ { "windows-x86_64", a } };
+                QVERIFY2( UpdateManifest::parse( toJson( o ), REPO, "stable" ).has_value(), qPrintable( good ) );
+        }
+}
+
 
 
 void TestUpdateManifest::channelMismatchIsNeverAvailable()
@@ -260,7 +356,7 @@ void TestUpdateManifest::parsesWhatTheReleaseScriptProduces()
         }
 
         QProcess script;
-        script.start( bash, { MAKE_MANIFEST_SCRIPT, dist.path(), "stable", "v1.3.0", COMMIT, "SchneiderWasTaken/glabels-neo" } );
+        script.start( bash, { MAKE_MANIFEST_SCRIPT, dist.path(), "stable", "v1.3.0", COMMIT, "SchneiderWasTaken/glabels-neo", "1700000000" } );
         QVERIFY( script.waitForFinished( 30000 ) );
         QVERIFY2( script.exitCode() == 0, qPrintable( script.readAllStandardError() ) );
 
@@ -281,4 +377,23 @@ void TestUpdateManifest::parsesWhatTheReleaseScriptProduces()
         QCOMPARE( win->size, qint64( zip.size() ) );
         QCOMPARE( win->sha256, QString::fromLatin1( QCryptographicHash::hash( zip, QCryptographicHash::Sha256 ).toHex() ) );
         QCOMPARE( win->url.toString(), QString( "https://github.com/SchneiderWasTaken/glabels-neo/releases/download/v1.3.0/glabels-neo-windows-x64.zip" ) );
+
+        // The same for an edge release, which is ordered by the commit time the script records
+        QProcess edge;
+        edge.start( bash, { MAKE_MANIFEST_SCRIPT, dist.path(), "edge", "edge", COMMIT, "SchneiderWasTaken/glabels-neo", "1700000000" } );
+        QVERIFY( edge.waitForFinished( 30000 ) );
+        QVERIFY2( edge.exitCode() == 0, qPrintable( edge.readAllStandardError() ) );
+
+        QFile edgeOut( dist.path() + "/glabels-neo-update-manifest.json" );
+        QVERIFY( edgeOut.open( QIODevice::ReadOnly ) );
+        auto e = UpdateManifest::parse( edgeOut.readAll(), "SchneiderWasTaken/glabels-neo", "edge", true, &error );
+        QVERIFY2( e.has_value(), qPrintable( error ) );
+        QCOMPARE( e->commitTime, qint64( 1700000000 ) );
+        QCOMPARE( e->assetFor( "windows-x86_64" )->url.path(), QString( "/SchneiderWasTaken/glabels-neo/releases/download/edge/glabels-neo-windows-x64.zip" ) );
+
+        // and without a commit time it asks git, which does not know this made-up commit: refuse rather than guess
+        QProcess noTime;
+        noTime.start( bash, { MAKE_MANIFEST_SCRIPT, dist.path(), "edge", "edge", COMMIT, "SchneiderWasTaken/glabels-neo" } );
+        QVERIFY( noTime.waitForFinished( 30000 ) );
+        QVERIFY( noTime.exitCode() != 0 );
 }

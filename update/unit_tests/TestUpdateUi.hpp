@@ -34,4 +34,5 @@ private slots:
         void offerDialogHasTheThreeChoices();
         void preferencesPageStoresTheChoices();
         void consentDialogAsksOnceAndStoresTheAnswer();
+        void manifestTextIsShownNotInterpreted();
 };

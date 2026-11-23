@@ -56,11 +56,24 @@ Every release, stable and edge, carries one small file, `glabels-neo-update-mani
 
 This is a static file download, so there is no API rate limit, no token and no GitHub-specific JSON to parse,
 and the format is ours (`schema` 1). It names the release tag, the commit the packages were built from, and for
-each platform the package URL, size and SHA-256. The program refuses anything whose download URL is not a
-release asset of this repository on `github.com` over HTTPS.
+each platform the package URL, size and SHA-256. The program refuses anything whose download URL is not exactly
+`https://github.com/<repo>/releases/download/<this release's tag>/<file>` (no port, credentials, query, dot segments or
+escapes), whose version is not a plain version number, or whose manifest or package request is redirected anywhere
+but to `github.com` or `*.githubusercontent.com`. Network access uses the system proxy settings of the machine.
 
 *Is a release newer?* Stable: the manifest's tag is a higher version number than the running build's tag.
-Edge: the manifest's commit differs from the commit the running build was made from.
+Edge: the manifest's commit differs from the running build's *and* is strictly newer (the manifest carries the
+commit's committer time, `commit_time`, and the build knows its own), so an out-of-order publish, a stale cached
+manifest or a replayed old one can never move anyone backwards.
+
+### Pulling a bad release (the kill switch)
+
+A *stable* release is offered to automatic checks only once it has been public for **24 hours** (the manifest's
+`published` time); *Help > Check for Updates* does not wait. That is the window to pull a bad release: delete the
+release (or just its `glabels-neo-update-manifest.json` asset) and nobody who has not yet downloaded it is offered it
+(a missing manifest is a quiet, retried failed check). An update that has already been staged is applied at the next
+start, so also publish a fixed release with a higher version number. Edge has no soak time; it is meant to move
+quickly.
 
 ### Installing in the background
 
@@ -112,5 +125,13 @@ On macOS both applications of the disk image (`glabels-qt.app`, `glabels-fill.ap
 - An update is swapped in when the program exits. If a *second* copy of the program is still running from the
   same folder at that moment, Windows refuses the rename (the helper retries, then leaves the update for the
   next start); on Linux/macOS the swap succeeds, so close other copies before expecting the new version.
+- If the new version starts but is broken beyond the `--Version` smoke test (for example a GUI plugin that fails on
+  this machine), the previous version is already deleted and nothing rolls back automatically. Keeping it until the
+  new one has run once is the obvious next step.
+- The swap is two directory renames. If the helper is killed between them (a power cut, within milliseconds) there is
+  momentarily no install; the next run of the helper puts the backup (`.<name>.old`) back first, and it can be
+  renamed back by hand.
+- The check that the install folder can really be replaced (it creates and removes a scratch folder next to it) runs
+  at the first check, so after you have agreed to checking or asked for one, never before.
 - Installs in folders that need administrator rights are not offered updates at all (no "download it yourself" notice yet).
 - Failed background checks are quiet and retried; the log has the reason.

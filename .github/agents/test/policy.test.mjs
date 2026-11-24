@@ -90,11 +90,35 @@ test('ordinary code and ruler comments do not trip', () => {
     '//' + '-'.repeat(70),
     '// ' + '='.repeat(70),
     'connect( button, &QPushButton::clicked, this, &Dialog::onClicked );',
-    'QString name = tr( "Label width" );',
+    'QString name = QString::number( width );',
   ];
   for (const line of ok) {
     assert.equal(classifyChange([f('glabels/A.cpp')], [line]).risk, 'low', line);
   }
+});
+
+test('UI changes always need a human, whatever the issue said', () => {
+  const blockedLines = [
+    'QString name = tr( "Label width" );',
+    'setWindowTitle( tr( "Print" ) );',
+    'button->setToolTip( "Prints the sheet" );',
+    'label->setText( "Width:" );',
+    'setStyleSheet( "color: red" );',
+    'layout->addWidget( new QPushButton( this ) );',
+    'setMinimumSize( 400, 300 );',
+  ];
+  for (const line of blockedLines) {
+    const r = classifyChange([f('glabels/A.cpp')], [line]);
+    assert.equal(r.risk, 'blocked', line);
+    assert.match(r.reasons.join(' '), /user-interface change/, line);
+  }
+  // a Designer form or stylesheet is a UI change on its own
+  for (const p of ['glabels/ui/PrintView.ui', 'glabels/style.qss', 'glabels/icons.qrc']) {
+    assert.equal(classifyChange([f(p)], ['x']).risk, 'blocked', p);
+  }
+  // an ordinary crash fix is not
+  assert.equal(classifyChange([f('glabels/ObjectEditor.cpp')], ['if ( !mObject ) { return; }']).risk, 'low');
+  assert.equal(classifyChange([f('model/Frame.cpp')], ['double w = qMax( 0.0, width );']).risk, 'low');
 });
 
 test('addedLinesOf extracts added lines only', () => {

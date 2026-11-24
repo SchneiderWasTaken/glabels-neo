@@ -64,7 +64,10 @@ comment. Model text appears only in short, sanitised fields. It never closes iss
 ## 2. Fix agent (`agent-fix.yml`)
 
 Starts when a maintainer adds `agent-fix` (checked: the person must have write access), or when triage marks the issue
-`agent-ready` at level 3+. The issue text is **pinned** by a fingerprint: if it is edited after it was approved, the attempt
+`agent-ready` at level 3+. Triage marks only issues that **block a user** (a crash, a failed or wrong print, a file that will
+not open, a missing label template) as `agent-ready` and labels them `blocks-user`, severe ones included: those are fixed first.
+Requests to change how the app looks, reads or feels (`ui-change`), feature requests and non-blocking annoyances are never
+handed over and are never merged by the automation (see *Human review for UI changes* below). The issue text is **pinned** by a fingerprint: if it is edited after it was approved, the attempt
 stops. Up to two rounds; each round is two jobs on **separate machines**:
 
 1. **agent job** (the only place with the model credential): the model **reads and edits files in a plain copy of the
@@ -82,9 +85,22 @@ branch. Daily cap: `FIX_MAX_PER_DAY`.
 
 | Class | Meaning | Examples |
 |:--|:--|:--|
-| **low** | small, local, ordinary | a UI fix, a label template, a translation, a one-file bug fix with a test |
+| **low** | small, local, ordinary | a crash fix, a label template, a translation, a one-file bug fix with a test |
 | **high** | sensitive area or large | printing, file format, mail-merge, barcodes, kiosk, >120 changed lines or >5 files, deleting a file |
-| **blocked** | a human must decide | any path outside the allowed source directories (build files, scripts, `.github`, packaging, licenses, dotfiles, anything executable such as `.py`/`.js`, and the reporting/branding/attribution code), a diff longer than 60,000 characters (the council reads at most 70,000), binary files, executable bits, removed tests, >600 lines or >12 files, or **added lines that mention** process execution, networking, dynamic loading, environment variables, URLs or long encoded strings |
+| **blocked** | a human must decide | any **user-interface change** (forms, stylesheets, visible text, widgets, layout), any path outside the allowed source directories (build files, scripts, `.github`, packaging, licenses, dotfiles, anything executable such as `.py`/`.js`, and the reporting/branding/attribution code), a diff longer than 60,000 characters (the council reads at most 70,000), binary files, executable bits, removed tests, >600 lines or >12 files, or **added lines that mention** process execution, networking, dynamic loading, environment variables, URLs or long encoded strings |
+
+### Human review for UI changes
+
+Autonomy is for problems that stop someone working. Anything about appearance or preference is a person's call, enforced in
+three independent places:
+
+1. **Triage**: category `ui-change` or `feature` is labelled `needs-human-review`, never `agent-ready`, never `blocks-user`,
+   whatever the model says about severity.
+2. **The diff**: any change that touches a `.ui`/`.qss`/`.css`/`.qrc` file, or adds user-visible text (`tr()`, tooltips,
+   titles, labels), styling, widgets or layout, is classed **blocked** - a human must decide. The fix agent is also told not to
+   do this and to answer `cannot_fix` instead.
+3. **Merge time**: auto-merge requires the fixed issue to carry `blocks-user` and none of `ui-change`, `enhancement`,
+   `needs-human-review`, `needs-human`. A maintainer who wants an agent PR merged without the label merges it by hand.
 
 ## 3. Council (`council.yml`)
 
@@ -137,7 +153,7 @@ in `policy.mjs` and covered by tests.
 - Repository setting needed: *Settings > Actions > General > Workflow permissions > Allow GitHub Actions to create and
   approve pull requests*.
 - Branch protection: `main` requires `CI OK` and `Lint OK`; repository admins can bypass for maintenance.
-- Labels used: `from-app`, `needs-triage`, `triaged`, `needs-info`, `needs-human`, `agent-ready`, `agent-fix`, `agent-pr`,
+- Labels used: `from-app`, `needs-triage`, `triaged`, `needs-info`, `needs-human`, `agent-ready`, `blocks-user`, `ui-change`, `needs-human-review`, `agent-fix`, `agent-pr`,
   `council-approved`, `council-rejected`, `risk:low|high|blocked`, `area:*`.
 
 ## Setup checklist

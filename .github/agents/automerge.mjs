@@ -3,7 +3,9 @@
 // Conditions (all must be true, evaluated against the exact head commit):
 //   - PR was opened by the automation on an agent/issue-* branch, targets main, is not a draft
 //   - status "Council" is success on the head commit; checks "CI OK" and "Lint OK" succeeded on it
-//   - the change, re-classified from its diff right now, is not "blocked"
+//   - the issue it fixes is labelled `blocks-user` (a crash, failed print ... that stops someone working) and is not
+//     a UI change, a feature request or marked for human review: those are decisions for a person
+//   - the change, re-classified from its diff right now, is not "blocked" (which includes any UI change)
 //   - policy.mayAutoMerge(risk, AUTOMATION_LEVEL, now) allows it (high risk only in the morning window)
 // Runs without model credentials.  Merges are rebase merges pinned to the checked commit.
 
@@ -32,6 +34,14 @@ for (const p of prs) {
   if (p.draft) { skip('still a draft'); continue; }
   if (!labels.includes('council-approved')) { skip('no council approval'); continue; }
   if (p.user.login !== 'github-actions[bot]' || !p.head.ref.startsWith('agent/issue-') || p.head.repo?.full_name !== REPO) { skip('not an automation branch'); continue; }
+
+  // Only fixes for problems that block a user are merged without a person.  Everything else waits for a human.
+  const fixes = Number(/Fixes #(\d+)/.exec(p.body ?? '')?.[1]);
+  if (!Number.isInteger(fixes)) { skip('the PR does not name the issue it fixes'); continue; }
+  const issueLabels = (api(`repos/${REPO}/issues/${fixes}`)?.labels ?? []).map((l) => l.name);
+  if (!issueLabels.includes('blocks-user')) { skip(`issue #${fixes} is not labelled blocks-user: a person decides whether to merge it`); continue; }
+  const heldFor = ['ui-change', 'enhancement', 'needs-human-review', 'needs-human'].filter((l) => issueLabels.includes(l));
+  if (heldFor.length) { skip(`issue #${fixes} is labelled ${heldFor.join(', ')}: a person decides`); continue; }
 
   const sha = p.head.sha;
 

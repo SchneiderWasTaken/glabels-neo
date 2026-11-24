@@ -250,6 +250,27 @@ export function releaseDecision({ now = new Date(), trainRuns, shippableChanged,
   return { release: true, reason: slot === null ? 'maintainer override' : `release slot ${slot}:00`, slot: slot ?? 'manual' };
 }
 
+export const MAX_RELEASE_ATTEMPTS = 3;
+
+/**
+ * A release build that died on infrastructure (for example no macOS runner was free for 15 minutes) must not burn its
+ * slot.  Returns the train's release run for the slot that is open right now if it ended in failure or cancellation and
+ * has been attempted fewer than MAX_RELEASE_ATTEMPTS times, so that the train can re-run its failed jobs; otherwise null.
+ *   trainRuns  [{ id, created_at, conclusion, status, run_attempt }]  release runs on version tags started by the train
+ */
+export function retryableRun({ now = new Date(), trainRuns }) {
+  const t = chicago(now);
+  const slot = slotAt(t);
+  if (slot === null) return null;
+  const mine = trainRuns
+    .filter((r) => chicago(new Date(r.created_at)).date === t.date && slotAt(chicago(new Date(r.created_at))) === slot)
+    .sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+  const run = mine[0];
+  if (!run || run.status !== 'completed' || !['failure', 'cancelled', 'timed_out'].includes(run.conclusion)) return null;
+  if ((run.run_attempt ?? 1) >= MAX_RELEASE_ATTEMPTS) return null;
+  return run;
+}
+
 /** Next version: minor for features, patch otherwise.  Major bumps are manual. */
 export function nextVersion(lastTag, subjects) {
   const m = /^v(\d+)\.(\d+)\.(\d+)$/.exec(lastTag ?? '');

@@ -7,7 +7,7 @@
 //   RELEASE_FORCE_HOUR=1   ignore the clock window (maintainer override; the daily cap still applies)
 
 import { REPO, api, gh } from './lib.mjs';
-import { chicago, isShippable, nextVersion, releaseDecision } from './policy.mjs';
+import { chicago, isShippable, nextVersion, releaseDecision, retryableRun } from './policy.mjs';
 
 const dry = process.env.RELEASE_DRY_RUN === 'true';
 const now = process.env.NOW_OVERRIDE ? new Date(process.env.NOW_OVERRIDE) : new Date();
@@ -58,6 +58,14 @@ for (let i = 0; i < 40 && state === 'building' && shippableChanged && !dry; i++)
   releaseRuns.length = 0;
   releaseRuns.push(...fresh);
   state = await buildState();
+}
+
+// A release build of this slot that failed for a passing reason (a macOS runner that never started, a network blip) gets its
+// failed jobs re-run, up to three attempts in all, while the slot's window is still open.
+const retry = retryableRun({ now, trainRuns });
+if (retry && !dry) {
+  console.log(`re-running the failed release build ${retry.id} (attempt ${(retry.run_attempt ?? 1) + 1} of 3)`);
+  gh(['run', 'rerun', String(retry.id), '--repo', REPO, '--failed'], { allowFail: true });
 }
 
 const decision = releaseDecision({

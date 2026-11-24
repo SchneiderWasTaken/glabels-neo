@@ -3,7 +3,7 @@ import { test } from 'node:test';
 
 import {
   addedLinesOf, agentMayChange, chicago, classifyChange, isShippable, maxRisk, mayAutoMerge, nextVersion, parseLevel,
-  releaseDecision,
+  releaseDecision, retryableRun,
 } from '../policy.mjs';
 
 const f = (path, extra = {}) => ({ path, status: 'modified', additions: 5, deletions: 2, ...extra });
@@ -215,6 +215,25 @@ test('release train: a maintainer override skips the window but not the daily ca
   assert.equal(releaseDecision({ ...base, now: new Date('2026-12-01T18:30:00Z') }).release, true);
   const capped = releaseDecision({ ...base, trainRuns: [run('2026-12-01T16:10:00Z'), run('2026-12-01T20:10:00Z')], now: new Date('2026-12-01T18:30:00Z') });
   assert.equal(capped.release, false);
+});
+
+test('release train: a release build that failed in this slot is re-run, at most three attempts, only while the slot is open', () => {
+  const run = (over = {}) => ({ id: 1, created_at: '2026-11-24T16:00:16Z', status: 'completed', conclusion: 'failure', run_attempt: 1, ...over });
+  const at = (iso) => new Date(iso);
+  // 10:40 Central = 16:40 UTC in November
+  assert.equal(retryableRun({ now: at('2026-11-24T16:40:00Z'), trainRuns: [run()] })?.id, 1);
+  assert.equal(retryableRun({ now: at('2026-11-24T16:40:00Z'), trainRuns: [run({ conclusion: 'cancelled' })] })?.id, 1);
+  assert.equal(retryableRun({ now: at('2026-11-24T16:40:00Z'), trainRuns: [run({ run_attempt: 2 })] })?.id, 1);
+  assert.equal(retryableRun({ now: at('2026-11-24T16:40:00Z'), trainRuns: [run({ run_attempt: 3 })] }), null);
+  assert.equal(retryableRun({ now: at('2026-11-24T16:40:00Z'), trainRuns: [run({ conclusion: 'success' })] }), null);
+  assert.equal(retryableRun({ now: at('2026-11-24T16:40:00Z'), trainRuns: [run({ status: 'in_progress', conclusion: null })] }), null);
+  // window closed (11:45 Central), or a run from another slot or day
+  assert.equal(retryableRun({ now: at('2026-11-24T17:45:00Z'), trainRuns: [run()] }), null);
+  assert.equal(retryableRun({ now: at('2026-11-24T20:10:00Z'), trainRuns: [run()] }), null); // 14:10 slot, the failed run is the 10:00 one
+  assert.equal(retryableRun({ now: at('2026-11-25T16:40:00Z'), trainRuns: [run()] }), null);
+  // only the newest run of the slot counts
+  assert.equal(retryableRun({ now: at('2026-11-24T16:40:00Z'), trainRuns: [run({ id: 1 }), run({ id: 2, created_at: '2026-11-24T16:20:00Z', conclusion: 'success' })] }), null);
+  assert.equal(retryableRun({ now: at('2026-11-24T16:40:00Z'), trainRuns: [] }), null);
 });
 
 test('nextVersion', () => {

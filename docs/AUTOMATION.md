@@ -146,7 +146,7 @@ token do not trigger push workflows).
 ## 5. Release train (`release-train.yml`)
 
 Stable releases are cut at **10:00 and 14:00 Central** (each slot is a 90-minute window because GitHub's scheduler can start
-late; the cron runs at both UTC offsets and the script checks the real Chicago clock; a slot can be used once), **at most two a day**, and **only if** something user-visible landed on main since the last release and
+late; the cron runs at both UTC offsets and the script checks the real Chicago clock; a slot can be used once; if its release build dies on a passing infrastructure problem, such as a macOS runner that never starts, the train re-runs the failed jobs, up to three attempts, while the window is open), **at most two a day**, and **only if** something user-visible landed on main since the last release and
 the newest commit has a successful build. No changes, no release.
 
 - **10:00** carries everything merged since the last release, including the riskier changes (merged 05:00-09:00).

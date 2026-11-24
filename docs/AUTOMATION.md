@@ -48,8 +48,7 @@ Other switches (repository variables):
 |:--|:--|
 | `RELEASE_TRAIN` | `on` enables scheduled stable releases (default: off). |
 | `REPORT_ENDPOINT` | the relay URL embedded in builds. Empty = the app only offers the browser flow. |
-| `FIX_MODEL`, `TRIAGE_MODEL` | model alias for the fix agent / triage (default `sonnet`). |
-| `COUNCIL_OPENROUTER_MODELS`, `COUNCIL_GEMINI_MODEL` | extra council members (see below). |
+| `MODEL_POOL` | optional comma-separated model ids (`deepseek`, `glm`, `claude-sonnet`, `claude-haiku`) to restrict triage and fixes to. It can only narrow the pool (see *Models and cost*). |
 | `TRIAGE_MAX_PER_HOUR`, `FIX_MAX_PER_DAY` | budget guards (defaults 30 and 8). |
 
 To stop everything instantly: set `AUTOMATION_LEVEL` to `0`, and `ENABLED = "false"` in the relay.
@@ -109,10 +108,32 @@ with a structured verdict. **Approval requires every reviewer that was asked to 
 backdoor suspicion, scope complaint or blocking concern is a veto; a reviewer that errors out blocks approval - it cannot
 quietly drop out of the vote), at least two to take part, and the combined risk not to be `blocked`. The result is a commit status **`Council`** on the exact reviewed commit - a later push invalidates it.
 
-Members: Claude `opus` and `haiku` (using the Claude subscription token), plus - when their secret exists - OpenRouter
-models (default `~deepseek/deepseek-flash-latest` and `~z-ai/glm-flash-latest`, from `OPENROUTER_API_KEY`) and Gemini
-(`GEMINI_API_KEY` + variable `COUNCIL_GEMINI_MODEL`). To add or change members, edit
-`COUNCIL_OPENROUTER_MODELS` (comma-separated) - no code change needed.
+Members: `deepseek`, `glm` and `claude-haiku` from the pool below, each joining when its secret exists. A missing key only makes
+approval harder (two must take part and all who take part must approve).
+
+### Models and cost (`.github/agents/model-policy.mjs`)
+
+Only four models can ever run, and the work is spread over them so no single budget or usage limit carries it all:
+
+| id | model | paid by | used for |
+|:--|:--|:--|:--|
+| `deepseek` | OpenRouter `deepseek/deepseek-v4.1-flash-1017` | per token (about $0.03 / $0.20 per million) | triage, fixes, council |
+| `glm` | OpenRouter `z-ai/glm-5.3-flash` | per token ($0.12 / $0.38 per million) | triage, fixes, council |
+| `claude-sonnet` | Claude Sonnet | Claude subscription | fixes |
+| `claude-haiku` | Claude Haiku | Claude subscription | triage, council |
+
+- **Rotation**: the issue (or PR) number picks which member goes first, so work spreads evenly; if a member fails (usage limit,
+  outage, no usable answer) the next one is tried. A fix retry round starts on the next member.
+- **Allowlist**: exact names only. Aliases (`~...-latest`), `:batch` variants, other OpenRouter models, other Claude models (Opus),
+  Gemini and anything else are refused before a request is made. `MODEL_POOL` can only narrow the pool, never add to it.
+- **Price ceiling**: before every OpenRouter call the live per-token prices are read from OpenRouter and the call is refused if
+  the model costs more than GLM 5.3 flash (or charges per request, search or image), or if the prices cannot be read.
+- **Per-run budget**: a run is stopped as soon as the tokens it has streamed would cost more than its budget at the ceiling
+  prices (triage $0.10, fix $0.50 per round, never more than $1 on a per-token model), even when the tool reports it as free.
+- opencode runs with every tool off (triage, council) or with only file read/edit inside the work copy (fixes): no shell, no
+  network, no plugins, no access outside the directory, and it sees only the OpenRouter key, never the GitHub token.
+- Start **Model smoke test** (Actions tab) after changing models, secrets or the pinned CLI versions: it runs each member for
+  real and checks the edit sandbox.
 
 ## 4. Merge policy (`automerge.yml`)
 
@@ -148,7 +169,8 @@ in `policy.mjs` and covered by tests.
 
 ## Operating notes
 
-- Secrets used: `CLAUDE_OAUTH_TOKEN` (required), `OPENROUTER_API_KEY`, `GEMINI_API_KEY` (optional council members), the
+- Secrets used: `CLAUDE_OAUTH_TOKEN` (Claude Sonnet/Haiku), `OPENROUTER_API_KEY` (DeepSeek and GLM; either one alone is enough to
+  run, both give the full pool), the
   relay's GitHub token (kept only as an encrypted value of the DigitalOcean Function, never in the repository).
 - Repository setting needed: *Settings > Actions > General > Workflow permissions > Allow GitHub Actions to create and
   approve pull requests*.
@@ -167,7 +189,7 @@ Still to do by the maintainer, once:
    embed it. Until then the app offers only the browser flow.
 2. **Level** - set `AUTOMATION_LEVEL` (see above). It was rehearsed end to end at level 3.
 3. **Releases** - set `RELEASE_TRAIN` to `on` when you want the 10:00 / 14:00 schedule to start.
-4. **Optional council members** - `OPENROUTER_API_KEY` (DeepSeek / GLM flash) and `GEMINI_API_KEY`.
+4. **Models** - `OPENROUTER_API_KEY` and `CLAUDE_OAUTH_TOKEN` are set; run **Model smoke test** once to confirm every member works.
 
 ## Rehearsal log
 

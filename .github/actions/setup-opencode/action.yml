@@ -1,0 +1,18 @@
+name: Set up opencode
+description: Installs the pinned opencode CLI used by the automation scripts to run the cheap OpenRouter models.
+
+inputs:
+  version:
+    description: opencode-ai npm package version (pinned; update deliberately after testing)
+    default: '1.19.6'
+
+runs:
+  using: composite
+  steps:
+    - name: Install opencode
+      shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+      run: |
+        npm install --global "opencode-ai@${VERSION}"
+        opencode --version

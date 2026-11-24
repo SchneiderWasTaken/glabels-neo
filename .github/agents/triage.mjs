@@ -4,7 +4,7 @@
 // reads the text in its prompt - and its answer is validated and written to triage-result.json.  Applying
 // labels and comments happens in a different job (triage-apply.mjs) that has no model credential.
 
-import { REPO, UNTRUSTED_NOTICE, api, assertNoSecrets, issueHash, runClaude, secretsFromEnv, untrusted, writeJson } from './lib.mjs';
+import { REPO, UNTRUSTED_NOTICE, api, assertNoSecrets, issueHash, runModel, secretsFromEnv, untrusted, writeJson } from './lib.mjs';
 import { TRIAGE_SCHEMA, validateTriage } from './triage-lib.mjs';
 
 const number = Number(process.env.ISSUE_NUMBER);
@@ -72,17 +72,19 @@ const prompt = [
   untrusted('issue-list', others.map((o) => `#${o.number} [${o.state}] ${o.title}`).join('\n'), 9000),
 ].join('\n');
 
-const result = await runClaude({
+const result = await runModel({
+  stage: 'triage',
+  seed: number,
   prompt,
-  model: process.env.TRIAGE_MODEL || 'sonnet',
   tools: '',
   schema: TRIAGE_SCHEMA,
-  maxBudgetUsd: 0.5,
+  budgets: { openrouter: 0.1, claude: 0.5 },
+  timeoutMs: 8 * 60 * 1000,
   system: 'You are a careful issue triage assistant. You have no tools. Output only the requested JSON.',
 });
 
 const triage = validateTriage(result.structured, others.map((o) => o.number));
 const output = { number, fromApp, existingLabels: labels, triage, bodySha: issueHash(issue.title, issue.body), cost: result.cost };
-assertNoSecrets(JSON.stringify(output), secretsFromEnv('CLAUDE_CODE_OAUTH_TOKEN', 'GH_TOKEN'));
+assertNoSecrets(JSON.stringify(output), secretsFromEnv('OPENROUTER_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'GH_TOKEN'));
 writeJson('triage-result.json', output);
-console.log(`triaged #${number}: ${triage.category}/${triage.area}, fixable=${triage.agent_fixable}, cost ${result.cost.toFixed(4)} USD`);
+console.log(`triaged #${number}: ${triage.category}/${triage.area}, fixable=${triage.agent_fixable}, model ${result.used}, cost ${result.cost.toFixed(4)} USD`);

@@ -63,12 +63,15 @@ jobs:
           persist-credentials: false
       - name: Set up Claude Code
         uses: ./.github/actions/setup-claude
+      - name: Set up opencode
+        uses: ./.github/actions/setup-opencode
       - name: Triage
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ github.event.issue.number || inputs.issue }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
-          TRIAGE_MODEL: ${{ vars.TRIAGE_MODEL }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          MODEL_POOL: ${{ vars.MODEL_POOL }}
         run: node .github/agents/triage.mjs
       - name: Upload result
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

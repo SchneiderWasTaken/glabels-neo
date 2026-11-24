@@ -25,7 +25,9 @@ on:
         required: true
     secrets:
       CLAUDE_OAUTH_TOKEN:
-        required: true
+        required: false
+      OPENROUTER_API_KEY:
+        required: false
     outputs:
       status:
         description: continue | ok | cannot-fix | blocked | failed
@@ -49,6 +51,8 @@ jobs:
 
       - name: Set up Claude Code
         uses: ./.github/actions/setup-claude
+      - name: Set up opencode
+        uses: ./.github/actions/setup-opencode
 
       - name: Download the previous round
         if: inputs.prev_round > 0
@@ -74,7 +78,8 @@ jobs:
       - name: Agent (model credential; edits files only)
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
-          FIX_MODEL: ${{ vars.FIX_MODEL }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          MODEL_POOL: ${{ vars.MODEL_POOL }}
           ROUND: ${{ inputs.round }}
         run: node .github/agents/fix-step.mjs agent
 

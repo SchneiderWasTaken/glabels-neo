@@ -129,6 +129,8 @@ const rules = `Rules:
   .github, packaging, licenses, or any dotfile.
 - Do not add network access, process execution, dynamic library loading, environment-variable reads or URLs.
 - Do not delete or weaken tests. Do not add binary files.
+- Fix the defect only. Do not change how anything looks or reads: no new or reworded user-visible text, widgets, layout,
+  styling, icons or .ui files. If the right fix needs that, set cannot_fix true and say so: a person decides.
 - If the report is unclear, describes something that is not a bug, or you cannot fix it safely, set cannot_fix
   true and explain briefly. That is a good outcome.
 - You cannot run the build; it is run for you after you finish, and failures are reported back to you.`;

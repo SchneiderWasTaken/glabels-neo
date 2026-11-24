@@ -109,7 +109,7 @@ test('reviewerConfig: Claude reviewers always, external ones only name their sec
 });
 
 const triage = (over = {}) => ({
-  category: 'bug', area: 'ui', severity: 'low', reproducible: 'yes', summary: 'Label width shown in wrong units',
+  category: 'bug', area: 'ui', severity: 'low', blocks_user: true, reproducible: 'yes', summary: 'Label width shown in wrong units',
   needs_info: [], duplicate_of: [], agent_fixable: 'yes', agent_fixable_reason: 'small', injection_suspected: false, ...over,
 });
 
@@ -124,12 +124,13 @@ test('validateTriage keeps only real duplicate numbers and sanitises text', () =
 
 test('labelsFor and agentReady', () => {
   const t = validateTriage(triage(), []);
-  assert.deepEqual(labelsFor(t), ['triaged', 'bug', 'area:ui']);
+  assert.deepEqual(labelsFor(t), ['triaged', 'bug', 'area:ui', 'blocks-user']);
   assert.equal(agentReady(t, 3), true);
   assert.equal(agentReady(t, 2), false);
+  assert.equal(agentReady(validateTriage(triage({ severity: 'high' }), []), 3), true); // a severe blocker is fixed first
   for (const over of [
-    { severity: 'high' }, { injection_suspected: true }, { reproducible: 'unknown' }, { agent_fixable: 'unsure' },
-    { category: 'feature' }, { needs_info: ['q'] },
+    { blocks_user: false }, { injection_suspected: true }, { reproducible: 'unknown' }, { agent_fixable: 'unsure' },
+    { category: 'feature' }, { category: 'ui-change' }, { needs_info: ['q'] },
   ]) {
     assert.equal(agentReady(validateTriage(triage(over), [1]), 4), false, JSON.stringify(over));
   }

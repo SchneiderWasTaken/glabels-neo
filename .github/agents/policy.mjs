@@ -89,6 +89,17 @@ function collapse(text) {
   return text.replace(/\\\r?\n/g, '').replace(/"\s*\n?\s*"/g, '');
 }
 
+// How the app looks and reads is a decision for a person.  Whatever the issue said, a change that edits a Qt Designer
+// form or stylesheet, or adds or changes user-visible text, widgets, layout or styling, is held for human review.  (A
+// crash fix almost never needs any of these; when it does, a person should look at it anyway.)
+const UI_FILES = [/\.ui$/i, /\.qss$/i, /\.css$/i, /\.qrc$/i];
+export const UI_SIGNALS = [
+  [/\b(?:QObject::)?tr\s*\(|\bQT_TR(?:ANSLATE)?_NOOP\w*\s*\(|\bQCoreApplication::translate\s*\(/, 'user-visible text'],
+  [/\bsetStyleSheet\s*\(|\bsetPalette\s*\(|\bsetFont\s*\(|\bsetIcon\w*\s*\(|\bQIcon\s*\(|\bsetStyle\s*\(/, 'styling'],
+  [/\bsetWindowTitle\s*\(|\bsetToolTip\s*\(|\bsetStatusTip\s*\(|\bsetWhatsThis\s*\(|\bsetPlaceholderText\s*\(|\bsetText\s*\(\s*"/, 'user-visible text'],
+  [/\b(?:add|insert)(?:Widget|Layout|Action|Menu|Tab|Item|Row|Spacing|Stretch)\s*\(|\bnew\s+Q(?:PushButton|ToolButton|Label|CheckBox|RadioButton|ComboBox|LineEdit|GroupBox|Dialog|Action|Menu|TabWidget|Splitter)\b|\bsetMinimumSize\s*\(|\bsetFixedSize\s*\(|\bsetContentsMargins\s*\(|\bsetSizePolicy\s*\(/, 'widgets or layout'],
+];
+
 // Areas where a regression hurts users most: file formats, printing, data merge, barcodes.
 const HIGH_AREAS = [/^model\/Xml/, /^model\/PageRenderer/, /Zpl/i, /Print/i, /^merge\//, /^model\/Merge/, /^glbarcode\//, /^backends\//, /^glabels-fill\//];
 
@@ -126,6 +137,19 @@ export function classifyChange(files, addedLines = [], options = {}) {
   if (changed > LIMITS.maxChangedLines) blocked.push(`${changed} changed lines (max ${LIMITS.maxChangedLines})`);
   if (changed > LIMITS.highChangedLines) high.push(`${changed} changed lines`);
   if (files.length > LIMITS.highFiles) high.push(`${files.length} files`);
+
+  for (const f of files) {
+    if (UI_FILES.some((r) => r.test(f.path))) blocked.push(`user-interface change (needs human review): ${f.path}`);
+  }
+  const uiSeen = new Set();
+  for (const line of addedLines) {
+    for (const [test, label] of UI_SIGNALS) {
+      if (test.test(line) && !uiSeen.has(label)) {
+        uiSeen.add(label);
+        blocked.push(`user-interface change (needs human review): added line changes ${label}: ${line.trim().slice(0, 70)}`);
+      }
+    }
+  }
 
   const trips = (test, text) => (typeof test === 'function' ? test(text) : test.test(text));
   for (const line of addedLines) {

@@ -41,7 +41,7 @@ const AREA_GUIDE = `Areas of the codebase (gLabels Neo, a Qt6/C++ label designer
 - barcode: barcode generation and rendering (glbarcode, zint, qrencode)
 - templates: label template definitions (templates/*.xml), the product template designer
 - merge: mail-merge / data sources (CSV, Excel), the Fill page
-- ui: windows, dialogs, editor, widgets
+- ui: windows, dialogs, editor, widgets (appearance and layout)
 - i18n: translations
 - packaging: installers, archives, auto-update launcher, build/CI
 - file-format: reading and writing .glabels files
@@ -57,6 +57,8 @@ const prompt = [
   `The issue was ${fromApp ? 'sent from the in-app reporter (no GitHub account; we cannot ask follow-up questions directly)' : 'opened on GitHub'}.`,
   '',
   'Guidance:',
+  '- category "ui-change" for a request to change how the app looks, is laid out, is worded or feels to use (preferences, appearance, usability improvements). It is NOT a bug even if phrased as one. A real defect in a screen (a button that does nothing, a crash in a dialog) is a "bug".',
+  '- blocks_user true only if the person cannot get their work done because of it: a crash, a failed print, wrong print output, a file that will not open or save, a missing label template for a product they must print. Cosmetic problems, annoyances, preferences and ideas are false.',
   '- category "not-enough-info" if a developer could not act on it; put up to 3 short, specific questions in needs_info.',
   '- duplicate_of: only issue numbers from the list below that describe the same problem.',
   '- agent_fixable "yes" only for a small, well-specified defect or a missing label template that a program could fix in a few files; otherwise "no" or "unsure".',

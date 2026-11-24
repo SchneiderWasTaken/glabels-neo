@@ -1,4 +1,4 @@
-// Shared helpers for the automation scripts: GitHub access through the `gh` CLI, the Claude CLI runner,
+// Shared helpers for the automation scripts: GitHub access through the `gh` CLI, the policy-gated model runners,
 // output hygiene (mention neutralisation, secret scanning) and small utilities.
 //
 // Principle: text produced by a model, or taken from an issue or PR, is *data*.  It is validated against
@@ -6,7 +6,12 @@
 
 import { spawn, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+import { assertModelRunnable, candidatesFor } from './model-policy.mjs';
+import { buildConfig, costSoFar, extractJson, parseEvents, schemaInstruction, splitModel } from './opencode-lib.mjs';
 
 export const REPO = process.env.GITHUB_REPOSITORY || 'SchneiderWasTaken/glabels-neo';
 
@@ -107,7 +112,8 @@ export function runClaude({ prompt, model, tools = '', schema, maxBudgetUsd = 1,
   if (permissionMode) args.push('--permission-mode', permissionMode);
 
   return new Promise((resolve, reject) => {
-    const child = spawn('claude', args, { cwd, env: process.env, stdio: ['pipe', 'pipe', 'pipe'] });
+    const { OPENROUTER_API_KEY: _unused, ...env } = process.env; // the Claude CLI never needs the OpenRouter key
+    const child = spawn('claude', args, { cwd, env, stdio: ['pipe', 'pipe', 'pipe'] });
     let out = '';
     let err = '';
     const timer = setTimeout(() => {
@@ -133,6 +139,106 @@ export function runClaude({ prompt, model, tools = '', schema, maxBudgetUsd = 1,
     });
     child.stdin.end(prompt);
   });
+}
+
+// ----------------------------------------------------------------------------------------- models
+
+// The automation runs models only from the pool in model-policy.mjs: two cheap OpenRouter models (through opencode) and
+// Claude Sonnet/Haiku (through the Claude Code CLI).
+
+// Only these variables reach an opencode process.  It never sees the GitHub token or any other secret, only the
+// OpenRouter key.
+const PASS_ENV = ['PATH', 'SystemRoot', 'SYSTEMROOT', 'COMSPEC', 'PATHEXT', 'TEMP', 'TMP', 'TMPDIR', 'LANG', 'LC_ALL', 'USERPROFILE', 'APPDATA', 'LOCALAPPDATA'];
+
+/**
+ * Start opencode once and collect its answer.  NO model or price check happens here: callers must use runModel().
+ * Exported for tests that exercise the process handling with a model the policy would refuse.
+ *   mode: 'none' = no tools at all (the model only reads the prompt); 'edit' = read and edit files under cwd
+ *   schema: the answer must be a JSON object of this shape (checked by the caller; opencode cannot enforce it)
+ * The budget is enforced by watching the tokens and cost the event stream reports (at worst-case prices).
+ */
+export function spawnOpencode({ prompt, model, mode = 'none', schema, maxBudgetUsd = 0.5, cwd = process.cwd(), timeoutMs = 20 * 60 * 1000, system }) {
+  const { provider } = splitModel(model);
+  const state = mkdtempSync(join(tmpdir(), 'opencode-state-'));
+  const env = {};
+  for (const k of PASS_ENV) if (process.env[k] !== undefined) env[k] = process.env[k];
+  Object.assign(env, {
+    HOME: process.platform === 'win32' ? process.env.USERPROFILE ?? state : state,
+    XDG_DATA_HOME: join(state, 'data'), XDG_CONFIG_HOME: join(state, 'config'), XDG_CACHE_HOME: join(state, 'cache'), XDG_STATE_HOME: join(state, 'state'),
+    OPENCODE_CONFIG_CONTENT: JSON.stringify(buildConfig({ model, mode })),
+    OPENCODE_DISABLE_AUTOUPDATE: '1', OPENCODE_DISABLE_LSP_DOWNLOAD: '1', OPENCODE_DISABLE_CLAUDE_CODE: '1',
+  });
+  if (provider === 'openrouter' && process.env.OPENROUTER_API_KEY) env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+
+  const full = [system ?? '', prompt, schema ? schemaInstruction(schema) : ''].filter(Boolean).join('\n\n');
+  const bin = process.env.OPENCODE_BIN || 'opencode';
+
+  return new Promise((resolve, reject) => {
+    const child = spawn(bin, ['run', '--format', 'json', '-m', model], { cwd, env, stdio: ['pipe', 'pipe', 'pipe'] });
+    let out = '';
+    let err = '';
+    let settled = false;
+    const done = (fn, value) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      rmSync(state, { recursive: true, force: true });
+      fn(value);
+    };
+    const timer = setTimeout(() => {
+      child.kill('SIGKILL');
+      done(reject, new Error('opencode timed out'));
+    }, timeoutMs);
+    child.stdout.on('data', (d) => {
+      out += d;
+      const spent = costSoFar(out);
+      if (spent > maxBudgetUsd) {
+        child.kill('SIGKILL');
+        done(reject, new Error(`opencode passed its budget of ${maxBudgetUsd} USD (about ${spent.toFixed(4)} USD at worst-case prices)`));
+      }
+    });
+    child.stderr.on('data', (d) => (err += d));
+    child.on('error', (e) => done(reject, e));
+    child.on('close', (code) => {
+      const r = parseEvents(out);
+      if (r.error) return done(reject, new Error(`opencode reported an error: ${r.error.slice(0, 300)}`));
+      if (code !== 0 && !r.text) return done(reject, new Error(`opencode exited ${code}: ${err.slice(0, 300)}`));
+      if (mode === 'none' && r.toolCalls.length) return done(reject, new Error(`opencode used tools in a tool-less run: ${r.toolCalls.map((t) => t.tool).join(', ')}`));
+      done(resolve, { structured: schema ? extractJson(r.text) : null, text: r.text, cost: r.cost, toolCalls: r.toolCalls });
+    });
+    child.stdin.end(full);
+  });
+}
+
+/**
+ * Run a model for a pipeline stage.  The ONLY way the automation calls one.
+ *   stage: 'triage' | 'fix' | 'council' (which pool members may be used; model-policy.mjs)
+ *   seed:  rotates which member goes first (issue or PR number), spreading the work over the pool
+ *   tools: '' = the model only reads the prompt; anything else = it may read and edit files under cwd
+ * Each candidate is checked against the allowlist (and, for OpenRouter, the live price ceiling) before anything is sent.
+ * If a model fails (usage limit, outage, no usable answer) the next member is tried; the last error is thrown if all fail.
+ * Returns the runner's result plus `used`, the pool id that answered.
+ */
+export async function runModel({ stage, seed = 0, tools = '', prompt, schema, system, cwd, timeoutMs, budgets = {}, log = console.log }) {
+  const openrouterBudget = Math.min(budgets.openrouter ?? 0.5, 1); // never more than 1 USD per run on a per-token model
+  const claudeBudget = budgets.claude ?? 2;
+  let lastError;
+  for (const member of candidatesFor(stage, { seed })) {
+    try {
+      await assertModelRunnable(member.provider, member.model);
+      log(`${stage}: using ${member.id}`);
+      const common = { prompt, schema, system, cwd, timeoutMs };
+      const result = member.provider === 'claude'
+        ? await runClaude({ ...common, model: member.model, tools: tools ? 'Read,Glob,Grep,Edit,Write' : '', permissionMode: tools ? 'acceptEdits' : undefined, maxBudgetUsd: claudeBudget })
+        : await spawnOpencode({ ...common, model: `openrouter/${member.model}`, mode: tools ? 'edit' : 'none', maxBudgetUsd: openrouterBudget });
+      if (schema && !result.structured) throw new Error('the model gave no structured answer');
+      return { ...result, used: member.id };
+    } catch (e) {
+      lastError = e;
+      log(`${stage}: ${member.id} failed (${String(e instanceof Error ? e.message : e).slice(0, 200)}); trying the next one`);
+    }
+  }
+  throw lastError ?? new Error(`no model could run for ${stage}`);
 }
 
 /** Wrap untrusted text so the model can see exactly where it starts and ends. */

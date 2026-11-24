@@ -84,6 +84,7 @@ jobs:
       body_sha: ${{ needs.gate.outputs.body_sha }}
     secrets:
       CLAUDE_OAUTH_TOKEN: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
 
   round2:
     name: Round 2
@@ -100,6 +101,7 @@ jobs:
       body_sha: ${{ needs.gate.outputs.body_sha }}
     secrets:
       CLAUDE_OAUTH_TOKEN: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
 
   publish:
     name: Open draft PR

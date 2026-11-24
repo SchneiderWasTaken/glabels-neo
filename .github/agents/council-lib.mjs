@@ -5,25 +5,21 @@
 // scope complaint vetoes), at least MIN_PARTICIPANTS to take part, and the combined risk class to allow it.
 
 import { UNTRUSTED_NOTICE, sanitizeForComment, untrusted } from './lib.mjs';
+import { NEEDS, STAGES, memberById } from './model-policy.mjs';
 import { maxRisk } from './policy.mjs';
 
 export const MIN_PARTICIPANTS = 2;
 
 /**
- * Reviewers.  `needs` names the secret an external reviewer requires; without it the reviewer is skipped.
- * Claude reviewers use the subscription token.  Model identifiers for OpenRouter/Gemini can be overridden with the
- * repository variables COUNCIL_OPENROUTER_MODELS / COUNCIL_GEMINI_MODEL.
+ * Reviewers: the pool members the council stage may use (model-policy.mjs), whatever the environment says.  Each needs
+ * its provider's secret and is skipped without it.  Approval needs every reviewer that took part to approve, and at least
+ * MIN_PARTICIPANTS of them, so a missing key or a reviewer that cannot answer can only make approval harder.
  */
-export function reviewerConfig(env = process.env) {
-  const list = [
-    { id: 'opus', provider: 'claude', model: 'opus' },
-    { id: 'haiku', provider: 'claude', model: 'haiku' },
-  ];
-  const or = (env.COUNCIL_OPENROUTER_MODELS || '~deepseek/deepseek-flash-latest,~z-ai/glm-flash-latest')
-    .split(',').map((s) => s.trim()).filter(Boolean);
-  for (const m of or) list.push({ id: `or-${m.replace(/[^A-Za-z0-9]+/g, '-').replace(/^-|-$/g, '')}`, provider: 'openrouter', model: m, needs: 'OPENROUTER_API_KEY' });
-  if (env.COUNCIL_GEMINI_MODEL) list.push({ id: 'gemini', provider: 'gemini', model: env.COUNCIL_GEMINI_MODEL, needs: 'GEMINI_API_KEY' });
-  return list;
+export function reviewerConfig() {
+  return STAGES.council.map((id) => {
+    const m = memberById(id);
+    return { id: m.id, provider: m.provider, model: m.model, needs: NEEDS[m.provider] };
+  });
 }
 
 export const VERDICT_SCHEMA = {

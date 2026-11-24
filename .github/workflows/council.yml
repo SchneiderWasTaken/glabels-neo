@@ -4,8 +4,8 @@
 # their verdicts (council-lib.mjs). Approval is a commit status "Council" on the exact reviewed commit, so any
 # later push invalidates it. The decide job has no model credential.
 #
-# External reviewers (OpenRouter models such as DeepSeek or GLM flash, optionally Gemini) join automatically
-# when their API key exists as a repository secret: OPENROUTER_API_KEY, GEMINI_API_KEY (+ variable COUNCIL_GEMINI_MODEL).
+# Reviewers are the pool in .github/agents/model-policy.mjs: DeepSeek V4.1 flash and GLM 5.3 flash (OpenRouter) and
+# Claude Haiku. A reviewer joins when its secret exists (OPENROUTER_API_KEY, CLAUDE_OAUTH_TOKEN). Nothing else can run.
 
 name: Council
 
@@ -45,14 +45,12 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR: ${{ inputs.pr }}
-          COUNCIL_OPENROUTER_MODELS: ${{ vars.COUNCIL_OPENROUTER_MODELS }}
-          COUNCIL_GEMINI_MODEL: ${{ vars.COUNCIL_GEMINI_MODEL }}
           HAS_OPENROUTER: ${{ secrets.OPENROUTER_API_KEY != '' }}
-          HAS_GEMINI: ${{ secrets.GEMINI_API_KEY != '' }}
+          HAS_CLAUDE: ${{ secrets.CLAUDE_OAUTH_TOKEN != '' }}
         run: |
           avail=""
           [ "$HAS_OPENROUTER" = "true" ] && avail="${avail},OPENROUTER_API_KEY"
-          [ "$HAS_GEMINI" = "true" ] && avail="${avail},GEMINI_API_KEY"
+          [ "$HAS_CLAUDE" = "true" ] && avail="${avail},CLAUDE_CODE_OAUTH_TOKEN"
           AVAILABLE_SECRETS="$avail" node .github/agents/council-prepare.mjs
 
       - name: Upload input
@@ -95,7 +93,6 @@ jobs:
           REVIEWER: ${{ toJSON(matrix.reviewer) }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ matrix.reviewer.provider == 'claude' && secrets.CLAUDE_OAUTH_TOKEN || '' }}
           OPENROUTER_API_KEY: ${{ matrix.reviewer.provider == 'openrouter' && secrets.OPENROUTER_API_KEY || '' }}
-          GEMINI_API_KEY: ${{ matrix.reviewer.provider == 'gemini' && secrets.GEMINI_API_KEY || '' }}
         run: node .github/agents/council-review.mjs "$REVIEWER"
 
       - name: Upload verdict

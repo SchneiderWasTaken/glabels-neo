@@ -22,7 +22,7 @@ import {
 import { dirname, join, relative } from 'node:path';
 
 import {
-  REPO, UNTRUSTED_NOTICE, api, assertNoSecrets, issueHash, readJson, runClaude, sanitizeForComment, secretsFromEnv, untrusted,
+  REPO, UNTRUSTED_NOTICE, api, assertNoSecrets, issueHash, readJson, runModel, sanitizeForComment, secretsFromEnv, untrusted,
   writeJson,
 } from './lib.mjs';
 import { addedLinesOf, classifyChange } from './policy.mjs';
@@ -138,7 +138,6 @@ const rules = `Rules:
 async function agent() {
   const issue = readJson('fix-issue.json');
   const feedback = existsSync('prev-feedback.txt') ? readFileSync('prev-feedback.txt', 'utf8') : '';
-  const model = process.env.FIX_MODEL || 'sonnet';
   const prompt = [
     UNTRUSTED_NOTICE, '', repoGuidance, '', rules, '', 'Fix this issue.',
     untrusted('issue-title', issue.title, 300),
@@ -147,16 +146,20 @@ async function agent() {
     '', 'When finished, answer with the JSON object requested (summary: what you changed and why, in plain words).',
   ].join('\n');
 
-  console.log(`round ${ROUND}/${MAX_ROUNDS}: asking ${model}`);
-  const result = await runClaude({
-    prompt, model, tools: 'Read,Glob,Grep,Edit,Write', permissionMode: 'acceptEdits', schema: FIX_SCHEMA,
-    cwd: WORK, maxBudgetUsd: Number(process.env.FIX_BUDGET_USD || 3), timeoutMs: 25 * 60 * 1000,
+  console.log(`round ${ROUND}/${MAX_ROUNDS}: asking the model pool`);
+  // A retry round starts on the next pool member (the seed moves with the round), so one weak answer is not repeated.
+  // On the per-token models the budget can be lowered with FIX_BUDGET_USD but never raised above 1 USD per round.
+  const budget = Math.min(Number(process.env.FIX_BUDGET_USD) || 0.5, 1);
+  const result = await runModel({
+    stage: 'fix', seed: (Number(issue.number) || 0) + Number(ROUND),
+    prompt, tools: 'edit', schema: FIX_SCHEMA,
+    cwd: WORK, budgets: { openrouter: budget, claude: 3 }, timeoutMs: 25 * 60 * 1000,
     system: 'You are a careful C++ maintainer fixing one defect. You can only read and edit files.',
   });
   const answer = result.structured ?? { cannot_fix: true, reason: 'no structured answer', summary: '', tests_added: false };
 
   // Collect what changed relative to the clean checkout, scanning for credentials while we still hold them.
-  const secrets = secretsFromEnv('CLAUDE_CODE_OAUTH_TOKEN');
+  const secrets = secretsFromEnv('OPENROUTER_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN');
   const manifest = readJson('fix-manifest.json');
   const changed = [];
   for (const f of listFiles(WORK)) {
@@ -172,7 +175,7 @@ async function agent() {
   mkdirSync(CHANGES);
   copyInto(CHANGES, WORK, changed);
   writeJson('agent-answer.json', answer);
-  console.log(`${changed.length} files changed`);
+  console.log(`${changed.length} files changed (answered by ${result.used})`);
 }
 
 // ------------------------------------------------------------------------------------------------- verify

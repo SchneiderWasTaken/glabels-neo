@@ -1,0 +1,35 @@
+# Manual check of the model pool: runs every pool member that has its secret through the same code the pipeline uses
+# (allowlist, live price ceiling, budget) and checks that the edit sandbox cannot run shell commands or read elsewhere.
+# Start it from the Actions tab after changing models, secrets or the pinned CLI versions.
+
+name: Model smoke test
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  smoke:
+    name: Smoke test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Claude Code
+        uses: ./.github/actions/setup-claude
+      - name: Set up opencode
+        uses: ./.github/actions/setup-opencode
+      - name: Unit tests
+        run: node --test
+        working-directory: .github/agents
+      - name: Run every pool member
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
+        run: node .github/agents/model-smoke.mjs

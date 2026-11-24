@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { aggregate, reviewerConfig, validateVerdict } from '../council-lib.mjs';
+import { MIN_PARTICIPANTS, aggregate, reviewerConfig, validateVerdict } from '../council-lib.mjs';
+import { POOL } from '../model-policy.mjs';
 import { parseDiff } from '../diff-lib.mjs';
 import { classifyChange } from '../policy.mjs';
 import { agentReady, buildComment, labelsFor, validateTriage } from '../triage-lib.mjs';
@@ -99,15 +100,16 @@ test('validateVerdict sanitises and rejects malformed answers', () => {
   assert.throws(() => validateVerdict({ ...verdict(), risk: 'nope' }));
 });
 
-test('reviewerConfig: Claude reviewers always, external ones only name their secret', () => {
-  const cfg = reviewerConfig({});
-  assert.ok(cfg.some((r) => r.provider === 'claude' && !r.needs));
-  assert.ok(cfg.filter((r) => r.provider === 'openrouter').every((r) => r.needs === 'OPENROUTER_API_KEY'));
-  assert.ok(!reviewerConfig({}).some((r) => r.provider === 'gemini'));
-  assert.ok(reviewerConfig({ COUNCIL_GEMINI_MODEL: 'g' }).some((r) => r.provider === 'gemini'));
+test('reviewerConfig: only pool members, each naming its secret, whatever the environment says', () => {
+  const cfg = reviewerConfig({ COUNCIL_GEMINI_MODEL: 'g', COUNCIL_OPENROUTER_MODELS: 'anthropic/claude-opus-5' });
+  assert.deepEqual(cfg.map((r) => r.id), ['deepseek', 'glm', 'claude-haiku']);
+  for (const r of cfg) {
+    assert.ok(POOL.some((m) => m.provider === r.provider && m.model === r.model), r.id);
+    assert.equal(r.needs, r.provider === 'claude' ? 'CLAUDE_CODE_OAUTH_TOKEN' : 'OPENROUTER_API_KEY');
+  }
   assert.equal(new Set(cfg.map((r) => r.id)).size, cfg.length);
+  assert.ok(cfg.length >= MIN_PARTICIPANTS);
 });
-
 const triage = (over = {}) => ({
   category: 'bug', area: 'ui', severity: 'low', blocks_user: true, reproducible: 'yes', summary: 'Label width shown in wrong units',
   needs_info: [], duplicate_of: [], agent_fixable: 'yes', agent_fixable_reason: 'small', injection_suspected: false, ...over,

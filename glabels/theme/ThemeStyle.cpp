@@ -1084,6 +1084,11 @@ QMessageBox QTextEdit {
 QPlainTextEdit[role="mono"], QTextEdit[role="mono"] {
         background: @bg;
 }
+glabels--ReportBugDialog QPlainTextEdit:read-only {
+        font-family: "JetBrains Mono", Consolas, monospace;
+        font-size: 12px;
+        background: @bg;
+}
 QWizard QLabel#qt_wizard_title, QWizard QLabel[role="wizardTitle"] {
         color: @ink;
         font-size: 15px;

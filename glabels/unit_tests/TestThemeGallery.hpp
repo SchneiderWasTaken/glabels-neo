@@ -37,4 +37,5 @@ private slots:
         void dialogs_data();
         void dialogs();
         void switchesWithoutRestart();
+        void mainWindowScreens();
 };

@@ -35,11 +35,15 @@
 #include "AdminDialog.hpp"
 #include "FillWindow.hpp"
 
+#include "ribbon/RibbonBar.hpp"
+#include "ribbon/RibbonTypes.hpp"
 #include "theme/Theme.hpp"
 
 #include "barcode/Backends.hpp"
 #include "merge/Factory.hpp"
 #include "model/Db.hpp"
+#include "model/Model.hpp"
+#include "model/ModelObject.hpp"
 #include "model/Settings.hpp"
 #include "model/XmlLabelParser.hpp"
 
@@ -51,6 +55,8 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QStandardPaths>
+#include <QTemporaryDir>
+#include <QTextStream>
 #include <QTabWidget>
 
 #include <functional>
@@ -150,6 +156,75 @@ namespace
                                 QStringLiteral( GLABELS_SOURCE_DIR "/test-data/simple-shapes.glabels" ) ) );
                 }
                 return window;
+        }
+
+
+        ///
+        /// A project with one object of every kind (SPEC 6.2): text, barcode, image, box, ellipse, line
+        ///
+        QString writeGalleryProject( const QString& dir )
+        {
+                const QString image = QStringLiteral( GLABELS_SOURCE_DIR "/glabels/images/glabels-logo.png" );
+                const QString xml = QStringLiteral(
+                        "<?xml version=\"1.0\"?>\n"
+                        "<Glabels-document version=\"4.0\">\n"
+                        "  <Template brand=\"Avery\" description=\"Name badge labels\" part=\"5095\" size=\"US-Letter\">\n"
+                        "    <Label-rectangle y_waste=\"4.5pt\" height=\"168pt\" id=\"0\" round=\"13.5pt\" width=\"243pt\" x_waste=\"4.5pt\">\n"
+                        "      <Markup-margin size=\"4.5pt\"/>\n"
+                        "      <Layout dy=\"180pt\" y0=\"42pt\" nx=\"2\" x0=\"49.5pt\" ny=\"4\" dx=\"270pt\"/>\n"
+                        "    </Label-rectangle>\n"
+                        "  </Template>\n"
+                        "  <Objects id=\"0\" rotate=\"false\">\n"
+                        "    <Object-text x=\"14pt\" y=\"10pt\" w=\"150pt\" h=\"30pt\" a0=\"1\" a1=\"0\" a2=\"0\" a3=\"1\" a4=\"0\" a5=\"0\""
+                        " font_family=\"Segoe UI\" font_size=\"18\" font_weight=\"bold\" font_italic=\"false\" font_underline=\"false\""
+                        " color=\"0x0f172aff\" align=\"left\" valign=\"top\" wrap=\"word\" line_spacing=\"1\" auto_shrink=\"false\""
+                        " shadow=\"false\" lock_aspect_ratio=\"false\"><p>Ethiopia Guji</p></Object-text>\n"
+                        "    <Object-image x=\"178pt\" y=\"10pt\" w=\"50pt\" h=\"50pt\" a0=\"1\" a1=\"0\" a2=\"0\" a3=\"1\" a4=\"0\" a5=\"0\""
+                        " src=\"%1\" shadow=\"false\" lock_aspect_ratio=\"true\"/>\n"
+                        "    <Object-box x=\"14pt\" y=\"48pt\" w=\"40pt\" h=\"30pt\" a0=\"1\" a1=\"0\" a2=\"0\" a3=\"1\" a4=\"0\" a5=\"0\""
+                        " line_width=\"1pt\" line_color=\"0x4f46e5ff\" fill_color=\"0xede9feff\" shadow=\"false\" lock_aspect_ratio=\"false\"/>\n"
+                        "    <Object-ellipse x=\"64pt\" y=\"48pt\" w=\"30pt\" h=\"30pt\" a0=\"1\" a1=\"0\" a2=\"0\" a3=\"1\" a4=\"0\" a5=\"0\""
+                        " line_width=\"1pt\" line_color=\"0x4f46e5ff\" fill_color=\"0xede9feff\" shadow=\"false\" lock_aspect_ratio=\"false\"/>\n"
+                        "    <Object-line x=\"14pt\" y=\"88pt\" dx=\"214pt\" dy=\"0pt\" a0=\"1\" a1=\"0\" a2=\"0\" a3=\"1\" a4=\"0\" a5=\"0\""
+                        " line_width=\"1pt\" line_color=\"0xcbd5e1ff\" shadow=\"false\"/>\n"
+                        "    <Object-barcode x=\"14pt\" y=\"98pt\" w=\"214pt\" h=\"50pt\" a0=\"1\" a1=\"0\" a2=\"0\" a3=\"1\" a4=\"0\" a5=\"0\""
+                        " backend=\"\" style=\"code39\" data=\"0123456789\" text=\"true\" checksum=\"true\" color=\"0xff\" lock_aspect_ratio=\"false\"/>\n"
+                        "  </Objects>\n"
+                        "  <Data/>\n"
+                        "</Glabels-document>\n" ).arg( image );
+
+                QString path = dir + QStringLiteral( "/Gallery label.glabels" );
+                QFile file( path );
+                if ( file.open( QIODevice::WriteOnly | QIODevice::Text ) )
+                {
+                        QTextStream( &file ) << xml;
+                }
+                return path;
+        }
+
+
+        ///
+        /// The first object of a kind in the model
+        ///
+        model::ModelObject* firstObject( model::Model* model, const char* className )
+        {
+                for ( auto* object : model->objectList() )
+                {
+                        if ( QString( object->metaObject()->className() ).endsWith( QString( className ) ) )
+                        {
+                                return object;
+                        }
+                }
+                return nullptr;
+        }
+
+
+        void settle()
+        {
+                for ( int i = 0; i < 5; i++ )
+                {
+                        QCoreApplication::processEvents();
+                }
         }
 
 
@@ -318,6 +393,118 @@ void TestThemeGallery::switchesWithoutRestart()
         setScheme( model::Settings::SYSTEM_COLOR_SCHEME );
         auto expected = theme::Theme::systemPrefersDark() ? AppearanceModel::STYLE_DARK : AppearanceModel::STYLE_LIGHT;
         QCOMPARE( AppearanceModel::style(), expected );
+
+        setScheme( model::Settings::LIGHT_COLOR_SCHEME );
+}
+
+
+void TestThemeGallery::mainWindowScreens()
+{
+        // The real main window at 1440 x 900 (mockups s01..s20), every tab and page, light and dark.
+        QTemporaryDir dir;
+        QVERIFY( dir.isValid() );
+        const QString project = writeGalleryProject( dir.path() );
+
+        const QString outDir = qEnvironmentVariable( "GLABELS_THEME_SCREENSHOTS" );
+        if ( !outDir.isEmpty() )
+        {
+                QDir().mkpath( outDir );
+        }
+
+        using ribbon::TabId;
+
+        for ( auto scheme : { model::Settings::LIGHT_COLOR_SCHEME, model::Settings::DARK_COLOR_SCHEME } )
+        {
+                setScheme( scheme );
+                const QString suffix = ( scheme == model::Settings::DARK_COLOR_SCHEME ) ? "-dark" : "-light";
+                styleWarnings().clear();
+
+                auto save = [&]( QWidget* window, const QString& name )
+                {
+                        settle();
+                        QImage image = window->grab().toImage();
+                        QVERIFY( !image.isNull() );
+                        if ( !outDir.isEmpty() )
+                        {
+                                QVERIFY( image.save( outDir + "/" + name + suffix + ".png" ) );
+                        }
+                };
+
+                // s01: no project
+                {
+                        std::unique_ptr<MainWindow> welcome( new MainWindow() );
+                        welcome->resize( 1440, 900 );
+                        welcome->show();
+                        QVERIFY( QTest::qWaitForWindowExposed( welcome.get() ) );
+                        save( welcome.get(), "s01-welcome" );
+                }
+
+                auto* labelModel = model::XmlLabelParser::readFile( project );
+                QVERIFY( labelModel );
+                QCOMPARE( labelModel->objectList().size(), 6 );
+
+                std::unique_ptr<MainWindow> window( new MainWindow() );
+                window->setModel( labelModel );
+                window->resize( 1440, 900 );
+                window->show();
+                QVERIFY( QTest::qWaitForWindowExposed( window.get() ) );
+                auto* bar = window->ribbonBar();
+                QVERIFY( bar );
+
+                // s02: File backstage
+                QVERIFY( QMetaObject::invokeMethod( window.get(), "onFileButtonClicked" ) );
+                save( window.get(), "s02-file-backstage" );
+                QVERIFY( QMetaObject::invokeMethod( window.get(), "onBackstageCloseRequested" ) );
+
+                // s03: Home, nothing selected
+                labelModel->unselectAll();
+                bar->setCurrentTab( TabId::Home );
+                save( window.get(), "s03-home" );
+
+                // s04..s08: contextual tabs with a matching object selected
+                const struct { const char* cls; TabId tab; const char* name; } contexts[] = {
+                        { "ModelTextObject",    TabId::ContextText,    "s04-text-tools" },
+                        { "ModelBarcodeObject", TabId::ContextBarcode, "s05-barcode-tools" },
+                        { "ModelImageObject",   TabId::ContextImage,   "s06-image-tools" },
+                        { "ModelBoxObject",     TabId::ContextShape,   "s07-shape-tools" },
+                        { "ModelEllipseObject", TabId::ContextShape,   "s07-shape-tools-ellipse" },
+                        { "ModelLineObject",    TabId::ContextLine,    "s08-line-tools" },
+                };
+                for ( const auto& c : contexts )
+                {
+                        auto* object = firstObject( labelModel, c.cls );
+                        QVERIFY2( object, c.cls );
+                        bar->setCurrentTab( TabId::Home );
+                        labelModel->unselectAll();
+                        labelModel->selectObject( object );
+                        settle();
+                        QVERIFY2( bar->visibleContextualTab() == c.tab, c.name );
+                        bar->setCurrentTab( c.tab );
+                        save( window.get(), c.name );
+                }
+                labelModel->unselectAll();
+
+                // Pages
+                bar->setCurrentTab( TabId::Label );
+                save( window.get(), "s09-label-tab" );
+                QVERIFY( QMetaObject::invokeMethod( window.get(), "fileShowMergePage" ) );
+                save( window.get(), "s10-data-merge" );
+                QVERIFY( QMetaObject::invokeMethod( window.get(), "fileShowVariablesPage" ) );
+                save( window.get(), "s11-data-variables" );
+                QVERIFY( QMetaObject::invokeMethod( window.get(), "fileShowFillPage" ) );
+                save( window.get(), "s12-data-fill" );
+                bar->setCurrentTab( TabId::Print );
+                save( window.get(), "s13-print" );
+                bar->setCurrentTab( TabId::Deploy );
+                save( window.get(), "s14-deploy" );
+                bar->setCurrentTab( TabId::Home );
+                bar->setCurrentTab( TabId::View );
+                save( window.get(), "s15-view-tab" );
+                bar->setCurrentTab( TabId::Help );
+                save( window.get(), "s16-help-tab" );
+
+                QVERIFY2( styleWarnings().isEmpty(), qPrintable( styleWarnings().join( "\n" ) ) );
+        }
 
         setScheme( model::Settings::LIGHT_COLOR_SCHEME );
 }

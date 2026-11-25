@@ -166,6 +166,11 @@ System): extend it; do not add a second switch.
 | `grad` | 135deg `#7C3AED` > `#4F46E5` > `#2563EB` | 135deg `#A78BFA` > `#818CF8` > `#60A5FA` | **Only** the File button and the primary ribbon button (Print). Never behind body text. |
 | `onGrad` | `#FFFFFF` | `#090D1A` | Text on `grad` |
 
+**Schemes.** The table above is the default scheme, **Neo**. Five alternative schemes of the
+same UI (Graphite, Paper, Harbor, Signal, System) change only these tokens and use a solid
+accent instead of the gradient; the user picks one in Preferences > Appearance > Theme or on
+the View tab. Values, rationale and contrast report: [`THEMES.md`](THEMES.md).
+
 The **label paper is always white** (it is paper) in both themes. Selection handles and the
 dashed selection box use `accent`.
 

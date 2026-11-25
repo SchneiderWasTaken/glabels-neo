@@ -10,7 +10,7 @@
 // nothing; and starting an item turns its marker into a "consumed" one, so a label added later cannot replay it.
 
 import { REPO, api, gh, issueHash } from './lib.mjs';
-import { MAX_WAIT_MS } from './limits.mjs';
+import { DEFAULT_WAIT_MS, MAX_WAIT_MS, MIN_WAIT_MS } from './limits.mjs';
 import { parseLevel } from './policy.mjs';
 import {
   MAX_PARKS, QUEUE_LABEL, holdComment, makeConsumedMarker, nextParks, parseConsumed, parseMarker, startable,
@@ -57,8 +57,10 @@ function hold() {
   const now = Date.now();
   const raw = Number(process.env.UNTIL);
   // Never park work for longer than the cap, whatever the caller passed.
-  const until = Number.isFinite(raw) ? Math.min(Math.max(raw, now), now + MAX_WAIT_MS) : now + 3600_000;
+  // Anything unusable (empty, zero, in the past) waits the default; nothing waits less than the minimum or more than the cap.
+  const until = Number.isFinite(raw) && raw > 0 ? Math.min(Math.max(raw, now + MIN_WAIT_MS), now + MAX_WAIT_MS) : now + DEFAULT_WAIT_MS;
   const sha = /^[0-9a-f]{64}$/.test(process.env.SHA ?? '') ? process.env.SHA : '';
+  if (kind === 'fix' && !sha) throw new Error('a fix needs the fingerprint of the issue text it was approved with');
 
   api(`repos/${REPO}/labels`, { method: 'POST', body: { name: QUEUE_LABEL, color: 'fbca04', description: 'Waiting for the AI models to be out of their usage limit' }, allowFail: true });
   const previous = markerOn(number);
@@ -89,7 +91,9 @@ function notWanted(item) {
 
 function dispatch() {
   const level = parseLevel(process.env.AUTOMATION_LEVEL);
+  if (level < 1) { console.log('automation is off (level 0); nothing is touched'); return; }
   const fixOk = process.env.FIX_GATE_OK === 'true';
+  const triageOk = process.env.TRIAGE_GATE_OK === 'true';
   const listed = api(`repos/${REPO}/issues?labels=${QUEUE_LABEL}&state=open&per_page=100`, { paginate: true }) ?? [];
   const items = [];
   for (const issue of listed) {
@@ -97,13 +101,17 @@ function dispatch() {
     const m = markerOn(n);
     if (!m || m.consumed) { console.log(`#${n}: labelled ${QUEUE_LABEL} but there is no live marker from the automation; ignoring`); continue; }
     if (!labelledByAutomation(n)) { console.log(`#${n}: the label was not applied by the automation; ignoring`); continue; }
-    const kind = issue.pull_request ? 'council' : m.kind;
-    if (kind !== m.kind) { console.log(`#${n}: marker kind ${m.kind} does not match what it is; ignoring`); continue; }
+    const kind = m.kind;
+    if (Boolean(issue.pull_request) !== (kind === 'council')) { console.log(`#${n}: marker kind ${m.kind} does not match what it is; ignoring`); continue; }
     const item = { number: n, kind, until: m.until, sha: m.sha, parks: m.parks, commentId: m.id, labels: issue.labels.map((l) => l.name), createdAt: issue.created_at };
     if (m.parks >= MAX_PARKS) {
       // Parked again and again: something other than a usage limit is wrong.  Ask a person instead of looping.
       console.log(`#${n}: parked ${m.parks} times; asking for a human`);
       consume(item, 'It was parked many times and never ran. A person needs to look at this one.');
+      if (kind === 'council') {
+        const head = api(`repos/${REPO}/pulls/${n}`, { allowFail: true })?.head?.sha;
+        if (head) api(`repos/${REPO}/statuses/${head}`, { method: 'POST', body: { state: 'failure', context: 'Council', description: 'the review could not run; a person must look' }, allowFail: true });
+      }
       api(`repos/${REPO}/issues/${n}/labels`, { method: 'POST', body: { labels: ['needs-human'] } });
       removeLabel(n);
       continue;
@@ -111,7 +119,7 @@ function dispatch() {
     items.push(item);
   }
   // What the automation level and the daily fix cap allow right now.
-  const allowed = items.filter((i) => (i.kind === 'triage' ? level >= 1 : level >= 2) && (i.kind !== 'fix' || fixOk));
+  const allowed = items.filter((i) => (i.kind === 'triage' ? level >= 1 && triageOk : level >= 2) && (i.kind !== 'fix' || fixOk));
   const ready = startable(allowed);
   console.log(`${items.length} parked, ${allowed.length} allowed (level ${level}, fix gate ${fixOk ? 'open' : 'closed'}), ${ready.length} startable now`);
   if (!ready.length) return;
@@ -119,7 +127,7 @@ function dispatch() {
   // One at a time: a probe that has not parked itself again yet must not be joined by another.
   for (const wf of WORKFLOWS) {
     const runs = api(`repos/${REPO}/actions/workflows/${wf}/runs?per_page=30`)?.workflow_runs ?? [];
-    if (runs.some((r) => ['queued', 'in_progress'].includes(r.status))) { console.log(`${wf} is busy; next time`); return; }
+    if (runs.some((r) => r.status !== 'completed')) { console.log(`${wf} is busy; next time`); return; }
   }
 
   for (const next of ready) {
@@ -135,6 +143,7 @@ function dispatch() {
     const args = ['workflow', 'run', workflow, '--repo', REPO, '--ref', 'main'];
     if (next.kind === 'fix') args.push('-f', `issue=${next.number}`, '-f', `body_sha=${next.sha}`);
     else if (next.kind === 'triage') args.push('-f', `issue=${next.number}`);
+    if (next.kind === 'fix' && !next.sha) { console.log(`fix #${next.number}: no fingerprint in the marker; not starting it`); continue; }
     else args.push('-f', `pr=${next.number}`);
 
     console.log(`starting ${next.kind} #${next.number} (${workflow})`);

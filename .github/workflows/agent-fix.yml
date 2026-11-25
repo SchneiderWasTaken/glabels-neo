@@ -184,7 +184,10 @@ jobs:
         if: needs.round1.outputs.limited == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh run cancel "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" || true
+        # The cancel request is asynchronous: keep this step alive until the runner is stopped, or the run would end as a success.
+        run: |
+          gh run cancel "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY"
+          sleep 90
 
       # If parking itself failed the issue would be dropped without a word: ask for a person instead.
       - name: Ask for a person if parking failed

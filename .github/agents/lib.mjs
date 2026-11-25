@@ -133,9 +133,13 @@ export function runClaude({ prompt, model, tools = '', schema, maxBudgetUsd = 1,
       try {
         raw = JSON.parse(out);
       } catch {
-        return reject(new Error(`claude exited ${code} without JSON output: ${err.slice(0, 300)}`));
+        return reject(new Error(`claude exited ${code} without JSON output: ${(err || out).slice(0, 300)}`));
       }
-      if (raw.is_error) return reject(new Error(`claude reported an error: ${String(raw.result).slice(0, 300)}`));
+      if (raw.is_error) {
+        // The text that says WHY (a usage limit, for one) may be in the result, the error or the subtype.
+        const why = [raw.subtype, raw.error?.message ?? (typeof raw.error === 'string' ? raw.error : ''), raw.result].filter((x) => x && x !== 'null').join(' ');
+        return reject(new Error(`claude reported an error: ${why.slice(0, 300)}`));
+      }
       resolve({ structured: raw.structured_output ?? null, text: String(raw.result ?? ''), cost: raw.total_cost_usd ?? 0, raw });
     });
     child.stdin.end(prompt);

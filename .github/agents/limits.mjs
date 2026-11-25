@@ -14,14 +14,16 @@ export class LimitError extends Error {
 }
 
 // What providers say when they refuse because of a limit: Claude Code ("usage limit reached|<epoch>", "5-hour limit",
-// "weekly limit"), OpenRouter and most APIs (HTTP 429 / 529 / 402, "rate limit", "overloaded", "quota", "credits").
+// "weekly limit"), OpenRouter and most APIs (HTTP 429 / 529, "rate limit", "overloaded", "quota").  An empty prepaid balance
+// (HTTP 402, "insufficient credits") is NOT a limit: it does not clear by waiting, so a person must hear about it.
 // Deliberately narrow: a deterministic failure (a prompt that is too long, a stack trace with a line number such as
 // file.js:429) must NOT be mistaken for a limit, or it would be parked and retried instead of reported.  Status codes count
 // only next to the words that introduce them, and token or context limits are not usage limits.
 const LIMIT_RE = new RegExp([
-  'usage limit', 'rate[ _-]?limit', 'too many requests', '(?:http|status|code|returned|response)\\D{0,12}\\b(?:429|529|402)\\b',
-  '\\b(?:429|529)\\s+(?:too many|overloaded)', 'http/\\d(?:\\.\\d)?\\s+(?:429|529|402)\\b', 'overloaded', 'quota', '(?:5-hour|weekly|daily|monthly|session) limit', 'out of (?:credits|usage)',
-  'insufficient (?:credits|funds|balance)', 'credit balance', 'resource[ _]exhausted',
+  'usage limit', 'rate[ _-]?limit', 'too many requests', '(?:http|status|code|returned|response)\\D{0,12}\\b(?:429|529)\\b',
+  '\\b(?:429|529)\\s+(?:too many|overloaded)', 'http/\\d(?:\\.\\d)?\\s+(?:429|529)\\b', 'overloaded', 'quota', '(?:5-hour|weekly|daily|monthly|session) limit',
+  // Claude Code's own wording: "You've hit your limit - resets 3pm", "You're out of extra usage"
+  'hit (?:your|the|a) (?:usage |plan )?limit', 'out of (?:extra )?usage', 'resource[ _]exhausted',
 ].join('|'), 'i');
 
 export const MIN_WAIT_MS = 10 * 60_000;
@@ -44,7 +46,7 @@ export function limitUntil(message, now = Date.now()) {
   if (epoch) when = Number(epoch[1]) * 1000;
   const iso = /\b(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?Z)\b/.exec(text);
   if (when === null && iso) when = Date.parse(iso[1]);
-  const rel = /\bin\s+(\d+)\s*(second|minute|min|hour|hr|h|m|s)s?\b/i.exec(text);
+  const rel = /\bin\s+(\d+)\s*(seconds?|secs?|minutes?|mins?|hours?|hrs?|h|m|s)\b/i.exec(text); // not "ms"
   if (when === null && rel) {
     const unit = rel[2].toLowerCase();
     const per = unit.startsWith('h') ? 3600_000 : unit.startsWith('m') ? 60_000 : 1000;

@@ -42,9 +42,18 @@ jobs:
           FIX_MAX_PER_DAY: ${{ vars.FIX_MAX_PER_DAY }}
         run: node .github/agents/gate.mjs fix
 
+      - name: Is triage allowed right now?
+        id: triagegate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTOMATION_LEVEL: ${{ vars.AUTOMATION_LEVEL }}
+          TRIAGE_MAX_PER_HOUR: ${{ vars.TRIAGE_MAX_PER_HOUR }}
+        run: node .github/agents/gate.mjs triage
+
       - name: Start the most important parked item
         env:
           GH_TOKEN: ${{ github.token }}
           AUTOMATION_LEVEL: ${{ vars.AUTOMATION_LEVEL }}
           FIX_GATE_OK: ${{ steps.fixgate.outputs.run }}
+          TRIAGE_GATE_OK: ${{ steps.triagegate.outputs.run }}
         run: node .github/agents/queue.mjs dispatch

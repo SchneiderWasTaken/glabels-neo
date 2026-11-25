@@ -8,9 +8,9 @@ const NOW = Date.parse('2026-11-25T12:00:00Z');
 test('what providers say when they are at a limit is recognised', () => {
   for (const m of [
     'Claude AI usage limit reached|1764072000', '5-hour limit reached - resets 3pm', 'OpenRouter returned 429', 'HTTP 529 overloaded_error',
-    'Too Many Requests', 'rate_limit_exceeded', 'You exceeded your current quota', 'Weekly limit reached', 'insufficient credits', 'Resource exhausted',
-    'claude reported an error: Credit balance is too low',
-    'status code 429', 'HTTP/2 529', 'error: response status 402 payment required', '429 Too Many Requests', 'overloaded_error', 'session limit reached',
+    'Too Many Requests', 'rate_limit_exceeded', 'You exceeded your current quota', 'Weekly limit reached', 'Resource exhausted',
+    "You've hit your limit - resets 3pm (UTC)", "You're out of extra usage", 'claude reported an error: rate_limit_exceeded',
+    'status code 429', 'HTTP/2 529', '429 Too Many Requests', 'overloaded_error', 'session limit reached',
   ]) assert.ok(isLimitMessage(m), m);
 });
 
@@ -19,7 +19,7 @@ test('ordinary failures are not limits', () => {
     'the model gave no structured answer', 'opencode timed out', 'model deepseek/x is more expensive than the ceiling (prompt 0.00000015/token > 0.00000012)',
     'invalid verdict: risk', 'claude exited 1 without JSON output', 'ENOENT: no such file', 'OpenRouter returned 500', '',
     'opencode exited 1: at run (/work/node_modules/x/file.js:429:12)', 'claude exited 1: Error at index.js:529', 'the diff has 529 lines', 'status code 404', 'error 4290',
-    'context window limit reached', 'output token limit hit', 'tool call limit exceeded', 'maximum context length is 200000 tokens',
+    'insufficient credits', 'Credit balance is too low', 'HTTP 402 payment required', 'retry in 30 ms', 'context window limit reached', 'output token limit hit', 'tool call limit exceeded', 'maximum context length is 200000 tokens',
   ]) assert.ok(!isLimitMessage(m), m);
 });
 
@@ -33,6 +33,7 @@ test('the wait is read from the message and always kept between 10 minutes and 6
   assert.equal(limitUntil('limit|9999999999', NOW), NOW + MAX_WAIT_MS);
   assert.equal(limitUntil('limit|1000000000', NOW), NOW + MIN_WAIT_MS); // a time in the past
   assert.equal(limitUntil(undefined, NOW), NOW + DEFAULT_WAIT_MS);
+  assert.equal(limitUntil('try again in 30 ms', NOW), NOW + DEFAULT_WAIT_MS); // milliseconds are not minutes
   const epoch = Math.floor((NOW + 3 * 3600_000) / 1000);
   assert.equal(limitUntil(`usage limit reached|${epoch}`, NOW), epoch * 1000);
 });

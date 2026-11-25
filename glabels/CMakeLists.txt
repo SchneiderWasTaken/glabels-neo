@@ -332,3 +332,21 @@ endif (WIN32)
 if (Qt6Test_FOUND)
   add_subdirectory (unit_tests)
 endif ()
+
+# --- ribbon-ui: theme ---
+# Theme tokens, generated stylesheet, tinted neo icons (docs/ribbon-ui/SPEC.md 4 and 8).
+qt6_wrap_cpp (glabels_theme_moc_sources
+  theme/Decorator.hpp
+  theme/Theme.hpp
+)
+qt6_add_resources (glabels_theme_qrc_sources theme/theme.qrc)
+target_sources (glabels_lib PRIVATE
+  theme/Decorator.cpp
+  theme/Theme.cpp
+  theme/ThemeIcons.cpp
+  theme/ThemeStyle.cpp
+  ${glabels_theme_moc_sources}
+)
+target_sources (glabels_resources PRIVATE ${glabels_theme_qrc_sources})
+target_link_libraries (glabels_lib PUBLIC Qt6::Svg)
+# --- end ribbon-ui: theme ---

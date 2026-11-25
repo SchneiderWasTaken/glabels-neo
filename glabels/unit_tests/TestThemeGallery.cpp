@@ -38,6 +38,7 @@
 #include "ribbon/RibbonBar.hpp"
 #include "ribbon/RibbonTypes.hpp"
 #include "theme/Theme.hpp"
+#include "theme/ThemeScheme.hpp"
 
 #include "barcode/Backends.hpp"
 #include "merge/Factory.hpp"
@@ -50,9 +51,12 @@
 #include <QApplication>
 #include <QCheckBox>
 #include <QClipboard>
+#include <QComboBox>
 #include <QDir>
 #include <QIcon>
+#include <QMap>
 #include <QMessageBox>
+#include <QPainter>
 #include <QPushButton>
 #include <QStandardPaths>
 #include <QTemporaryDir>
@@ -506,5 +510,154 @@ void TestThemeGallery::mainWindowScreens()
                 QVERIFY2( styleWarnings().isEmpty(), qPrintable( styleWarnings().join( "\n" ) ) );
         }
 
+        setScheme( model::Settings::LIGHT_COLOR_SCHEME );
+}
+
+
+void TestThemeGallery::themeSchemes()
+{
+        // Every colour scheme x Light/Dark on the real main window and Preferences, applied live
+        // through the stored setting, exactly as the Theme picker does (THEMES.md).
+        QTemporaryDir dir;
+        QVERIFY( dir.isValid() );
+        const QString project = writeGalleryProject( dir.path() );
+
+        QString outDir = qEnvironmentVariable( "GLABELS_THEME_SCREENSHOTS" );
+        if ( !outDir.isEmpty() )
+        {
+                outDir += "/themes";
+                QDir().mkpath( outDir );
+        }
+
+        using ribbon::TabId;
+        QMap<QString, QImage> textTools;   // "<scheme>-<mode>" -> Text tools capture
+
+        for ( const auto& scheme : theme::ThemeSchemes::all() )
+        {
+                model::Settings::setThemeScheme( scheme.id );
+                for ( auto mode : { model::Settings::LIGHT_COLOR_SCHEME, model::Settings::DARK_COLOR_SCHEME } )
+                {
+                        setScheme( mode );
+                        const bool dark = ( mode == model::Settings::DARK_COLOR_SCHEME );
+                        const QString prefix = scheme.id + ( dark ? "-dark-" : "-light-" );
+
+                        QCOMPARE( theme::Theme::instance().scheme(), scheme.id );
+                        QCOMPARE( theme::Theme::instance().palette().accent, scheme.palette( dark ? theme::Mode::Dark : theme::Mode::Light ).accent );
+                        styleWarnings().clear();
+
+                        auto save = [&]( QWidget* window, const QString& screen ) -> QImage
+                        {
+                                settle();
+                                QImage image = window->grab().toImage();
+                                if ( !outDir.isEmpty() )
+                                {
+                                        image.save( outDir + "/" + prefix + screen + ".png" );
+                                }
+                                return image;
+                        };
+
+                        auto* labelModel = model::XmlLabelParser::readFile( project );
+                        QVERIFY( labelModel );
+                        std::unique_ptr<MainWindow> window( new MainWindow() );
+                        window->setModel( labelModel );
+                        window->resize( 1440, 900 );
+                        window->show();
+                        QVERIFY( QTest::qWaitForWindowExposed( window.get() ) );
+                        auto* bar = window->ribbonBar();
+
+                        labelModel->unselectAll();
+                        bar->setCurrentTab( TabId::Home );
+                        save( window.get(), "home" );
+
+                        labelModel->selectObject( firstObject( labelModel, "ModelTextObject" ) );
+                        settle();
+                        bar->setCurrentTab( TabId::ContextText );
+                        textTools.insert( scheme.id + ( dark ? "-dark" : "-light" ), save( window.get(), "text-tools" ) );
+                        labelModel->unselectAll();
+
+                        QVERIFY( QMetaObject::invokeMethod( window.get(), "fileShowFillPage" ) );
+                        save( window.get(), "data-fill" );
+                        bar->setCurrentTab( TabId::Print );
+                        save( window.get(), "print" );
+                        window.reset();
+
+                        PreferencesDialog prefs;
+                        prefs.show();
+                        QVERIFY( QTest::qWaitForWindowExposed( &prefs ) );
+                        if ( auto* tabs = prefs.findChild<QTabWidget*>() )
+                        {
+                                for ( int i = 0; i < tabs->count(); i++ )
+                                {
+                                        if ( tabs->widget( i )->findChild<QComboBox*>( "appearanceThemeCombo" ) )
+                                        {
+                                                tabs->setCurrentIndex( i );
+                                        }
+                                }
+                        }
+                        auto* picker = prefs.findChild<QComboBox*>( "appearanceThemeCombo" );
+                        QVERIFY( picker );
+                        QCOMPARE( picker->count(), theme::ThemeSchemes::all().size() );
+                        QCOMPARE( picker->currentData().toString(), scheme.id );
+                        save( &prefs, "preferences" );
+
+                        QVERIFY2( styleWarnings().isEmpty(), qPrintable( scheme.id + ": " + styleWarnings().join( "\n" ) ) );
+                }
+        }
+
+        // The picker drives the setting, live: choose Signal in Preferences.
+        {
+                PreferencesDialog prefs;
+                prefs.show();
+                QVERIFY( QTest::qWaitForWindowExposed( &prefs ) );
+                auto* picker = prefs.findChild<QComboBox*>( "appearanceThemeCombo" );
+                QVERIFY( picker );
+                picker->setCurrentIndex( picker->findData( "signal" ) );
+                settle();
+                QCOMPARE( model::Settings::themeScheme(), QString( "signal" ) );
+                QCOMPARE( theme::Theme::instance().scheme(), QString( "signal" ) );
+                const auto& signal = theme::ThemeSchemes::find( "signal" );
+                QCOMPARE( theme::Theme::instance().palette().accent, signal.palette( theme::Theme::instance().mode() ).accent );
+                QVERIFY( qApp->styleSheet().contains( theme::Theme::instance().palette().accent.name() ) );
+        }
+
+        // Overview: Text tools of every scheme, light row group on top, dark below, labelled.
+        if ( !outDir.isEmpty() )
+        {
+                const auto& all = theme::ThemeSchemes::all();
+                const int cols = 3;
+                const QSize tile( 720, 450 );
+                const int labelH = 34;
+                const int rowsPerMode = ( all.size() + cols - 1 ) / cols;
+                QImage overview( cols * tile.width(), 2 * rowsPerMode * ( tile.height() + labelH ) + 48, QImage::Format_RGB32 );
+                overview.fill( QColor( "#d4d4d8" ) );
+                QPainter painter( &overview );
+                painter.setRenderHint( QPainter::SmoothPixmapTransform );
+                QFont font = painter.font();
+                font.setPixelSize( 18 );
+                font.setBold( true );
+                painter.setFont( font );
+                painter.setPen( QColor( "#18181b" ) );
+                painter.drawText( QRect( 0, 0, overview.width(), 24 ), Qt::AlignCenter, "Light" );
+                for ( int m = 0; m < 2; m++ )
+                {
+                        const int top = 24 + m * ( rowsPerMode * ( tile.height() + labelH ) + 24 );
+                        if ( m == 1 )
+                        {
+                                painter.drawText( QRect( 0, top - 24, overview.width(), 24 ), Qt::AlignCenter, "Dark" );
+                        }
+                        for ( int i = 0; i < all.size(); i++ )
+                        {
+                                const QString key = all.at( i ).id + ( m == 0 ? "-light" : "-dark" );
+                                QRect target( ( i % cols ) * tile.width(), top + ( i / cols ) * ( tile.height() + labelH ), tile.width(), tile.height() );
+                                painter.drawImage( target.adjusted( 4, 4, -4, -4 ), textTools.value( key ) );
+                                painter.drawText( QRect( target.left(), target.bottom(), target.width(), labelH ), Qt::AlignCenter,
+                                                  all.at( i ).displayName() + ( m == 0 ? "  (light)" : "  (dark)" ) );
+                        }
+                }
+                painter.end();
+                QVERIFY( overview.save( outDir + "/overview.png" ) );
+        }
+
+        model::Settings::setThemeScheme( theme::ThemeSchemes::defaultId() );
         setScheme( model::Settings::LIGHT_COLOR_SCHEME );
 }

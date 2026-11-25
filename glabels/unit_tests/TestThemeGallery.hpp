@@ -38,4 +38,5 @@ private slots:
         void dialogs();
         void switchesWithoutRestart();
         void mainWindowScreens();
+        void themeSchemes();
 };

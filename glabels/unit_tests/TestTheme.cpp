@@ -24,6 +24,7 @@
 #include "theme/Decorator.hpp"
 #include "theme/Theme.hpp"
 #include "theme/ThemeIcons.hpp"
+#include "theme/ThemeScheme.hpp"
 #include "theme/ThemeStyle.hpp"
 
 #include <QApplication>
@@ -183,6 +184,7 @@ namespace
 ///
 void TestTheme::cleanup()
 {
+        Theme::instance().setScheme( "neo" );
         Theme::instance().setMode( Mode::Light );
         ThemeIcons::invalidate();
         qApp->setStyleSheet( QString() );
@@ -777,4 +779,200 @@ void TestTheme::groupBoxIsACard()
         // Content sits below the header band
         QVERIFY2( label->geometry().top() >= Decorator::cardHeader,
                   qPrintable( QString::number( label->geometry().top() ) ) );
+}
+
+
+namespace
+{
+        /// docs/ribbon-ui/THEMES.md, normative.  Order: bg chrome ribbon work panel line line2
+        /// ink ink2 ink3 accent tint hover pressed ctx ctxLine ok okTint warn grad onGrad
+        struct SchemeRow { const char* id; const char* light; const char* dark; };
+        const SchemeRow schemeTable[] = {
+                { "graphite",
+                  "#F4F4F5 #EAEAEC #FFFFFF #DCDCDF #FFFFFF #E2E2E5 #B8B8BE #18181B #3F3F46 #5B5B64 #2F6DB5 #E4ECF6 #EDEDEF #DCE6F3 #E4ECF6 #2F6DB5 #15803D #E8F5EC #A15C07 #2F6DB5 #FFFFFF",
+                  "#121214 #1A1A1D #202024 #0C0C0E #18181B #2C2C31 #494950 #F4F4F5 #D0D0D5 #9A9AA3 #6EA2E0 #26303D #2A2A2F #2E3A4B #26303D #6EA2E0 #4ADE80 #123221 #E0A93B #5B93D6 #0C0C0E" },
+                { "paper",
+                  "#FAF8F4 #F0EDE6 #FEFDFB #E5E0D6 #FEFDFB #E7E2D8 #BDB6A8 #1C1917 #44403C #6B655C #2F6B4F #E3EEE7 #F3F0E9 #DCEAE1 #E3EEE7 #2F6B4F #166534 #E6F2EA #9A5B0B #2F6B4F #FFFFFF",
+                  "#141311 #1C1A17 #24211D #0E0D0B #1A1815 #2F2B25 #4D473E #F5F2EC #D6D0C5 #A39C8F #7CC29B #243229 #2B2823 #2D4034 #243229 #7CC29B #6EE7A0 #12301F #E3AE4F #7CC29B #0E0D0B" },
+                { "harbor",
+                  "#F3F6F8 #E8EEF2 #FFFFFF #D6DFE6 #FFFFFF #DCE4EA #AEBBC6 #0B1F2A #334A58 #55697A #0F766E #DDF0EE #EDF2F5 #CFE9E6 #DDF0EE #0F766E #15803D #E4F4EA #A15C07 #0F766E #FFFFFF",
+                  "#0B141A #111D25 #17262F #070D11 #0F1A21 #1F313C #3A5160 #EAF2F6 #C3D3DC #8FA6B4 #4FD1C5 #12302F #1C2E39 #17403F #12302F #4FD1C5 #4ADE80 #0F2E1D #E5B04A #4FD1C5 #06161A" },
+                { "signal",
+                  "#FAFAF9 #F1F0EE #FFFFFF #E3E2DF #FFFFFF #E5E3DF #A8A59E #111111 #3A3936 #5C5A55 #C2410C #FDEBDD #F4F3F0 #FBDCC4 #FDEBDD #C2410C #15803D #E6F4EA #92400E #C2410C #FFFFFF",
+                  "#0E0E0D #171716 #1F1F1D #080807 #141413 #2B2A28 #55534E #FAFAF9 #D6D4CF #A19E97 #FB923C #3A2412 #262523 #4A2C14 #3A2412 #FB923C #4ADE80 #122C1B #FBBF24 #FB923C #140A02" },
+                { "system",
+                  "#F3F3F3 #EBEBEB #FBFBFB #E0E0E0 #FFFFFF #E0E0E0 #B3B3B3 #1A1A1A #3D3D3D #5F5F5F #0F6CBD #E1EDF8 #F0F0F0 #D6E6F5 #E1EDF8 #0F6CBD #107C10 #E5F3E5 #8A5A00 #0F6CBD #FFFFFF",
+                  "#202020 #2B2B2B #2F2F2F #181818 #272727 #3A3A3A #5C5C5C #FFFFFF #D6D6D6 #A6A6A6 #60CDFF #1F3A4D #353535 #1F4A66 #1F3A4D #60CDFF #6CCB5F #1B3A1B #E0B03A #60CDFF #00263A" },
+        };
+
+
+        QList<QColor> tokensOf( const Palette& p )
+        {
+                return { p.bg, p.chrome, p.ribbon, p.work, p.panel, p.line, p.line2, p.ink, p.ink2, p.ink3,
+                         p.accent, p.tint, p.hover, p.pressed, p.ctx, p.ctxLine, p.ok, p.okTint, p.warn,
+                         p.gradB, p.onGrad };
+        }
+}
+
+
+void TestTheme::schemeRegistry()
+{
+        const auto& all = ThemeSchemes::all();
+        QCOMPARE( all.size(), 6 );
+        QStringList ids;
+        for ( const auto& scheme : all )
+        {
+                ids << scheme.id;
+                QVERIFY( !scheme.displayName().isEmpty() );
+                QVERIFY( !scheme.displayDescription().isEmpty() );
+                QVERIFY( !scheme.displayDescription().endsWith( '.' ) );
+        }
+        QCOMPARE( ids, QStringList( { "neo", "graphite", "paper", "harbor", "signal", "system" } ) );
+        QCOMPARE( ThemeSchemes::defaultId(), QString( "neo" ) );
+
+        // Neo is the default and unchanged
+        const ThemeScheme& neo = ThemeSchemes::find( "neo" );
+        QVERIFY( neo.gradient );
+        QCOMPARE( tokensOf( neo.light ), tokensOf( Theme::lightPalette() ) );
+        QCOMPARE( tokensOf( neo.dark ), tokensOf( Theme::darkPalette() ) );
+        QCOMPARE( neo.light.gradA, QColor( "#7C3AED" ) );
+        QCOMPARE( neo.light.gradC, QColor( "#2563EB" ) );
+
+        // Unknown ids fall back to Neo
+        QCOMPARE( ThemeSchemes::find( "no-such-scheme" ).id, QString( "neo" ) );
+        QVERIFY( !ThemeSchemes::contains( "no-such-scheme" ) );
+        Theme::instance().setScheme( "no-such-scheme" );
+        QCOMPARE( Theme::instance().scheme(), QString( "neo" ) );
+
+        // The selected scheme drives palette() and paletteFor()
+        Theme::instance().setScheme( "harbor" );
+        Theme::instance().setMode( Mode::Dark );
+        QCOMPARE( Theme::instance().palette().accent, QColor( "#4FD1C5" ) );
+        QCOMPARE( Theme::paletteFor( Mode::Light ).accent, QColor( "#0F766E" ) );
+}
+
+
+void TestTheme::schemePalettesMatchTheTable_data()
+{
+        QTest::addColumn<QString>( "id" );
+        QTest::addColumn<bool>( "dark" );
+        QTest::addColumn<QString>( "hex" );
+        for ( const auto& row : schemeTable )
+        {
+                QTest::addRow( "%s-light", row.id ) << QString( row.id ) << false << QString( row.light );
+                QTest::addRow( "%s-dark", row.id ) << QString( row.id ) << true << QString( row.dark );
+        }
+}
+
+
+void TestTheme::schemePalettesMatchTheTable()
+{
+        QFETCH( QString, id );
+        QFETCH( bool, dark );
+        QFETCH( QString, hex );
+
+        QVERIFY( ThemeSchemes::contains( id ) );
+        const ThemeScheme& scheme = ThemeSchemes::find( id );
+        QVERIFY( !scheme.gradient );
+        const Palette& p = scheme.palette( dark ? Mode::Dark : Mode::Light );
+
+        const QStringList expected = hex.split( ' ' );
+        const QList<QColor> actual = tokensOf( p );
+        QCOMPARE( actual.size(), expected.size() );
+        for ( int i = 0; i < expected.size(); i++ )
+        {
+                QVERIFY2( actual.at( i ) == QColor( expected.at( i ) ),
+                          qPrintable( QString( "token %1: %2 != %3" ).arg( i ).arg( actual.at( i ).name(), expected.at( i ) ) ) );
+        }
+        // Solid schemes: one gradient colour
+        QCOMPARE( p.gradA, p.gradB );
+        QCOMPARE( p.gradC, p.gradB );
+}
+
+
+void TestTheme::schemeContrast_data()
+{
+        QTest::addColumn<QString>( "id" );
+        QTest::addColumn<bool>( "dark" );
+        for ( const auto& scheme : ThemeSchemes::all() )
+        {
+                QTest::addRow( "%s-light", qPrintable( scheme.id ) ) << scheme.id << false;
+                QTest::addRow( "%s-dark", qPrintable( scheme.id ) ) << scheme.id << true;
+        }
+}
+
+
+void TestTheme::schemeContrast()
+{
+        QFETCH( QString, id );
+        QFETCH( bool, dark );
+        const Palette& p = ThemeSchemes::find( id ).palette( dark ? Mode::Dark : Mode::Light );
+
+        struct Rule { const char* name; QColor fg; QColor bg; double min; };
+        QList<Rule> rules {
+                { "ink/work",      p.ink,    p.work,   4.5 },   // work: 4.5 accepted (THEMES.md)
+                { "ink2/bg",       p.ink2,   p.bg,     4.5 },
+                { "ink2/chrome",   p.ink2,   p.chrome, 4.5 },
+                { "ink2/ribbon",   p.ink2,   p.ribbon, 4.5 },
+                { "ink2/panel",    p.ink2,   p.panel,  4.5 },
+                { "ink3/bg",       p.ink3,   p.bg,     4.5 },
+                { "ink3/ribbon",   p.ink3,   p.ribbon, 4.5 },
+                { "ink3/panel",    p.ink3,   p.panel,  4.5 },
+                { "onGrad/accent", p.onGrad, p.accent, 4.5 },
+                { "onGrad/gradA",  p.onGrad, p.gradA,  4.5 },
+                { "onGrad/gradC",  p.onGrad, p.gradC,  4.5 },
+                { "accent/ribbon", p.accent, p.ribbon, 4.5 },
+                { "accent/panel",  p.accent, p.panel,  4.5 },
+        };
+        // ink >= 7:1 on the main surfaces (Neo was specified before this rule; it passes too)
+        for ( const QColor& surface : { p.bg, p.chrome, p.ribbon, p.panel } )
+        {
+                rules.append( { "ink/surface", p.ink, surface, 7.0 } );
+        }
+
+        for ( const Rule& rule : rules )
+        {
+                const double ratio = contrast( rule.fg, rule.bg );
+                QVERIFY2( ratio >= rule.min,
+                          qPrintable( QString( "%1 %2: %3 < %4" ).arg( id, rule.name ).arg( ratio, 0, 'f', 2 ).arg( rule.min ) ) );
+        }
+}
+
+
+void TestTheme::schemeStylesheetsExpand()
+{
+        for ( const auto& scheme : ThemeSchemes::all() )
+        {
+                for ( Mode mode : { Mode::Light, Mode::Dark } )
+                {
+                        QStringList unknown;
+                        QString css = ThemeStyle::expand( ThemeStyle::styleTemplate(),
+                                                          ThemeStyle::tokens( scheme.palette( mode ), mode ), &unknown );
+                        QVERIFY2( unknown.isEmpty(), qPrintable( scheme.id + ": " + unknown.join( ", " ) ) );
+                        QVERIFY( css.contains( scheme.palette( mode ).accent.name() ) );
+                }
+        }
+}
+
+
+void TestTheme::schemeAppliesLive()
+{
+        StyleWarnings warnings;
+        auto& theme = Theme::instance();
+        QSignalSpy spy( &theme, &Theme::changed );
+
+        QWidget probe;
+        probe.show();
+        QVERIFY( QTest::qWaitForWindowExposed( &probe ) );
+
+        for ( const auto& scheme : ThemeSchemes::all() )
+        {
+                theme.setScheme( scheme.id );
+                theme.setMode( Mode::Light );
+                theme.applyToApplication();
+                QVERIFY( qApp->styleSheet().contains( scheme.light.accent.name() ) );
+                QCOMPARE( theme.palette().bg, scheme.light.bg );
+        }
+        QCOMPARE( spy.count(), ThemeSchemes::all().size() );
+        QVERIFY2( StyleWarnings::messages().isEmpty(), qPrintable( StyleWarnings::messages().join( "\n" ) ) );
 }

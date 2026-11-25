@@ -53,4 +53,12 @@ private slots:
 
         void dialogFooterIsPainted();
         void groupBoxIsACard();
+
+        void schemeRegistry();
+        void schemePalettesMatchTheTable_data();
+        void schemePalettesMatchTheTable();
+        void schemeContrast_data();
+        void schemeContrast();
+        void schemeStylesheetsExpand();
+        void schemeAppliesLive();
 };

@@ -379,6 +379,7 @@ endif ()
 qt6_wrap_cpp (glabels_theme_moc_sources
   theme/Decorator.hpp
   theme/Theme.hpp
+  TemplateDesignerSidebar.hpp
 )
 qt6_add_resources (glabels_theme_qrc_sources theme/theme.qrc)
 target_sources (glabels_lib PRIVATE
@@ -387,6 +388,8 @@ target_sources (glabels_lib PRIVATE
   theme/ThemeIcons.cpp
   theme/ThemeScheme.cpp
   theme/ThemeStyle.cpp
+  TemplateDesignerSidebar.cpp
+  TemplateDesignerSteps.cpp
   ${glabels_theme_moc_sources}
 )
 target_sources (glabels_resources PRIVATE ${glabels_theme_qrc_sources})

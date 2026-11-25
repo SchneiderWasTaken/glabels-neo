@@ -45,6 +45,14 @@ Full license texts are provided in the accompanying `licenses/` directory.
 - **Project URL:** <https://github.com/j-evins/glabels-qt>
 - **License Text:** `licenses/CC0-1.0.txt`
 
+### Lucide Icons (`glabels/icons/neo/`)
+- **Version:** `lucide-static` 0.469.0 (a subset of 95 icons)
+- **SPDX License:** `ISC` (portions derived from Feather: `MIT`)
+- **Project URL:** <https://lucide.dev/> / <https://github.com/lucide-icons/lucide>
+- **Copyright:** Copyright (c) Lucide Contributors 2022; portions Copyright (c) 2013-2022 Cole Bemis (Feather)
+- **Modifications:** stroke width changed from 2 to 1.75; recoloured at runtime.
+- **License Text:** `third-party-licenses/lucide-ISC.txt`
+
 ---
 
 ## 2. Core Application & Runtime Dependencies
@@ -160,6 +168,7 @@ that bundled notices always match the shipped binaries:
    - `LICENSE` → `licenses/GPL-3.0.txt` (and top-level `LICENSE`)
    - `glbarcode/LICENSE` → `licenses/LGPL-3.0.txt`
    - `templates/LICENSE` → `licenses/templates-MIT.txt`
+   - `third-party-licenses/lucide-ISC.txt` → `licenses/lucide-ISC.txt`
    - `THIRD-PARTY-NOTICES.md` → top-level `THIRD-PARTY-NOTICES.md`
    - `CREDITS.md` → top-level `CREDITS.md`
 2. **Fetched / packaged library licenses (collected by platform):**

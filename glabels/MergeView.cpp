@@ -30,6 +30,10 @@
 #include <QDebug>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QGroupBox>
+#include <QLabel>
+#include <QLayout>
+#include <QVBoxLayout>
 
 
 namespace glabels
@@ -44,7 +48,32 @@ namespace glabels
         {
                 setupUi( this );
 
-                titleLabel->setText( QString( "<span style='font-size:18pt;'>%1</span>" ).arg( tr("Merge") ) );
+                titleLabel->setText( tr("Merge") );
+                titleLabel->setProperty( "role", QStringLiteral( "pageTitle" ) );
+
+                if ( auto* l = layout() )
+                {
+                        l->setContentsMargins( 24, 20, 24, 20 );
+                        l->setSpacing( 16 );
+                }
+                for ( auto* gb : findChildren<QGroupBox*>() )
+                {
+                        gb->setProperty( "role", QStringLiteral( "card" ) );
+                }
+
+                // Records summary caption inside the Records card (SPEC 6.4 & s10)
+                if ( auto* parentLayout = qobject_cast<QVBoxLayout*>( recordsTableView->parentWidget()->layout() ) )
+                {
+                        mRecordsSummaryLabel = new QLabel( recordsTableView->parentWidget() );
+                        mRecordsSummaryLabel->setProperty( "role", QStringLiteral( "caption" ) );
+                        const int idx = parentLayout->indexOf( recordsTableView );
+                        parentLayout->insertWidget( qMax( 0, idx ), mRecordsSummaryLabel );
+                }
+
+                // Bottom Select all / Unselect all / Reload live on Data > Merge ribbon; keep wired
+                selectAllButton->hide();
+                unselectAllButton->hide();
+                pushButton->hide();
 
                 mMergeFormatNames = merge::Factory::nameList();
                 formatCombo->addItems( mMergeFormatNames );
@@ -102,9 +131,12 @@ namespace glabels
 
                 recordsTableView->setModel( new MergeTableModel( mModel->merge() ) );
                 recordsTableView->resizeColumnsToContents();
+                updateRecordsSummary();
 
                 connect( mModel->merge(), SIGNAL(sourceChanged()),
                          this, SLOT(onMergeSourceChanged()) );
+                connect( mModel->merge(), &merge::Merge::selectionChanged,
+                         this, [this]() { updateRecordsSummary(); } );
         }
 
 
@@ -118,6 +150,19 @@ namespace glabels
 
                 recordsTableView->setModel( new MergeTableModel( mModel->merge() ) );
                 recordsTableView->resizeColumnsToContents();
+                updateRecordsSummary();
+        }
+
+
+        void MergeView::updateRecordsSummary()
+        {
+                if ( !mRecordsSummaryLabel || !mModel || !mModel->merge() )
+                {
+                        return;
+                }
+                const int total = mModel->merge()->recordList().size();
+                const int selected = mModel->merge()->nSelectedRecords();
+                mRecordsSummaryLabel->setText( tr( "%1 records, %2 selected" ).arg( total ).arg( selected ) );
         }
 
 

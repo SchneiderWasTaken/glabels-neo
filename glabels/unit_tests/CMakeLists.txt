@@ -40,3 +40,15 @@ target_link_libraries (TestThemeGallery glabels_lib glabels_resources Model Qt6:
 add_test (NAME ThemeGallery COMMAND TestThemeGallery)
 set_tests_properties (ThemeGallery PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 # --- end ribbon-ui: theme ---
+
+# --- ribbon-ui: core ---
+#=======================================
+# Test ribbon mapping, contextual tab rules, and MainWindow command-map coverage
+#=======================================
+qt6_wrap_cpp (TestRibbon_moc_sources TestRibbon.hpp)
+add_executable (TestRibbon TestRibbon.cpp ${TestRibbon_moc_sources})
+target_include_directories (TestRibbon PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_link_libraries (TestRibbon glabels_lib glabels_resources Model Qt6::Test Qt6::Widgets)
+add_test (NAME Ribbon COMMAND TestRibbon)
+set_tests_properties (Ribbon PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+# --- end ribbon-ui: core ---

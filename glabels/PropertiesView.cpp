@@ -29,6 +29,8 @@
 #include "model/Settings.hpp"
 
 #include <QDebug>
+#include <QGroupBox>
+#include <QLayout>
 #include <QStyledItemDelegate>
 
 
@@ -43,7 +45,19 @@ namespace glabels
         {
                 setupUi( this );
 
-                titleLabel->setText( QString( "<span style='font-size:18pt;'>%1</span>" ).arg( tr("Properties") ) );
+                titleLabel->setText( tr("Label") );
+                titleLabel->setProperty( "role", QStringLiteral( "pageTitle" ) );
+
+                if ( auto* l = layout() )
+                {
+                        l->setContentsMargins( 24, 20, 24, 20 );
+                        l->setSpacing( 16 );
+                }
+                for ( auto* gb : findChildren<QGroupBox*>() )
+                {
+                        gb->setProperty( "role", QStringLiteral( "card" ) );
+                }
+                preview->setProperty( "role", QStringLiteral( "workWell" ) );
 
                 similarBrowser->setAttribute(Qt::WA_TranslucentBackground);
                 similarBrowser->viewport()->setAutoFillBackground(false);

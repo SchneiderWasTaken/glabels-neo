@@ -1,0 +1,208 @@
+<section class="hero">
+  <div class="wrap hero-in">
+    <div>
+      <span class="eyebrow">Free and open source</span>
+      <h1>The free <span class="grad">label maker</span> that never asks you to sign up.</h1>
+      <p class="sub">Design and print address labels, shipping labels, product labels, name badges and barcodes on the
+        label sheets you already own. Works offline on Windows, macOS and Linux, with {{TEMPLATES}} label templates built in.</p>
+      <p class="actions">
+        <a class="btn" id="hero-download" href="#download"><span>Download free</span></a>
+        <a class="btn btn-ghost" href="{{BASE}}/templates/">Find your label template</a>
+      </p>
+      <p class="os-note" id="os-note" hidden>We picked the download that matches your computer. All systems are below.</p>
+      <ul class="trust">
+        <li>No account, no ads, no watermark</li>
+        <li>Your data stays on your computer</li>
+        <li>GPL open source</li>
+      </ul>
+    </div>
+    <div>
+      <svg class="hero-art" viewBox="0 0 640 400" role="img" aria-label="Animation: a shipping label being designed in gLabels Neo, with an element snapping to a guide">
+        <rect class="win" x="8" y="8" width="624" height="384" rx="14"/>
+        <path class="bar" d="M8 22a14 14 0 0 1 14-14h596a14 14 0 0 1 14 14v34H8z"/>
+        <circle cx="26" cy="32" r="5" fill="#f87171"/><circle cx="44" cy="32" r="5" fill="#fbbf24"/><circle cx="62" cy="32" r="5" fill="#34d399"/>
+        <rect class="tab" x="86" y="23" width="44" height="18" rx="9"/>
+        <rect class="chip" x="138" y="25" width="38" height="14" rx="7"/><rect class="chip" x="184" y="25" width="38" height="14" rx="7"/>
+        <rect class="chip" x="230" y="25" width="38" height="14" rx="7"/><rect class="chip" x="276" y="25" width="38" height="14" rx="7"/>
+        <rect x="8" y="56" width="624" height="56" fill="var(--win)"/>
+        <g class="chip"><rect x="24" y="68" width="34" height="32" rx="8"/><rect x="68" y="68" width="34" height="32" rx="8"/><rect x="112" y="68" width="34" height="32" rx="8"/>
+          <rect x="170" y="68" width="34" height="32" rx="8"/><rect x="214" y="68" width="34" height="32" rx="8"/><rect x="258" y="68" width="34" height="32" rx="8"/><rect x="316" y="68" width="90" height="32" rx="8"/></g>
+        <rect class="canvas" x="8" y="112" width="624" height="280"/>
+        <path class="canvas" d="M8 392v-14h624v14a0 0 0 0 1 0 0z"/>
+        <g class="a-all">
+          <rect class="lbl a-outline" pathLength="1" x="100" y="132" width="440" height="244" rx="24"/>
+          <g class="grid">{{GRID}}</g>
+          <rect class="navy a-banner" x="122" y="150" width="396" height="32" rx="4"/>
+          <text class="t-white a-banner-t" x="136" y="171">HARBOR &amp; PINE COFFEE  -  PRIORITY SHIPPING</text>
+          <text class="t-sm" x="136" y="203">SHIP TO</text>
+          <g class="a-move"><text class="t-name a-name" x="136" y="233">Maya Okafor</text></g>
+          <g class="a-addr"><text class="t-addr" x="136" y="260">2210 Alder Street, Apt 4B</text><text class="t-addr" x="136" y="280">Seattle, WA 98122</text></g>
+          <g class="a-dm">{{DATAMATRIX}}</g>
+          <g class="bars a-bars">{{BARCODE}}</g>
+          <text class="t-addr" x="440" y="352" text-anchor="end" style="font-weight:700">Order 20418</text>
+          <g class="a-guide"><line class="guide" x1="136" y1="124" x2="136" y2="384"/>
+            <rect class="pill" x="144" y="124" width="62" height="20" rx="10"/><text class="pill-t" x="175" y="138" text-anchor="middle">Safe area</text></g>
+          <g class="a-sel"><rect class="sel" x="132" y="206" width="188" height="36"/>
+            <rect class="handle" x="128" y="202" width="8" height="8"/><rect class="handle" x="316" y="202" width="8" height="8"/>
+            <rect class="handle" x="128" y="238" width="8" height="8"/><rect class="handle" x="316" y="238" width="8" height="8"/></g>
+          <g class="a-cursor"><path class="cursor" d="M230 236l0 18 5-5 4 9 4-2-4-9 7 0z"/></g>
+        </g>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="themes">
+  <div class="sec-head rv">
+    <h2>A modern, ribbon-style label designer</h2>
+    <p>Everything is a click away on the ribbon, and the tools you need appear when you select an object: text, barcode,
+      image, shape or line. Six colour themes in light and dark are built in.</p>
+  </div>
+  <div class="tilt rv d1">
+    <div class="shot-frame">
+      <img id="shot-a" data-base="{{BASE}}/assets/img/" alt="gLabels Neo with a shipping label open: ribbon toolbar, label canvas with a data matrix code and a barcode" width="960" height="600" decoding="async" fetchpriority="high" src="{{BASE}}/assets/img/theme-graphite-light.webp">
+      <img id="shot-b" class="off" alt="" width="960" height="600" decoding="async" loading="lazy">
+    </div>
+  </div>
+  <div class="swatches rv d2" role="group" aria-label="Colour theme of the app">
+    <button class="swatch" type="button" data-scheme="graphite" aria-pressed="true" style="--c:#3b82f6"><i></i>Graphite</button>
+    <button class="swatch" type="button" data-scheme="neo" aria-pressed="false" style="--c:#6d5df5"><i></i>Neo</button>
+    <button class="swatch" type="button" data-scheme="paper" aria-pressed="false" style="--c:#3f8a5f"><i></i>Paper</button>
+    <button class="swatch" type="button" data-scheme="harbor" aria-pressed="false" style="--c:#0f8f86"><i></i>Harbor</button>
+    <button class="swatch" type="button" data-scheme="signal" aria-pressed="false" style="--c:#ea580c"><i></i>Signal</button>
+    <button class="swatch" type="button" data-scheme="system" aria-pressed="false" style="--c:#2b7de9"><i></i>System</button>
+  </div>
+</section>
+
+<section class="wrap" id="features">
+  <div class="sec-head rv">
+    <h2>Everything you need to make labels, nothing you have to pay for</h2>
+    <p>gLabels Neo is a complete desktop label maker: layout, templates, barcodes, data merge and printing.</p>
+  </div>
+  <div class="cards">
+    <article class="card rv"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3"/><path d="M3 9h18M8 9v11"/></svg></div>
+      <h3>Ribbon editor</h3><p>Home, Label, Data, Print, Deploy and View tabs, plus context tools that show up for the object you select. Undo and redo with clear labels.</p></article>
+    <article class="card rv d1"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="3"/></svg></div>
+      <h3>Snap and guides</h3><p>Objects snap to each other's edges and centres, to the label centre and to the safe area inside the margin. Hold Alt to move freely.</p></article>
+    <article class="card rv d2"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg></div>
+      <h3>{{TEMPLATES}} label templates</h3><p>Avery, Online Labels, Herma, Hisago, Rayfilm and many more, in US Letter, A4 and other sizes. Missing yours? The template designer builds it in a few steps.</p></article>
+    <article class="card rv"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 6v12M8 6v12M12 6v12M16 6v12M20 6v12"/></svg></div>
+      <h3>Barcodes and 2D codes</h3><p>Code 39, EAN-13, UPC-A, POSTNET and Data Matrix built in, with text, images, lines and shapes alongside.</p></article>
+    <article class="card rv d1"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 10h18M3 15h18M9 4v16"/></svg></div>
+      <h3>Print from a spreadsheet</h3><p>Import CSV or Excel into the Fill table, set quantities, preview the sheet live and print only the rows you tick.</p></article>
+    <article class="card rv d2"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9V3h12v6M6 18H4a1 1 0 0 1-1-1v-6a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v6a1 1 0 0 1-1 1h-2"/><rect x="6" y="14" width="12" height="7"/></svg></div>
+      <h3>Thermal and Zebra (ZPL)</h3><p>Print to Zebra and compatible thermal printers directly with raw ZPL over USB or network, on roll label templates.</p></article>
+    <article class="card rv"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg></div>
+      <h3>Kiosk apps for your team</h3><p>Build a single-file kiosk from any label. Operators only fill in the fields you leave open, then press Print. No install.</p></article>
+    <article class="card rv d1"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.6-.2-1-.5-1.4-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2H18a3 3 0 0 0 3-3c0-4.4-4-8.3-9-8.3z"/><circle cx="7.5" cy="11" r="1"/><circle cx="12" cy="7.5" r="1"/><circle cx="16.5" cy="11" r="1"/></svg></div>
+      <h3>Light, dark and six themes</h3><p>Graphite, Neo, Paper, Harbor, Signal and System, each in light and dark, switching live from Preferences.</p></article>
+    <article class="card rv d2"><div class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg></div>
+      <h3>Private and offline</h3><p>Your labels and data never leave your computer. No account, no cloud, no tracking. The source code is open for anyone to read.</p></article>
+  </div>
+</section>
+
+<section class="alt band" id="fill">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <h2>Print a hundred different labels from one spreadsheet</h2>
+      <p>Put <code>${name}</code>, <code>${street}</code> or any field on a label, import your list, and the Fill page
+        shows every row beside a live preview of the sheet.</p>
+    </div>
+    <div class="demo rv d1" id="fill-demo">
+      <div class="csv" aria-label="Example spreadsheet rows">
+        <div class="csv-h"><span>shipping-orders.csv</span><span>6 rows</span></div>
+        <table><thead><tr><th>name</th><th>city</th><th>order</th></tr></thead><tbody>
+          <tr><td>Maya Okafor</td><td>Seattle, WA</td><td>20418</td></tr>
+          <tr><td>Tomas Berg</td><td>Portland, ME</td><td>20419</td></tr>
+          <tr><td>Priya Raman</td><td>San Francisco, CA</td><td>20420</td></tr>
+          <tr><td>Luca Ferri</td><td>Austin, TX</td><td>20421</td></tr>
+          <tr><td>Aiko Tanaka</td><td>Chicago, IL</td><td>20422</td></tr>
+          <tr><td>Sam Whitaker</td><td>Boulder, CO</td><td>20423</td></tr>
+        </tbody></table>
+      </div>
+      <div class="mini-sheet" role="img" aria-label="A sheet of ten shipping labels filling with the spreadsheet rows">
+        <div class="mini-lab"><b>Maya Okafor</b><span>Seattle, WA 98122</span><i></i></div>
+        <div class="mini-lab"><b>Tomas Berg</b><span>Portland, ME 04101</span><i></i></div>
+        <div class="mini-lab"><b>Priya Raman</b><span>San Francisco, CA</span><i></i></div>
+        <div class="mini-lab"><b>Luca Ferri</b><span>Austin, TX 78701</span><i></i></div>
+        <div class="mini-lab"><b>Aiko Tanaka</b><span>Chicago, IL 60657</span><i></i></div>
+        <div class="mini-lab"><b>Sam Whitaker</b><span>Boulder, CO 80302</span><i></i></div>
+        <div class="mini-lab empty"></div><div class="mini-lab empty"></div><div class="mini-lab empty"></div><div class="mini-lab empty"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="templates">
+  <div class="sec-head rv">
+    <h2>Works with the label stock you already have</h2>
+    <p>Pick the part number printed on your label sheet and gLabels Neo sets the size, spacing and margins for you.</p>
+  </div>
+  <div class="stats rv d1">
+    <div class="stat"><b data-count="{{TEMPLATES_RAW}}">{{TEMPLATES}}</b><span>label templates built in</span></div>
+    <div class="stat"><b data-count="{{MAKERS}}">{{MAKERS}}</b><span>label makers</span></div>
+    <div class="stat"><b>3</b><span>operating systems</span></div>
+  </div>
+  <p class="rv d2" style="margin-top:1.6em">Popular sheets:</p>
+  <ul class="chips rv d2">{{POPULAR}}</ul>
+  <p class="actions rv d3"><a class="btn btn-ghost" href="{{BASE}}/templates/">Search all label templates</a></p>
+</section>
+
+<section class="alt band" id="compare">
+  <div class="wrap">
+    <div class="sec-head rv">
+      <h2>Why use desktop label software instead of an online label maker?</h2>
+      <p>A general comparison. Features differ between products, so check the one you are considering.</p>
+    </div>
+    <div class="table-wrap rv d1">
+      <table class="cmp">
+        <thead><tr><th></th><th>gLabels Neo</th><th>Typical online label makers</th></tr></thead>
+        <tbody>
+          <tr><th scope="row">Cost</th><td><span class="yes">Free</span>, open source (GPL)</td><td>Often a free trial, then paid plans or fees to remove limits</td></tr>
+          <tr><th scope="row">Account</th><td>None needed</td><td>Often required to save or print</td></tr>
+          <tr><th scope="row">Works offline</th><td><span class="yes">Yes</span></td><td>Usually needs an internet connection</td></tr>
+          <tr><th scope="row">Your data</th><td>Stays on your computer</td><td>Usually stored on the vendor's servers</td></tr>
+          <tr><th scope="row">Label stock</th><td>{{TEMPLATES}} templates from {{MAKERS}} makers, plus a custom template designer</td><td>Often limited to one maker's products</td></tr>
+          <tr><th scope="row">Batch print from CSV or Excel</th><td><span class="yes">Yes</span>, with live sheet preview</td><td>Varies by plan</td></tr>
+          <tr><th scope="row">Thermal printers (Zebra ZPL)</th><td><span class="yes">Yes</span>, raw ZPL over USB or network</td><td>Varies</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<section class="wrap" id="download">
+  <div class="sec-head rv">
+    <h2>Download gLabels Neo</h2>
+    <p>Free for Windows, macOS and Linux. No installer needed on Windows: unzip and run.</p>
+  </div>
+  <div class="dl-grid">
+    <div class="dl rv" data-os="windows"><h3>Windows</h3><p>Windows 10 and 11, 64-bit. Unzip anywhere and run <code>bin\glabels-qt.exe</code>.</p>
+      <a class="btn" href="{{DOWNLOAD}}glabels-neo-windows-x64.zip">Download .zip</a><small>glabels-neo-windows-x64.zip</small></div>
+    <div class="dl rv d1" data-os="macos"><h3>macOS</h3><p>Apple Silicon. Open the disk image and drag the app to Applications. Right-click and choose Open the first time.</p>
+      <a class="btn" href="{{DOWNLOAD}}glabels-neo-macos-arm64.dmg">Download .dmg</a><small>glabels-neo-macos-arm64.dmg</small></div>
+    <div class="dl rv d2" data-os="linux"><h3>Linux</h3><p>x86_64. Extract the archive and run <code>./glabels-neo/glabels-neo</code>.</p>
+      <a class="btn" href="{{DOWNLOAD}}glabels-neo-linux-x86_64.tar.gz">Download .tar.gz</a><small>glabels-neo-linux-x86_64.tar.gz</small></div>
+  </div>
+  <p class="rv" style="margin-top:20px;color:var(--ink-3)">Every download is built from the public source code. See the <a href="{{REPO}}/releases/latest">release notes and checksums</a>
+    or <a href="{{REPO}}">read the source</a>.</p>
+</section>
+
+<section class="wrap" id="faq">
+  <div class="sec-head rv"><h2>Questions</h2></div>
+  <div class="faq rv d1">
+    <details><summary>Is gLabels Neo really free?</summary><p>Yes. It is open-source software under the GPL-3.0-or-later license. There is no account, no trial, no watermark, no ads and no per-label fee.</p></details>
+    <details><summary>Does it work with Avery label sheets?</summary><p>Yes. It includes templates for Avery sheets such as 5160, 5163 and 8160, plus Online Labels, Herma, Hisago, Rayfilm and many other makers, nearly 1,500 in total. If your sheet is not listed, the Product Template Designer lets you create it.</p></details>
+    <details><summary>Which computers does it run on?</summary><p>Windows 10 and 11 (64-bit), macOS on Apple Silicon, and Linux on x86_64.</p></details>
+    <details><summary>Can I print labels from an Excel or CSV list?</summary><p>Yes. Use the Fill page to import a CSV or Excel file, choose a quantity for each row, preview the sheet and print the rows you select.</p></details>
+    <details><summary>Does it support Zebra and other thermal label printers?</summary><p>Yes. It can send raw ZPL to Zebra and compatible printers over USB or the network, and it has roll and thermal label templates.</p></details>
+    <details><summary>Does it need an internet connection?</summary><p>No. Designing and printing work offline. The only network use is an optional check for new versions, which asks for your permission first.</p></details>
+    <details><summary>How is it different from gLabels?</summary><p>gLabels Neo is an independent fork of gLabels. It adds a ribbon interface, colour themes, snapping and guides, the Fill page, kiosk deployment, ZPL thermal printing, an improved template designer and automatic updates. All credit for the original application goes to Jaye Evins and the gLabels contributors.</p></details>
+  </div>
+</section>
+
+<section class="wrap cta rv">
+  <h2 style="margin-top:0">Make your first label in a minute</h2>
+  <p>Download, pick your label sheet, and print. It is free, and it is yours.</p>
+  <p class="actions"><a class="btn" href="#download">Download gLabels Neo</a><a class="btn btn-ghost" href="{{REPO}}">View on GitHub</a></p>
+</section>

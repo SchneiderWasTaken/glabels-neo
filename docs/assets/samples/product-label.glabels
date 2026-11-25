@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<Glabels-document version="4.0">
+  <Template brand="Avery" description="Round labels" part="3274.2" size="US-Letter">
+    <Label-round id="0" radius="54pt" waste="0pt">
+      <Markup-margin size="4.5pt"/>
+      <Layout dx="144pt" dy="144pt" nx="4" ny="5" x0="36pt" y0="54pt"/>
+    </Label-round>
+  </Template>
+  <Objects id="0" rotate="false">
+    <Object-ellipse x="8pt" y="8pt" w="92pt" h="92pt" a0="1" a1="0" a2="0" a3="1" a4="0" a5="0" line_width="1.5pt" line_color="0x0f172aff" fill_color="0xfef3c7ff" shadow="false" lock_aspect_ratio="false"/>
+    <Object-text x="14pt" y="22pt" w="80pt" h="12pt" a0="1" a1="0" a2="0" a3="1" a4="0" a5="0" font_family="Segoe UI" font_size="7" font_weight="bold" font_italic="false" font_underline="false" color="0x92400eff" align="hcenter" valign="top" wrap="word" line_spacing="1" auto_shrink="false" shadow="false" lock_aspect_ratio="false"><p>HARBOR &amp; PINE</p></Object-text>
+    <Object-text x="14pt" y="34pt" w="80pt" h="28pt" a0="1" a1="0" a2="0" a3="1" a4="0" a5="0" font_family="Segoe UI" font_size="22" font_weight="bold" font_italic="false" font_underline="false" color="0x0f172aff" align="hcenter" valign="vcenter" wrap="word" line_spacing="1" auto_shrink="false" shadow="false" lock_aspect_ratio="false"><p>Guji</p></Object-text>
+    <Object-line x="34pt" y="66pt" dx="40pt" dy="0pt" a0="1" a1="0" a2="0" a3="1" a4="0" a5="0" line_width="1pt" line_color="0x92400eff" shadow="false"/>
+    <Object-text x="14pt" y="68pt" w="80pt" h="18pt" a0="1" a1="0" a2="0" a3="1" a4="0" a5="0" font_family="Segoe UI" font_size="8" font_weight="regular" font_italic="false" font_underline="false" color="0x1e293bff" align="hcenter" valign="top" wrap="word" line_spacing="1" auto_shrink="false" shadow="false" lock_aspect_ratio="false"><p>Natural  -  250 g</p></Object-text>
+  </Objects>
+  <Data/>
+</Glabels-document>

@@ -1,16 +1,30 @@
-# gLabels Neo
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="brand/logo-horizontal-tagline-onDark.svg">
+    <img src="brand/logo-horizontal-tagline.svg" alt="gLabels Neo - a modernized fork of gLabels" width="420">
+  </picture>
+</p>
 
-**A modernized fork of [gLabels](https://github.com/j-evins/glabels-qt) by Jaye Evins and contributors.**
+<h3 align="center">A free, open-source label maker for Windows, macOS and Linux.</h3>
 
-[![Latest release](https://img.shields.io/github/v/release/SchneiderWasTaken/glabels-neo?label=download)](https://github.com/SchneiderWasTaken/glabels-neo/releases/latest)
-[![License: GPL v3+](https://img.shields.io/badge/license-GPL--3.0--or--later-blue)](LICENSE)
+<p align="center">
+  Design and print address labels, shipping labels, product labels, name badges, business cards and
+  barcodes on the sheet or roll you already own. Nearly 1,500 label templates built in. No account, no
+  subscription, no cloud.
+</p>
 
-![gLabels Neo](glabels/images/glabels-label-designer.png)
+<p align="center">
+  <a href="https://github.com/SchneiderWasTaken/glabels-neo/releases/latest"><img src="https://img.shields.io/github/v/release/SchneiderWasTaken/glabels-neo?label=download&color=4f46e5" alt="Latest release"></a>
+  <a href="https://github.com/SchneiderWasTaken/glabels-neo/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/SchneiderWasTaken/glabels-neo/ci.yml?branch=main&label=build" alt="Build status"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-GPL--3.0--or--later-blue" alt="License: GPL v3+"></a>
+</p>
 
-gLabels Neo is a Qt6 label designer for creating and printing address labels,
-product labels, shipping labels, business cards and barcodes - with support for
-thermal printers, batch filling from CSV/Excel, and ready-to-run builds for
-Windows, macOS and Linux.
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/hero-dark.png">
+    <img src="docs/assets/readme/hero-light.png" alt="gLabels Neo editing a shipping label: ribbon toolbar, label canvas with a data matrix and a barcode, and the Text tools open" width="100%">
+  </picture>
+</p>
 
 > gLabels Neo is an independent fork. It is **not** the official gLabels project
 > and is not endorsed by its author.  All credit for the original application
@@ -44,10 +58,84 @@ automatically, and never installs anything without your say-so unless you opt in
 > [roadmap](docs/ROADMAP.md).
 
 
-## What gLabels Neo adds
+## A modern, ribbon-style editor
+
+Everything is one click away on the ribbon, grouped the way you work: **Home**, **Label**, **Data**,
+**Print**, **Deploy**, **View** and **Help**. Select an object and a matching tool tab appears
+(**Text**, **Barcode**, **Image**, **Shape**, **Line**) with its font, colour, size, position and
+shadow controls, so there is no side panel to hunt through. The **File** menu opens a full-page
+backstage for New, Open, Save and your recent projects.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/round-label-dark.png">
+    <img src="docs/assets/readme/round-label-light.png" alt="A round product label open in gLabels Neo" width="100%">
+  </picture>
+</p>
+
+- **Snap and guides.** Drag an object and it snaps to the edges and centres of the other objects, to
+  the label's centre, and to the inside of the safe area (never the outer edge). Hold **Alt** to move
+  freely; each snap type can be switched off on the **View** tab. See [docs/ribbon-ui/SNAP.md](docs/ribbon-ui/SNAP.md).
+- **Round, square, rectangular, elliptical and CD/DVD labels**, with the sheet layout, margins and
+  safe area drawn on the canvas, so what you see is what lands on the stick-on label.
+- **Barcodes and 2D codes** (Code 39, EAN-13, UPC-A, POSTNET, Data Matrix and more), plain text with
+  full font control, images, lines, boxes and ellipses (shadows on everything except barcodes).
+- **Six colour themes, each in light and dark**: Graphite (the default), Neo, Paper, Harbor, Signal
+  and System. Pick one under **Preferences > Appearance** or on the **View** tab; the change is live.
+  See [docs/ribbon-ui/THEMES.md](docs/ribbon-ui/THEMES.md).
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/themes-dark.png">
+    <img src="docs/assets/readme/themes-light.png" alt="The six colour themes of gLabels Neo: Graphite, Neo, Paper, Harbor, Signal and System" width="100%">
+  </picture>
+  <br>
+  <sub>Graphite, Neo, Paper (top row), Harbor, Signal and System (bottom row).</sub>
+</p>
+
+
+## Pick your label stock
+
+Choose from **nearly 1,500 built-in templates** for Avery, Online Labels, Herma, Hisago, Rayfilm,
+Brother, Dymo, Zweckform and many other makers, in US Letter, A4 and other sheet sizes. Search by part
+number ("5160", "L7160"), by paper size or by shape. If your stock is not listed, the **Product Template
+Designer** walks you through a custom sheet or roll label step by step.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/templates-dark.png">
+    <img src="docs/assets/readme/templates-light.png" alt="The label template browser searching Avery part numbers" width="49%">
+  </picture>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/designer-dark.png">
+    <img src="docs/assets/readme/designer-light.png" alt="The Product Template Designer wizard with its step list" width="49%">
+  </picture>
+</p>
+
+
+## Print a whole run from a spreadsheet
+
+The **Fill** page turns any label with `${FieldName}` placeholders into a batch table: one row per print
+job, a quantity, a Print checkbox, and a live preview of the sheet. Import from **CSV or Excel**, or type
+the rows in. Use **Variables** for counters and increments, and **Merge** for the classic mail-merge
+formats.
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/readme/fill-dark.png">
+    <img src="docs/assets/readme/fill-light.png" alt="The Fill page: a table of six orders on the left and a live sheet preview of ten shipping labels on the right" width="100%">
+  </picture>
+</p>
+
+Try it with the sample files in [docs/assets/samples](docs/assets/samples): open
+`shipping-label-merge.glabels`, go to **Data > Fill** and import `shipping-orders.csv`.
+
+
+## What gLabels Neo adds to gLabels
 
 Everything in gLabels is preserved.  Neo adds:
 
+- **A ribbon interface, themes and snapping** - described above.
 - **Fill page** (Ctrl+5) - a batch table where each row is one print job with a
   quantity, a Print checkbox and one column per `${FieldName}` in your label,
   with a live sheet preview and CSV/Excel import/export.
@@ -61,6 +149,7 @@ Everything in gLabels is preserved.  Neo adds:
 - **Custom and thermal/roll label templates** via the Template Designer wizard.
 - **Per-column locking** - pre-fill locked columns from a data source while
   operators enter only the per-day values.
+- **Automatic updates** that never install anything without your say-so.
 
 See [docs/FILL-AND-DEPLOY.md](docs/FILL-AND-DEPLOY.md) for details, and
 [docs/CHANGES-FROM-UPSTREAM.md](docs/CHANGES-FROM-UPSTREAM.md) for exactly what
@@ -87,6 +176,10 @@ Platform guides inherited from upstream:
 [Windows](docs/BUILD-INSTRUCTIONS-WINDOWS.md).
 The single-file kiosk (SFX) build is described in
 [docs/FILL-AND-DEPLOY.md](docs/FILL-AND-DEPLOY.md).
+
+The pictures in this README are generated, not hand-captured: run the `MarketingShots` test with
+`GLABELS_MARKETING_SHOTS=<folder>` set, then `scripts/make-marketing-assets.py <folder>` (see
+[docs/assets/README.md](docs/assets/README.md)).
 
 
 ## License

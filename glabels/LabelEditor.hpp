@@ -22,12 +22,15 @@
 #define LabelEditor_hpp
 
 
+#include "SnapEngine.hpp"
 #include "model/Handle.hpp"
 #include "model/Model.hpp"
 #include "model/ModelObject.hpp"
 #include "model/Region.hpp"
 
 #include <QPainter>
+#include <QPointF>
+#include <QRectF>
 #include <QScrollArea>
 #include <QWidget>
 
@@ -69,8 +72,11 @@ namespace glabels
                 /////////////////////////////////////
         public:
                 double zoom() const;
+                double scale() const;
                 bool markupVisible() const;
                 bool qridVisible() const;
+                QPointF labelToWidget( const QPointF& labelPt ) const;
+                const SnapResult& activeSnap() const;
 
 
                 /////////////////////////////////////
@@ -125,6 +131,7 @@ namespace glabels
                 void mouseReleaseEvent( QMouseEvent* event ) override;
                 void leaveEvent( QEvent* event ) override;
                 void keyPressEvent( QKeyEvent* event ) override;
+                void keyReleaseEvent( QKeyEvent* event ) override;
                 void paintEvent( QPaintEvent* event ) override;
                 void dragEnterEvent( QDragEnterEvent *event ) override;
                 void dragMoveEvent( QDragMoveEvent *event ) override;
@@ -135,8 +142,23 @@ namespace glabels
                 // Private methods
                 /////////////////////////////////////
         private:
+                static QRectF  objectSnapBounds( const model::ModelObject* object );
+                static QString objectSnapTypeName( const model::ModelObject* object );
+                SnapInset      safeAreaInset() const;
+                SnapContext    buildSnapContext( bool excludeSelected,
+                                                 const model::ModelObject* excludeObject = nullptr ) const;
+                QRectF         selectionSnapBounds() const;
+                void           clearActiveSnap();
+
+                void applyMoveMotion( model::Distance xWorld,
+                                      model::Distance yWorld,
+                                      bool            bypassSnap );
                 void handleResizeMotion( model::Distance xWorld,
-                                         model::Distance yWorld );
+                                         model::Distance yWorld,
+                                         bool            bypassSnap );
+                void applyCreateDragMotion( model::Distance xWorld,
+                                            model::Distance yWorld,
+                                            bool            bypassSnap );
 
                 void drawBgLayer( QPainter* painter );
                 void drawGridLayer( QPainter* painter );
@@ -145,6 +167,8 @@ namespace glabels
                 void drawFgLayer( QPainter* painter );
                 void drawHighlightLayer( QPainter* painter );
                 void drawSelectRegionLayer( QPainter* painter );
+                void drawSnapGuidesLayer( QPainter* painter );
+                void drawSnapCaption( QPainter* painter );
 
 
                 /////////////////////////////////////
@@ -201,8 +225,11 @@ namespace glabels
                 model::Region        mSelectRegion;
 
                 /* ArrowMove state */
-                model::Distance      mMoveLastX;
-                model::Distance      mMoveLastY;
+                model::Distance      mMoveStartX;
+                model::Distance      mMoveStartY;
+                double               mMoveAppliedDx;
+                double               mMoveAppliedDy;
+                QRectF               mMoveStartBounds;
 
                 /* ArrowResize state */
                 model::ModelObject*     mResizeObject;
@@ -214,6 +241,12 @@ namespace glabels
                 model::ModelObject*  mCreateObject;
                 model::Distance      mCreateX0;
                 model::Distance      mCreateY0;
+
+                /* Snap & guides state */
+                SnapResult           mActiveSnap;
+                QPointF              mLastCursorWidgetPos;
+                model::Distance      mLastRawWorldX;
+                model::Distance      mLastRawWorldY;
 
 
         };

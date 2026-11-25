@@ -41,10 +41,15 @@
 #include "model/Settings.hpp"
 
 #include <QDebug>
+#include <QFontMetricsF>
+#include <QKeyEvent>
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QPalette>
 #include <QtMath>
+
+#include <algorithm>
+#include <cmath>
 
 
 //
@@ -97,6 +102,8 @@ namespace glabels
                 mState = IdleState;
 
                 mSelectRegionVisible  = false;
+                mMoveAppliedDx        = 0.0;
+                mMoveAppliedDy        = 0.0;
                 mResizeObject         = nullptr;
                 mResizeHandleLocation = model::Handle::NULL_HANDLE;
                 mResizeHonorAspect    = false;
@@ -121,6 +128,39 @@ namespace glabels
         LabelEditor::zoom() const
         {
                 return mZoom;
+        }
+
+
+        ///
+        /// Current pixels-per-point scale factor
+        ///
+        double
+        LabelEditor::scale() const
+        {
+                return mScale;
+        }
+
+
+        ///
+        /// Map a label point (pt) to widget coordinates (px)
+        ///
+        QPointF
+        LabelEditor::labelToWidget( const QPointF& labelPt ) const
+        {
+                QTransform transform;
+                transform.scale( mScale, mScale );
+                transform.translate( mX0.pt(), mY0.pt() );
+                return transform.map( labelPt );
+        }
+
+
+        ///
+        /// Active snap result (empty when no snap is active)
+        ///
+        const SnapResult&
+        LabelEditor::activeSnap() const
+        {
+                return mActiveSnap;
         }
 
 
@@ -324,6 +364,7 @@ namespace glabels
         {
                 setCursor( Qt::ArrowCursor );
 
+                clearActiveSnap();
                 mState = IdleState;
         }
 
@@ -450,6 +491,10 @@ namespace glabels
                         model::Distance xWorld = model::Distance::pt( pWorld.x() );
                         model::Distance yWorld = model::Distance::pt( pWorld.y() );
 
+                        mLastCursorWidgetPos = event->position();
+                        mLastRawWorldX       = xWorld;
+                        mLastRawWorldY       = yWorld;
+
 
                         if ( event->button() & Qt::LeftButton )
                         {
@@ -477,6 +522,7 @@ namespace glabels
                                                         mResizeHonorAspect = !mResizeHonorAspect;
                                                 }
 
+                                                mActiveSnap = {};
                                                 mState = ArrowResize;
                                         }
                                         else if ( (object = mModel->objectAt( mScale, xWorld, yWorld )) != nullptr )
@@ -507,8 +553,12 @@ namespace glabels
                                                         }
                                                 }
 
-                                                mMoveLastX = xWorld;
-                                                mMoveLastY = yWorld;
+                                                mMoveStartX      = xWorld;
+                                                mMoveStartY      = yWorld;
+                                                mMoveAppliedDx   = 0.0;
+                                                mMoveAppliedDy   = 0.0;
+                                                mMoveStartBounds = selectionSnapBounds();
+                                                mActiveSnap      = {};
 
                                                 mState = ArrowMove;
                                         }
@@ -571,6 +621,7 @@ namespace glabels
 
                                         mCreateX0 = xWorld;
                                         mCreateY0 = yWorld;
+                                        mActiveSnap = {};
 
                                         mState = CreateDrag;
                                 }
@@ -620,6 +671,11 @@ namespace glabels
                         model::Distance xWorld = model::Distance::pt( pWorld.x() );
                         model::Distance yWorld = model::Distance::pt( pWorld.y() );
 
+                        mLastCursorWidgetPos = event->position();
+                        mLastRawWorldX       = xWorld;
+                        mLastRawWorldY       = yWorld;
+                        const bool bypassSnap = ( event->modifiers() & Qt::AltModifier ) != 0;
+
 
                         /*
                          * Emit signal regardless of mode
@@ -656,42 +712,19 @@ namespace glabels
                                 break;
 
                         case ArrowMove:
-                                mUndoRedoModel->checkpoint( tr("Move") );
-                                mModel->moveSelection( (xWorld - mMoveLastX),
-                                                       (yWorld - mMoveLastY) );
-                                mMoveLastX = xWorld;
-                                mMoveLastY = yWorld;
+                                applyMoveMotion( xWorld, yWorld, bypassSnap );
                                 break;
 
                         case ArrowResize:
                                 mUndoRedoModel->checkpoint( tr("Resize") );
-                                handleResizeMotion( xWorld, yWorld );
+                                handleResizeMotion( xWorld, yWorld, bypassSnap );
                                 break;
 
                         case CreateIdle:
                                 break;
 
                         case CreateDrag:
-                                switch (mCreateObjectType)
-                                {
-                                case Box:
-                                case Ellipse:
-                                case Image:
-                                case Text:
-                                case Barcode:
-                                        mCreateObject->setPosition( min( xWorld, mCreateX0 ),
-                                                                    min( yWorld, mCreateY0 ) );
-                                        mCreateObject->setSize( max(xWorld,mCreateX0) - min(xWorld,mCreateX0),
-                                                                max(yWorld,mCreateY0) - min(yWorld,mCreateY0) );
-
-                                        break;
-                                case Line:
-                                        mCreateObject->setSize( xWorld - mCreateX0, yWorld - mCreateY0 );
-                                        break;
-                                default:
-                                        qDebug() << "LabelEditor::mouseMoveEvent: Invalid creation mode. Should not happen!";
-                                        break;
-                                }
+                                applyCreateDragMotion( xWorld, yWorld, bypassSnap );
                                 break;
 
                         default:
@@ -734,6 +767,7 @@ namespace glabels
 
                                 case ArrowResize:
                                         mState = IdleState;
+                                        clearActiveSnap();
                                         break;
 
                                 case ArrowSelectRegion:
@@ -750,6 +784,7 @@ namespace glabels
                                 case CreateDrag:
                                         if ( (fabs(mCreateObject->w()) < 4) && (fabs(mCreateObject->h()) < 4) )
                                         {
+                                                mCreateObject->setPosition( mCreateX0, mCreateY0 );
                                                 switch (mCreateObjectType)
                                                 {
                                                 case Text:
@@ -765,14 +800,30 @@ namespace glabels
                                                         mCreateObject->setSize( 72, 72 );
                                                         break;
                                                 }
+
+                                                const bool bypassSnap = ( event->modifiers() & Qt::AltModifier ) != 0;
+                                                if ( !bypassSnap )
+                                                {
+                                                        const SnapContext ctx = buildSnapContext( false, mCreateObject );
+                                                        const SnapResult snap = SnapEngine::snapCenter(
+                                                                objectSnapBounds( mCreateObject ), ctx );
+                                                        if ( snap.snappedX || snap.snappedY )
+                                                        {
+                                                                mCreateObject->setPosition(
+                                                                        mCreateObject->x0() + model::Distance::pt( snap.dx ),
+                                                                        mCreateObject->y0() + model::Distance::pt( snap.dy ) );
+                                                        }
+                                                }
                                         }
 
                                         setCursor( Qt::ArrowCursor );
                                         mState = IdleState;
+                                        clearActiveSnap();
                                         break;
 
                                 default:
                                         mState = IdleState;
+                                        clearActiveSnap();
                                         break;
 
                                 }
@@ -796,12 +847,381 @@ namespace glabels
 
 
         ///
+        /// Compute axis-aligned bounding box of a model object (in label pt)
+        ///
+        QRectF
+        LabelEditor::objectSnapBounds( const model::ModelObject* object )
+        {
+                if ( !object )
+                {
+                        return {};
+                }
+                const QPointF origin( object->x0().pt(), object->y0().pt() );
+                if ( dynamic_cast<const model::ModelLineObject*>( object ) )
+                {
+                        return SnapEngine::lineBoundingBox(
+                                QPointF( 0.0, 0.0 ),
+                                QPointF( object->w().pt(), object->h().pt() ),
+                                object->matrix(),
+                                origin );
+                }
+                return SnapEngine::rotatedBoundingBox(
+                        QRectF( 0.0, 0.0, object->w().pt(), object->h().pt() ),
+                        object->matrix(),
+                        origin );
+        }
+
+
+        ///
+        /// Lowercase object type name for snap captions ("Edge of text", etc.)
+        ///
+        QString
+        LabelEditor::objectSnapTypeName( const model::ModelObject* object )
+        {
+                if ( dynamic_cast<const model::ModelTextObject*>( object ) )
+                {
+                        return tr( "text" );
+                }
+                if ( dynamic_cast<const model::ModelBoxObject*>( object ) )
+                {
+                        return tr( "box" );
+                }
+                if ( dynamic_cast<const model::ModelEllipseObject*>( object ) )
+                {
+                        return tr( "ellipse" );
+                }
+                if ( dynamic_cast<const model::ModelLineObject*>( object ) )
+                {
+                        return tr( "line" );
+                }
+                if ( dynamic_cast<const model::ModelImageObject*>( object ) )
+                {
+                        return tr( "image" );
+                }
+                if ( dynamic_cast<const model::ModelBarcodeObject*>( object ) )
+                {
+                        return tr( "barcode" );
+                }
+                return tr( "object" );
+        }
+
+
+        ///
+        /// Extract safe-area inset from the active template frame's margin markup
+        ///
+        SnapInset
+        LabelEditor::safeAreaInset() const
+        {
+                if ( !mModel || !mModel->frame() )
+                {
+                        return {};
+                }
+                for ( const auto& markup : mModel->frame()->markups() )
+                {
+                        if ( const auto* mm = dynamic_cast<const model::MarkupMargin*>( markup.get() ) )
+                        {
+                                double mx = mm->xSize().pt();
+                                double my = mm->ySize().pt();
+                                if ( mModel->rotate() )
+                                {
+                                        std::swap( mx, my );
+                                }
+                                return { mx, my };
+                        }
+                }
+                return { 0.0, 0.0 };
+        }
+
+
+        ///
+        /// Build a SnapContext for the current model, settings and zoom scale
+        ///
+        SnapContext
+        LabelEditor::buildSnapContext( bool excludeSelected,
+                                       const model::ModelObject* excludeObject ) const
+        {
+                SnapContext ctx;
+                if ( !mModel )
+                {
+                        return ctx;
+                }
+                ctx.labelSize = QSizeF( mModel->w().pt(), mModel->h().pt() );
+                ctx.safeInset = safeAreaInset();
+                ctx.options.objects  = model::Settings::snapObjects();
+                ctx.options.center   = model::Settings::snapCenter();
+                ctx.options.safeArea = model::Settings::snapSafeArea();
+                ctx.tolerance = SnapEngine::toleranceForScale( mScale );
+
+                if ( ctx.options.objects )
+                {
+                        for ( const model::ModelObject* obj : mModel->objectList() )
+                        {
+                                if ( !obj || obj == excludeObject )
+                                {
+                                        continue;
+                                }
+                                if ( excludeSelected && obj->isSelected() )
+                                {
+                                        continue;
+                                }
+                                ctx.targets.push_back( { objectSnapBounds( obj ), objectSnapTypeName( obj ) } );
+                        }
+                }
+                return ctx;
+        }
+
+
+        ///
+        /// Combined axis-aligned bounding box of all selected objects
+        ///
+        QRectF
+        LabelEditor::selectionSnapBounds() const
+        {
+                QRectF bounds;
+                if ( !mModel )
+                {
+                        return bounds;
+                }
+                bool first = true;
+                for ( const model::ModelObject* obj : mModel->objectList() )
+                {
+                        if ( !obj || !obj->isSelected() )
+                        {
+                                continue;
+                        }
+                        const QRectF r = objectSnapBounds( obj );
+                        bounds = first ? r : bounds.united( r );
+                        first = false;
+                }
+                return bounds;
+        }
+
+
+        ///
+        /// Clear active snap guides and repaint if any were visible
+        ///
+        void
+        LabelEditor::clearActiveSnap()
+        {
+                if ( !mActiveSnap.guides.isEmpty() || mActiveSnap.snappedX || mActiveSnap.snappedY )
+                {
+                        mActiveSnap = {};
+                        update();
+                }
+        }
+
+
+        ///
+        /// Handle move drag motion with optional snapping
+        ///
+        void
+        LabelEditor::applyMoveMotion( model::Distance xWorld,
+                                      model::Distance yWorld,
+                                      bool            bypassSnap )
+        {
+                const double rawDx = ( xWorld - mMoveStartX ).pt();
+                const double rawDy = ( yWorld - mMoveStartY ).pt();
+
+                if ( !bypassSnap && !mMoveStartBounds.isNull() )
+                {
+                        const SnapContext ctx = buildSnapContext( true );
+                        if ( ctx.options.anyEnabled() )
+                        {
+                                const QRectF candidate = mMoveStartBounds.translated( rawDx, rawDy );
+                                mActiveSnap = SnapEngine::snapMove( candidate, ctx );
+                        }
+                        else
+                        {
+                                mActiveSnap = {};
+                        }
+                }
+                else
+                {
+                        mActiveSnap = {};
+                }
+
+                const double targetDx = rawDx + mActiveSnap.dx;
+                const double targetDy = rawDy + mActiveSnap.dy;
+                const double stepDx   = targetDx - mMoveAppliedDx;
+                const double stepDy   = targetDy - mMoveAppliedDy;
+
+                mUndoRedoModel->checkpoint( tr("Move") );
+                if ( stepDx != 0.0 || stepDy != 0.0 )
+                {
+                        mModel->moveSelection( model::Distance::pt( stepDx ),
+                                               model::Distance::pt( stepDy ) );
+                        mMoveAppliedDx = targetDx;
+                        mMoveAppliedDy = targetDy;
+                }
+                update();
+        }
+
+
+        ///
+        /// Handle create-drag motion with optional snapping
+        ///
+        void
+        LabelEditor::applyCreateDragMotion( model::Distance xWorld,
+                                            model::Distance yWorld,
+                                            bool            bypassSnap )
+        {
+                if ( !bypassSnap )
+                {
+                        const SnapContext ctx = buildSnapContext( false, mCreateObject );
+                        if ( ctx.options.anyEnabled() )
+                        {
+                                mActiveSnap = SnapEngine::snapPoint( QPointF( xWorld.pt(), yWorld.pt() ), ctx );
+                        }
+                        else
+                        {
+                                mActiveSnap = {};
+                        }
+                }
+                else
+                {
+                        mActiveSnap = {};
+                }
+
+                const model::Distance xSnapped = xWorld + model::Distance::pt( mActiveSnap.dx );
+                const model::Distance ySnapped = yWorld + model::Distance::pt( mActiveSnap.dy );
+
+                switch (mCreateObjectType)
+                {
+                case Box:
+                case Ellipse:
+                case Image:
+                case Text:
+                case Barcode:
+                        mCreateObject->setPosition( min( xSnapped, mCreateX0 ),
+                                                    min( ySnapped, mCreateY0 ) );
+                        mCreateObject->setSize( max(xSnapped,mCreateX0) - min(xSnapped,mCreateX0),
+                                                max(ySnapped,mCreateY0) - min(ySnapped,mCreateY0) );
+                        break;
+                case Line:
+                        mCreateObject->setSize( xSnapped - mCreateX0, ySnapped - mCreateY0 );
+                        break;
+                default:
+                        qDebug() << "LabelEditor::applyCreateDragMotion: Invalid creation mode. Should not happen!";
+                        break;
+                }
+                update();
+        }
+
+
+        ///
         /// Handle resize motion
         ///
         void
         LabelEditor::handleResizeMotion( model::Distance xWorld,
-                                         model::Distance yWorld )
+                                         model::Distance yWorld,
+                                         bool            bypassSnap )
         {
+                if ( !bypassSnap )
+                {
+                        const SnapContext ctx = buildSnapContext( false, mResizeObject );
+                        if ( ctx.options.anyEnabled() )
+                        {
+                                if ( mResizeHandleLocation == model::Handle::P1 ||
+                                     mResizeHandleLocation == model::Handle::P2 )
+                                {
+                                        mActiveSnap = SnapEngine::snapPoint(
+                                                QPointF( xWorld.pt(), yWorld.pt() ), ctx );
+                                        xWorld += model::Distance::pt( mActiveSnap.dx );
+                                        yWorld += model::Distance::pt( mActiveSnap.dy );
+                                }
+                                else
+                                {
+                                        // Map local dragged edge normals into world SnapEdges
+                                        const QTransform mat = mResizeObject->matrix();
+                                        auto addWorldEdgeForLocalNormal = [&]( double nx, double ny, SnapEdges& edges )
+                                        {
+                                                const double wx = mat.m11() * nx + mat.m21() * ny;
+                                                const double wy = mat.m12() * nx + mat.m22() * ny;
+                                                if ( wx < -1e-6 ) edges |= SnapEdge::Left;
+                                                if ( wx >  1e-6 ) edges |= SnapEdge::Right;
+                                                if ( wy < -1e-6 ) edges |= SnapEdge::Top;
+                                                if ( wy >  1e-6 ) edges |= SnapEdge::Bottom;
+                                        };
+
+                                        SnapEdges draggedEdges = SnapEdge::None;
+                                        switch ( mResizeHandleLocation )
+                                        {
+                                        case model::Handle::NW:
+                                                addWorldEdgeForLocalNormal( -1,  0, draggedEdges );
+                                                addWorldEdgeForLocalNormal(  0, -1, draggedEdges );
+                                                break;
+                                        case model::Handle::N:
+                                                addWorldEdgeForLocalNormal(  0, -1, draggedEdges );
+                                                break;
+                                        case model::Handle::NE:
+                                                addWorldEdgeForLocalNormal(  1,  0, draggedEdges );
+                                                addWorldEdgeForLocalNormal(  0, -1, draggedEdges );
+                                                break;
+                                        case model::Handle::E:
+                                                addWorldEdgeForLocalNormal(  1,  0, draggedEdges );
+                                                break;
+                                        case model::Handle::SE:
+                                                addWorldEdgeForLocalNormal(  1,  0, draggedEdges );
+                                                addWorldEdgeForLocalNormal(  0,  1, draggedEdges );
+                                                break;
+                                        case model::Handle::S:
+                                                addWorldEdgeForLocalNormal(  0,  1, draggedEdges );
+                                                break;
+                                        case model::Handle::SW:
+                                                addWorldEdgeForLocalNormal( -1,  0, draggedEdges );
+                                                addWorldEdgeForLocalNormal(  0,  1, draggedEdges );
+                                                break;
+                                        case model::Handle::W:
+                                                addWorldEdgeForLocalNormal( -1,  0, draggedEdges );
+                                                break;
+                                        default:
+                                                break;
+                                        }
+
+                                        // Compute provisional world bounding box at raw (xWorld, yWorld)
+                                        QPointF pl( xWorld.pt(), yWorld.pt() );
+                                        pl -= QPointF( mResizeObject->x0().pt(), mResizeObject->y0().pt() );
+                                        pl = mat.inverted().map( pl );
+
+                                        const double cx2 = mResizeObject->w().pt();
+                                        const double cy2 = mResizeObject->h().pt();
+                                        double cw = cx2;
+                                        double ch = cy2;
+                                        double cx0 = 0.0;
+                                        double cy0 = 0.0;
+                                        switch ( mResizeHandleLocation )
+                                        {
+                                        case model::Handle::NW: cw = std::max( cx2 - pl.x(), 0.0 ); ch = std::max( cy2 - pl.y(), 0.0 ); cx0 = cx2 - cw; cy0 = cy2 - ch; break;
+                                        case model::Handle::N:  ch = std::max( cy2 - pl.y(), 0.0 ); cy0 = cy2 - ch; break;
+                                        case model::Handle::NE: cw = std::max( pl.x(), 0.0 );       ch = std::max( cy2 - pl.y(), 0.0 ); cy0 = cy2 - ch; break;
+                                        case model::Handle::E:  cw = std::max( pl.x(), 0.0 );       break;
+                                        case model::Handle::SE: cw = std::max( pl.x(), 0.0 );       ch = std::max( pl.y(), 0.0 ); break;
+                                        case model::Handle::S:  ch = std::max( pl.y(), 0.0 );       break;
+                                        case model::Handle::SW: cw = std::max( cx2 - pl.x(), 0.0 ); ch = std::max( pl.y(), 0.0 ); cx0 = cx2 - cw; break;
+                                        case model::Handle::W:  cw = std::max( cx2 - pl.x(), 0.0 ); cx0 = cx2 - cw; break;
+                                        default: break;
+                                        }
+
+                                        const QPointF candOrigin = mat.map( QPointF( cx0, cy0 ) )
+                                                                 + QPointF( mResizeObject->x0().pt(), mResizeObject->y0().pt() );
+                                        const QRectF candBox = SnapEngine::rotatedBoundingBox(
+                                                QRectF( 0.0, 0.0, cw, ch ), mat, candOrigin );
+
+                                        mActiveSnap = SnapEngine::snapResize( candBox, draggedEdges, ctx );
+                                        xWorld += model::Distance::pt( mActiveSnap.dx );
+                                        yWorld += model::Distance::pt( mActiveSnap.dy );
+                                }
+                        }
+                        else
+                        {
+                                mActiveSnap = {};
+                        }
+                }
+                else
+                {
+                        mActiveSnap = {};
+                }
+
                 QPointF p( xWorld.pt(), yWorld.pt() );
 
                 /*
@@ -943,6 +1363,7 @@ namespace glabels
                 p0 += QPointF( mResizeObject->x0().pt(), mResizeObject->y0().pt() );
                 mResizeObject->setPosition( model::Distance::pt(p0.x()),
                                             model::Distance::pt(p0.y()) );
+                update();
         }
 
 
@@ -951,6 +1372,25 @@ namespace glabels
         void
         LabelEditor::keyPressEvent( QKeyEvent* event )
         {
+                if ( event->key() == Qt::Key_Alt &&
+                     ( mState == ArrowMove || mState == ArrowResize || mState == CreateDrag ) )
+                {
+                        if ( mState == ArrowMove )
+                        {
+                                applyMoveMotion( mLastRawWorldX, mLastRawWorldY, true );
+                        }
+                        else if ( mState == ArrowResize )
+                        {
+                                handleResizeMotion( mLastRawWorldX, mLastRawWorldY, true );
+                        }
+                        else if ( mState == CreateDrag )
+                        {
+                                applyCreateDragMotion( mLastRawWorldX, mLastRawWorldY, true );
+                        }
+                        event->accept();
+                        return;
+                }
+
                 if ( mState == IdleState )
                 {
                         switch (event->key())
@@ -996,6 +1436,34 @@ namespace glabels
 
 
         ///
+        /// Key Release Event Handler
+        ///
+        void
+        LabelEditor::keyReleaseEvent( QKeyEvent* event )
+        {
+                if ( event->key() == Qt::Key_Alt &&
+                     ( mState == ArrowMove || mState == ArrowResize || mState == CreateDrag ) )
+                {
+                        if ( mState == ArrowMove )
+                        {
+                                applyMoveMotion( mLastRawWorldX, mLastRawWorldY, false );
+                        }
+                        else if ( mState == ArrowResize )
+                        {
+                                handleResizeMotion( mLastRawWorldX, mLastRawWorldY, false );
+                        }
+                        else if ( mState == CreateDrag )
+                        {
+                                applyCreateDragMotion( mLastRawWorldX, mLastRawWorldY, false );
+                        }
+                        event->accept();
+                        return;
+                }
+                QWidget::keyReleaseEvent( event );
+        }
+
+
+        ///
         /// Paint Event Handler
         ///
         void
@@ -1014,7 +1482,8 @@ namespace glabels
                         painter.setPen( Qt::NoPen );
                         painter.drawRect( rect() );
 
-                        /* Transform. */
+                        /* Transform to label coordinates. */
+                        painter.save();
                         painter.scale( mScale, mScale );
                         painter.translate( mX0.pt(), mY0.pt() );
 
@@ -1026,6 +1495,12 @@ namespace glabels
                         drawFgLayer( &painter );
                         drawHighlightLayer( &painter );
                         drawSelectRegionLayer( &painter );
+                        drawSnapGuidesLayer( &painter );
+
+                        painter.restore();
+
+                        /* Screen-space overlays (snap cursor caption). */
+                        drawSnapCaption( &painter );
                 }
         }
 
@@ -1221,11 +1696,10 @@ namespace glabels
                 {
                         painter->save();
 
-                        QPen pen( markupLineColor, markupLineWidthPixels );
-                        pen.setCosmetic( true );
+                        const bool tintSafeArea = mActiveSnap.hasSafeAreaSnap();
+                        const QColor accentColor = theme::Theme::instance().palette().accent;
 
                         painter->setBrush( Qt::NoBrush );
-                        painter->setPen( pen );
 
                         if ( mModel->rotate() )
                         {
@@ -1235,6 +1709,11 @@ namespace glabels
 
                         for( auto& markup : mModel->frame()->markups() )
                         {
+                                const bool isMargin = ( dynamic_cast<const model::MarkupMargin*>( markup.get() ) != nullptr );
+                                QPen pen( (tintSafeArea && isMargin) ? accentColor : markupLineColor,
+                                          markupLineWidthPixels );
+                                pen.setCosmetic( true );
+                                painter->setPen( pen );
                                 painter->drawPath( markup->path( *mModel->frame() ) );
                         }
 
@@ -1379,6 +1858,144 @@ namespace glabels
                         painter->restore();
                 }
 
+        }
+
+
+        ///
+        /// Draw Active Snap Guides Layer (in label coordinates)
+        ///
+        void
+        LabelEditor::drawSnapGuidesLayer( QPainter* painter )
+        {
+                if ( mActiveSnap.guides.isEmpty() || !mModel )
+                {
+                        return;
+                }
+
+                painter->save();
+
+                if ( mModel->frame() )
+                {
+                        QPainterPath clipPath = mModel->frame()->path();
+                        if ( mModel->rotate() )
+                        {
+                                QTransform rot;
+                                rot.rotate( -90 );
+                                rot.translate( -mModel->frame()->w().pt(), 0 );
+                                clipPath = rot.map( clipPath );
+                        }
+                        painter->setClipPath( clipPath );
+                }
+
+                const QColor accent = theme::Theme::instance().palette().accent;
+                const double labelW = mModel->w().pt();
+                const double labelH = mModel->h().pt();
+
+                for ( const SnapGuide& guide : mActiveSnap.guides )
+                {
+                        QPen pen( accent, 1.0 );
+                        pen.setCosmetic( true );
+                        if ( guide.kind == SnapGuideKind::Center )
+                        {
+                                pen.setStyle( Qt::CustomDashLine );
+                                pen.setDashPattern( { 4.0, 3.0 } );
+                        }
+                        else
+                        {
+                                pen.setStyle( Qt::SolidLine );
+                        }
+                        painter->setPen( pen );
+
+                        if ( guide.orientation == SnapGuideOrientation::Vertical )
+                        {
+                                painter->drawLine( QPointF( guide.position, 0.0 ),
+                                                   QPointF( guide.position, labelH ) );
+                        }
+                        else
+                        {
+                                painter->drawLine( QPointF( 0.0, guide.position ),
+                                                   QPointF( labelW, guide.position ) );
+                        }
+                }
+
+                painter->restore();
+        }
+
+
+        ///
+        /// Draw Snap Caption Near Cursor (in widget/screen pixel coordinates)
+        ///
+        void
+        LabelEditor::drawSnapCaption( QPainter* painter )
+        {
+                if ( mActiveSnap.guides.isEmpty() )
+                {
+                        return;
+                }
+
+                QStringList lines;
+                lines.reserve( mActiveSnap.guides.size() );
+                for ( const SnapGuide& guide : mActiveSnap.guides )
+                {
+                        if ( !guide.description.isEmpty() )
+                        {
+                                lines.push_back( guide.description );
+                        }
+                }
+                if ( lines.isEmpty() )
+                {
+                        return;
+                }
+
+                painter->save();
+
+                const auto& pal = theme::Theme::instance().palette();
+                QFont font = theme::Theme::instance().uiFont();
+                font.setPixelSize( 12 );
+                painter->setFont( font );
+
+                const QFontMetricsF fm( font );
+                double maxTextW = 0.0;
+                for ( const QString& line : lines )
+                {
+                        maxTextW = std::max( maxTextW, fm.horizontalAdvance( line ) );
+                }
+                const double lineH = fm.height();
+                const double lineGap = 2.0;
+                const double pad = 6.0;
+                const double radius = 6.0;
+                const double textH = lines.size() * lineH + std::max( 0, int( lines.size() ) - 1 ) * lineGap;
+                const double boxW = std::ceil( maxTextW ) + 2.0 * pad;
+                const double boxH = std::ceil( textH ) + 2.0 * pad;
+
+                double x = mLastCursorWidgetPos.x() + 14.0;
+                double y = mLastCursorWidgetPos.y() + 14.0;
+                const double margin = 4.0;
+                if ( x + boxW > width() - margin )
+                {
+                        x = std::max( margin, mLastCursorWidgetPos.x() - 14.0 - boxW );
+                }
+                if ( y + boxH > height() - margin )
+                {
+                        y = std::max( margin, mLastCursorWidgetPos.y() - 14.0 - boxH );
+                }
+
+                const QRectF boxRect( x, y, boxW, boxH );
+                painter->setBrush( pal.panel );
+                painter->setPen( QPen( pal.line2, 1.0 ) );
+                painter->drawRoundedRect( boxRect, radius, radius );
+
+                painter->setPen( pal.ink );
+                double ty = y + pad;
+                for ( const QString& line : lines )
+                {
+                        painter->drawText( QRectF( x + pad, ty, maxTextW + 2.0, lineH ),
+                                           Qt::AlignLeft | Qt::AlignVCenter,
+                                           line );
+                        ty += lineH + lineGap;
+                }
+
+                painter->restore();
         }
 
 

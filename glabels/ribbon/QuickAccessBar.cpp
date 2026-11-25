@@ -33,7 +33,7 @@ namespace glabels::ribbon
         QuickAccessBar::QuickAccessBar( QWidget* parent )
                 : QWidget( parent )
         {
-                setProperty( "role", QStringLiteral( "ribbonQuickAccess" ) );
+                setProperty( "role", QStringLiteral( "quickAccess" ) );
 
                 mLayout = new QHBoxLayout( this );
                 mLayout->setContentsMargins( 0, 0, 11, 0 );

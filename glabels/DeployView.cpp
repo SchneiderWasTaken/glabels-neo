@@ -45,6 +45,7 @@
 #include <QProgressBar>
 #include <QPushButton>
 #include <QRegularExpression>
+#include <QStyle>
 #include <QVBoxLayout>
 
 
@@ -157,7 +158,8 @@ namespace glabels
                 auto* statusRow = new QHBoxLayout();
                 statusRow->setSpacing( 10 );
                 mStatusPill = new QLabel( tr("Ready to build"), this );
-                mStatusPill->setProperty( "role", QStringLiteral( "statusPillOk" ) );
+                mStatusPill->setProperty( "role", QStringLiteral( "pill" ) );
+                mStatusPill->setProperty( "tone", QStringLiteral( "ok" ) );
                 mStatusPill->setStyleSheet(
                         QStringLiteral( "padding: 4px 10px; border-radius: 10px; font-weight: 600;" ) );
                 mStatusDetail = new QLabel(
@@ -199,21 +201,26 @@ namespace glabels
                 if ( !mModel )
                 {
                         mStatusPill->setText( tr("No project") );
-                        mStatusPill->setProperty( "role", QStringLiteral( "statusPillWarn" ) );
+                        mStatusPill->setProperty( "tone", QStringLiteral( "warn" ) );
                         mStatusDetail->setText( tr("Open or create a label project to build a kiosk.") );
                 }
                 else if ( !hasBase )
                 {
                         mStatusPill->setText( tr("Base exe missing") );
-                        mStatusPill->setProperty( "role", QStringLiteral( "statusPillWarn" ) );
+                        mStatusPill->setProperty( "tone", QStringLiteral( "warn" ) );
                         mStatusDetail->setText( tr("Select glabels-fill.exe or glabels-fill-sfx.exe above.") );
                 }
                 else
                 {
                         mStatusPill->setText( tr("Ready to build") );
-                        mStatusPill->setProperty( "role", QStringLiteral( "statusPillOk" ) );
+                        mStatusPill->setProperty( "tone", QStringLiteral( "ok" ) );
                         mStatusDetail->setText(
                                 tr("Use Build kiosk... on the Deploy tab to produce a single-file executable.") );
+                }
+                if ( auto* s = mStatusPill->style() )
+                {
+                        s->unpolish( mStatusPill );
+                        s->polish( mStatusPill );
                 }
         }
 
@@ -365,7 +372,12 @@ namespace glabels
                 if ( mStatusPill && mStatusDetail )
                 {
                         mStatusPill->setText( tr("Built") );
-                        mStatusPill->setProperty( "role", QStringLiteral( "statusPillOk" ) );
+                        mStatusPill->setProperty( "tone", QStringLiteral( "ok" ) );
+                        if ( auto* s = mStatusPill->style() )
+                        {
+                                s->unpolish( mStatusPill );
+                                s->polish( mStatusPill );
+                        }
                         mStatusDetail->setText( tr("Kiosk written to %1").arg( outPath ) );
                 }
                 QMessageBox::information( this, tr("Deploy"),

@@ -235,7 +235,7 @@ namespace glabels
                 : QWidget( window )
                 , mWindow( window )
         {
-                setProperty( "role", QStringLiteral( "welcomePage" ) );
+                setProperty( "role", QStringLiteral( "welcome" ) );
 
                 auto* outer = new QVBoxLayout( this );
                 outer->setContentsMargins( 0, 0, 0, 0 );

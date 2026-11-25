@@ -147,7 +147,7 @@ namespace glabels::ribbon
                 {
                         if ( isContextualTab( currentTab ) )
                         {
-                                return TabId::Home;
+                                return tabForPage( currentPage );
                         }
                         return currentTab;
                 }

@@ -57,7 +57,7 @@ namespace glabels
                 {
                         gb->setProperty( "role", QStringLiteral( "card" ) );
                 }
-                preview->setProperty( "role", QStringLiteral( "previewWell" ) );
+                preview->setProperty( "role", QStringLiteral( "workWell" ) );
 
                 similarBrowser->setAttribute(Qt::WA_TranslucentBackground);
                 similarBrowser->viewport()->setAutoFillBackground(false);

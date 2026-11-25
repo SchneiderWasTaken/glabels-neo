@@ -37,7 +37,7 @@ namespace glabels::ribbon
                 , mControls( controls )
         {
                 setFixedWidth( 260 );
-                setProperty( "role", QStringLiteral( "ribbonPopover" ) );
+                setProperty( "role", QStringLiteral( "popover" ) );
 
                 auto* root = new QVBoxLayout( this );
                 root->setContentsMargins( 14, 14, 14, 14 );

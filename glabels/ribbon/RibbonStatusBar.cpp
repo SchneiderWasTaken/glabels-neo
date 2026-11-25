@@ -86,7 +86,7 @@ namespace glabels::ribbon
                 mZoomSlider->setValue( 4 ); // 100%
                 mZoomSlider->setFixedWidth( 120 );
                 mZoomSlider->setAccessibleName( tr( "Zoom" ) );
-                mZoomSlider->setProperty( "role", QStringLiteral( "statusZoomSlider" ) );
+                mZoomSlider->setProperty( "role", QStringLiteral( "zoomSlider" ) );
                 connect( mZoomSlider, &QSlider::valueChanged,
                          this, &RibbonStatusBar::onSliderValueChanged );
                 zl->addWidget( mZoomSlider );

@@ -256,7 +256,7 @@ namespace glabels::ribbon
                 mHovered = false;
                 if ( mAction && !mAction->statusTip().isEmpty() )
                 {
-                        QStatusTipEvent tipEvent( QString() );
+                        QStatusTipEvent tipEvent{ QString() };
                         QApplication::sendEvent( window(), &tipEvent );
                 }
                 update();

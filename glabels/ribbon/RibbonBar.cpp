@@ -57,7 +57,7 @@ namespace glabels::ribbon
                                 setAttribute( Qt::WA_Hover, true );
                                 setCursor( Qt::PointingHandCursor );
                                 setFixedHeight( 28 );
-                                setProperty( "role", QStringLiteral( "ribbonFileButton" ) );
+                                setProperty( "role", QStringLiteral( "fileButton" ) );
                         }
 
                         QSize sizeHint() const override
@@ -433,6 +433,7 @@ namespace glabels::ribbon
 
                 mBodyStack = new QStackedWidget( mBodyHost );
                 mBodyStack->setFixedHeight( theme::Metrics::ribbon );
+                mBodyStack->setProperty( "role", QStringLiteral( "ribbonBody" ) );
                 hostLayout->addWidget( mBodyStack );
                 root->addWidget( mBodyHost );
 

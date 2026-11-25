@@ -298,6 +298,7 @@ namespace glabels
                 ribbon::DataSubPage  mLastDataSubPage{ ribbon::DataSubPage::Merge };
                 bool                 mCreatingObject{ false };
                 bool                 mSyncingRibbon{ false };
+                bool                 mRecentContextualDrop{ false };
 
                 // Ribbon sub-widgets needing synchronization
                 QLabel*                    mLabelTabName{ nullptr };

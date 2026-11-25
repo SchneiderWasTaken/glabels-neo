@@ -79,6 +79,7 @@
 #include <QSettings>
 #include <QStatusBar>
 #include <QStatusTipEvent>
+#include <QTimer>
 #include <QVBoxLayout>
 
 
@@ -2286,9 +2287,25 @@ namespace glabels
                         mShadowPopover->syncFromObjectEditor();
                 }
 
+                // If LabelEditor replaces selection via unselectAll() + selectObject() within
+                // the same event turn while a contextual tab was active, preserve contextual focus.
+                const ribbon::TabId curTab = mRibbonBar->currentTab();
+                const bool effectiveActivate =
+                        activateIfSingle || ( mRecentContextualDrop && ribbon::shouldShowContextualTab( mCurrentPage, kind ) );
+
+                if ( kind == ribbon::SelectionKind::None && ribbon::isContextualTab( curTab ) )
+                {
+                        mRecentContextualDrop = true;
+                        QTimer::singleShot( 0, this, [this]() { mRecentContextualDrop = false; } );
+                }
+                else
+                {
+                        mRecentContextualDrop = false;
+                }
+
                 const ribbon::TabId nextTab = ribbon::resolveTabOnSelectionChange(
-                        mRibbonBar->currentTab(), mCurrentPage, kind, activateIfSingle );
-                if ( nextTab != mRibbonBar->currentTab() )
+                        curTab, mCurrentPage, kind, effectiveActivate );
+                if ( nextTab != curTab )
                 {
                         mRibbonBar->setCurrentTab( nextTab, false );
                 }
@@ -2463,7 +2480,8 @@ namespace glabels
 
                 const bool hasSelection      = hasModel && !mModel->isSelectionEmpty();
                 const bool hasMultiSelection = hasSelection && !mModel->isSelectionAtomic();
-                const bool canPaste          = hasModel && mModel->canPaste();
+                const bool canPaste          = hasModel && QApplication::clipboard() &&
+                                               QApplication::clipboard()->mimeData() && mModel->canPaste();
 
                 // Recent file actions
                 QStringList recentFileList = model::Settings::recentFileList();

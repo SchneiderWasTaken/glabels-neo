@@ -94,7 +94,7 @@ namespace glabels
                         }
                 }
 
-                for ( QToolButton* tb : QList<QToolButton*>{
+                for ( QPushButton* tb : QList<QPushButton*>{
                               textFontBoldToggle, textFontItalicToggle, textFontUnderlineToggle,
                               textHAlignLeftToggle, textHAlignCenterToggle, textHAlignRightToggle,
                               textVAlignTopToggle, textVAlignMiddleToggle, textVAlignBottomToggle } )
@@ -103,7 +103,7 @@ namespace glabels
                         {
                                 tb->setFixedSize( 28, fh );
                                 tb->setIconSize( QSize( 16, 16 ) );
-                                tb->setAutoRaise( true );
+                                tb->setFlat( true );
                                 tb->setProperty( "role", QStringLiteral( "ribbonToggle" ) );
                         }
                 }
@@ -231,7 +231,7 @@ namespace glabels
 
         void ObjectEditor::applyNeoIcons()
         {
-                auto setIconIfAvailable = []( QToolButton* btn, const QString& name )
+                auto setIconIfAvailable = []( QAbstractButton* btn, const QString& name )
                 {
                         if ( !btn )
                         {

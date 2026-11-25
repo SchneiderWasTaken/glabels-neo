@@ -46,7 +46,7 @@ namespace glabels::ribbon
                                 : QWidget( parent, Qt::Popup | Qt::FramelessWindowHint )
                         {
                                 setAttribute( Qt::WA_StyledBackground, true );
-                                setProperty( "role", QStringLiteral( "ribbonPopover" ) );
+                                setProperty( "role", QStringLiteral( "popover" ) );
                                 auto* l = new QVBoxLayout( this );
                                 l->setContentsMargins( 10, 8, 10, 8 );
                                 l->setSpacing( 0 );

@@ -59,7 +59,7 @@ namespace glabels
                 {
                         gb->setProperty( "role", QStringLiteral( "card" ) );
                 }
-                preview->setProperty( "role", QStringLiteral( "previewWell" ) );
+                preview->setProperty( "role", QStringLiteral( "workWell" ) );
                 printDescriptionLabel->setProperty( "role", QStringLiteral( "caption" ) );
 
                 // Sentence case option labels (SPEC 0.4 & s13)

@@ -139,7 +139,7 @@ namespace glabels
                 {
                         gb->setProperty( "role", QStringLiteral( "card" ) );
                 }
-                preview->setProperty( "role", QStringLiteral( "previewWell" ) );
+                preview->setProperty( "role", QStringLiteral( "workWell" ) );
                 productLabel->setProperty( "role", QStringLiteral( "caption" ) );
                 printDescriptionLabel->setProperty( "role", QStringLiteral( "caption" ) );
 

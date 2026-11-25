@@ -6,6 +6,7 @@
 
 import { assertNoSecrets, readJson, runClaude, secretsFromEnv, writeJson } from './lib.mjs';
 import { assertModelRunnable } from './model-policy.mjs';
+import { asLimitError } from './limits.mjs';
 import { extractJson } from './opencode-lib.mjs';
 import { VERDICT_SCHEMA, reviewPrompt, validateVerdict } from './council-lib.mjs';
 
@@ -53,6 +54,7 @@ async function withRetry(fn) {
   try {
     return await fn();
   } catch (first) {
+    if (asLimitError(first)) throw first; // a usage limit will not clear in a second: report it as a limit
     console.log(`retrying after: ${String(first instanceof Error ? first.message : first).slice(0, 120)}`);
     return fn();
   }
@@ -66,6 +68,12 @@ try {
 } catch (e) {
   // A reviewer that cannot answer simply does not take part; it can never count as an approval.
   out.error = String(e instanceof Error ? e.message : e).slice(0, 300);
+  const limit = asLimitError(e);
+  if (limit) {
+    // At a usage limit: the review is postponed, not rejected (council-decide.mjs queues it).
+    out.limited = true;
+    out.until = limit.until;
+  }
   console.log(`${reviewer.id}: no verdict (${out.error})`);
 }
 writeJson(`verdict-${reviewer.id}.json`, out);

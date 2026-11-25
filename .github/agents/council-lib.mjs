@@ -109,6 +109,16 @@ export function aggregate(verdicts, deterministicRisk, expectedIds = []) {
   return { approved, risk, reasons };
 }
 
+/**
+ * True when nobody who answered objects: every answer approves, nothing blocks, and the deterministic risk is not
+ * blocked.  Only then may a review that is missing answers (usage limit) be postponed instead of rejected.
+ */
+export function isOnlyWaitingFor(verdicts, deterministicRisk) {
+  if (deterministicRisk === 'blocked') return false;
+  return verdicts.every(({ verdict: v }) => v.verdict === 'approve' && !v.backdoor_suspected && v.scope_ok
+    && v.risk !== 'blocked' && !v.concerns.some((c) => c.severity === 'blocking'));
+}
+
 export function reviewPrompt({ title, issueTitle, issueBody, summary, diff, classification }) {
   return [
     UNTRUSTED_NOTICE,

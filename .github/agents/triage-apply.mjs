@@ -1,5 +1,7 @@
 // Stage 1b: apply a validated triage result.  Runs without any model credential.
 
+import { spawnSync } from 'node:child_process';
+
 import { REPO, api, gh, readJson } from './lib.mjs';
 import { parseLevel } from './policy.mjs';
 import { agentReady, buildComment, labelsFor, validateTriage } from './triage-lib.mjs';
@@ -8,6 +10,17 @@ const data = readJson('triage-result.json');
 if (data.skip) {
   console.log(`skipped: ${data.skip}`);
   process.exit(0);
+}
+
+if (data.limited) {
+  // Not a failure: park the issue (it keeps `needs-triage`); agent-dispatch.yml triages it when the limit is over.
+  const number = Number(data.number);
+  const until = Number(data.until);
+  if (!Number.isInteger(number) || number <= 0 || !Number.isFinite(until)) throw new Error('bad limited triage result');
+  const r = spawnSync(process.execPath, ['.github/agents/queue.mjs', 'hold'], {
+    env: { ...process.env, KIND: 'triage', NUMBER: String(number), UNTIL: String(until) }, stdio: 'inherit',
+  });
+  process.exit(r.status ?? 1);
 }
 
 const { number, fromApp } = data;

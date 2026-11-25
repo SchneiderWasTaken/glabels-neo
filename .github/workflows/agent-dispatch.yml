@@ -1,0 +1,50 @@
+# Restarts automation work that was parked because every AI model was at a usage limit.
+#
+# A fix, a triage or a council review that finds all of its models limited is not a failure: it is labelled
+# `agent-queued` with a hidden marker saying what it is and when to retry (agent-fix.yml "queue", triage-apply.mjs,
+# council-decide.mjs). Every 30 minutes this workflow starts the single most important parked item, but only once no
+# parked item is still inside its wait. Priority order: .github/agents/queue-lib.mjs and docs/AUTOMATION.md.
+# It does nothing at automation level 0 and holds no model credential.
+
+name: Agent dispatch
+
+on:
+  schedule:
+    - cron: "7,37 * * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: agent-dispatch
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  dispatch:
+    name: Start parked work
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+      actions: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Is a fix attempt allowed right now?
+        id: fixgate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTOMATION_LEVEL: ${{ vars.AUTOMATION_LEVEL }}
+          FIX_MAX_PER_DAY: ${{ vars.FIX_MAX_PER_DAY }}
+        run: node .github/agents/gate.mjs fix
+
+      - name: Start the most important parked item
+        env:
+          GH_TOKEN: ${{ github.token }}
+          AUTOMATION_LEVEL: ${{ vars.AUTOMATION_LEVEL }}
+          FIX_GATE_OK: ${{ steps.fixgate.outputs.run }}
+        run: node .github/agents/queue.mjs dispatch

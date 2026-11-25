@@ -78,13 +78,16 @@ namespace glabels
                 intro->setProperty( "role", QStringLiteral( "caption" ) );
                 layout->addWidget( intro );
 
-                // Two side-by-side cards (SPEC 6.4 & mockup s14)
+                // Two side-by-side cards at natural height, top-aligned (SPEC 6.4 & s14 mockup: 640px + 340px)
                 auto* cardsRow = new QHBoxLayout();
                 cardsRow->setSpacing( 16 );
+                cardsRow->setAlignment( Qt::AlignLeft | Qt::AlignTop );
 
                 // Left card: Kiosk settings
                 auto* settingsCard = new QGroupBox( tr("Kiosk settings"), this );
                 settingsCard->setProperty( "role", QStringLiteral( "card" ) );
+                settingsCard->setFixedWidth( 640 );
+                settingsCard->setSizePolicy( QSizePolicy::Fixed, QSizePolicy::Maximum );
                 auto* form = new QFormLayout( settingsCard );
                 form->setContentsMargins( 16, 16, 16, 16 );
                 form->setSpacing( 10 );
@@ -133,11 +136,13 @@ namespace glabels
                 mPinEdit->setPlaceholderText( tr("(blank = no PIN)") );
                 form->addRow( tr("Admin PIN:"), mPinEdit );
 
-                cardsRow->addWidget( settingsCard, 3 );
+                cardsRow->addWidget( settingsCard, 0, Qt::AlignTop );
 
                 // Right card: Locked fields
                 auto* lockedCard = new QGroupBox( tr("Locked fields"), this );
                 lockedCard->setProperty( "role", QStringLiteral( "card" ) );
+                lockedCard->setFixedWidth( 340 );
+                lockedCard->setSizePolicy( QSizePolicy::Fixed, QSizePolicy::Preferred );
                 auto* lockedLayout = new QVBoxLayout( lockedCard );
                 lockedLayout->setContentsMargins( 16, 16, 16, 16 );
                 lockedLayout->setSpacing( 8 );
@@ -149,10 +154,12 @@ namespace glabels
                 lockedLayout->addWidget( lockedCaption );
 
                 mLockedFieldsList = new QListWidget( lockedCard );
-                lockedLayout->addWidget( mLockedFieldsList, 1 );
+                mLockedFieldsList->setFixedHeight( 176 );
+                lockedLayout->addWidget( mLockedFieldsList, 0 );
 
-                cardsRow->addWidget( lockedCard, 2 );
-                layout->addLayout( cardsRow, 1 );
+                cardsRow->addWidget( lockedCard, 0, Qt::AlignTop );
+                cardsRow->addStretch( 1 );
+                layout->addLayout( cardsRow, 0 );
 
                 // Bottom status row (green status pill + detail text)
                 auto* statusRow = new QHBoxLayout();
@@ -168,6 +175,7 @@ namespace glabels
                 statusRow->addWidget( mStatusPill, 0 );
                 statusRow->addWidget( mStatusDetail, 1 );
                 layout->addLayout( statusRow );
+                layout->addStretch( 1 );
 
                 // Hidden build button (triggered by the primary Build kiosk... button on the Deploy ribbon)
                 mBuildButton = new QPushButton( tr("Build kiosk..."), this );

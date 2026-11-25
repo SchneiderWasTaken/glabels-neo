@@ -28,9 +28,11 @@
 
 #include <QDebug>
 #include <QFileDialog>
+#include <QFrame>
 #include <QGroupBox>
 #include <QLayout>
 #include <QMessageBox>
+#include <QVBoxLayout>
 #include <QPrinter>
 #include <QPrinterInfo>
 #include <QPrintDialog>
@@ -55,12 +57,59 @@ namespace glabels
                         l->setContentsMargins( 24, 20, 24, 20 );
                         l->setSpacing( 16 );
                 }
+                verticalLayout_2->setContentsMargins( 0, 0, 0, 0 );
+                verticalLayout_2->setSpacing( 12 );
+                line->hide();
+
+                // 380px left column width & compact 16px combo icons (s13 mockup)
+                for ( QWidget* card : QList<QWidget*>{ groupBox, printRangeBox, mergeBox, groupBox_4 } )
+                {
+                        card->setFixedWidth( 380 );
+                }
+                destinationCombo->setIconSize( QSize( 16, 16 ) );
+                mergeCollateCombo->setIconSize( QSize( 16, 16 ) );
+                mergeGroupCombo->setIconSize( QSize( 16, 16 ) );
+
+                // Place printDescriptionLabel inside Destination card & mergeStartPosition inside Merge control card (s13)
+                horizontalLayout_7->removeWidget( printDescriptionLabel );
+                printDescriptionLabel->setParent( groupBox );
+                printDescriptionLabel->setMinimumWidth( 0 );
+                printDescriptionLabel->setAlignment( Qt::AlignLeft | Qt::AlignVCenter );
+                printDescriptionLabel->setWordWrap( true );
+                printDescriptionLabel->setProperty( "role", QStringLiteral( "caption" ) );
+                verticalLayout_5->addWidget( printDescriptionLabel );
+
+                verticalLayout->removeWidget( mergeOnlyOptions );
+                mergeOnlyOptions->setParent( mergeBox );
+                gridLayout->addWidget( mergeOnlyOptions, 3, 0 );
+
+                // Wrap Preview + page navigation inside a Preview card on a workWell backdrop (s13)
+                verticalLayout_3->removeWidget( preview );
+                verticalLayout_3->removeItem( horizontalLayout_6 );
+                auto* previewCard = new QGroupBox( tr("Preview"), this );
+                previewCard->setProperty( "role", QStringLiteral( "card" ) );
+                auto* cardLayout = new QVBoxLayout( previewCard );
+                cardLayout->setContentsMargins( 0, 0, 0, 0 );
+                cardLayout->setSpacing( 0 );
+
+                auto* well = new QFrame( previewCard );
+                well->setProperty( "role", QStringLiteral( "workWell" ) );
+                well->setAttribute( Qt::WA_StyledBackground, true );
+                auto* wellLayout = new QVBoxLayout( well );
+                wellLayout->setContentsMargins( 20, 20, 20, 12 );
+                wellLayout->setSpacing( 8 );
+                preview->setParent( well );
+                preview->setProperty( "role", QStringLiteral( "workWell" ) );
+                wellLayout->addWidget( preview, 1 );
+                horizontalLayout_6->setContentsMargins( 0, 0, 0, 4 );
+                wellLayout->addLayout( horizontalLayout_6 );
+                cardLayout->addWidget( well, 1 );
+                verticalLayout_3->addWidget( previewCard, 1 );
+
                 for ( auto* gb : findChildren<QGroupBox*>() )
                 {
                         gb->setProperty( "role", QStringLiteral( "card" ) );
                 }
-                preview->setProperty( "role", QStringLiteral( "workWell" ) );
-                printDescriptionLabel->setProperty( "role", QStringLiteral( "caption" ) );
 
                 // Sentence case option labels (SPEC 0.4 & s13)
                 printOutlinesCheck->setText( tr("Print outlines") );

@@ -32,9 +32,12 @@
 #include <QDebug>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QFrame>
 #include <QGroupBox>
+#include <QHBoxLayout>
 #include <QHeaderView>
 #include <QLayout>
+#include <QVBoxLayout>
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPrinter>
@@ -129,19 +132,101 @@ namespace glabels
 
                 titleLabel->setText( tr("Fill") );
                 titleLabel->setProperty( "role", QStringLiteral( "pageTitle" ) );
-
-                if ( auto* l = layout() )
-                {
-                        l->setContentsMargins( 24, 20, 24, 20 );
-                        l->setSpacing( 14 );
-                }
-                for ( auto* gb : findChildren<QGroupBox*>() )
-                {
-                        gb->setProperty( "role", QStringLiteral( "card" ) );
-                }
-                preview->setProperty( "role", QStringLiteral( "workWell" ) );
                 productLabel->setProperty( "role", QStringLiteral( "caption" ) );
                 printDescriptionLabel->setProperty( "role", QStringLiteral( "caption" ) );
+                printDescriptionLabel->setAlignment( Qt::AlignLeft | Qt::AlignVCenter );
+                addRowButton->setText( tr("Add row") );
+
+                // Compact icons on destination combo & standalone print button
+                destinationCombo->setIconSize( QSize( 16, 16 ) );
+                destinationCombo->setMinimumWidth( 220 );
+                printButton->setIconSize( QSize( 16, 16 ) );
+                printButton->setStyleSheet( QString() );
+
+                // Rebuild FillView layout to match s12 mockup (works cleanly in both ribbon-hosted
+                // and standalone kiosk modes, keeping every .ui widget and connection intact).
+                line->hide();
+                rootLayout->removeItem( leftLayout );
+                rootLayout->removeWidget( line );
+                rootLayout->removeItem( previewLayout );
+                rootLayout->setContentsMargins( 24, 18, 24, 18 );
+                rootLayout->setSpacing( 0 );
+
+                leftLayout->removeWidget( titleLabel );
+                leftLayout->removeWidget( productLabel );
+                leftLayout->removeItem( toolbarLayout );
+                leftLayout->removeItem( viewModeLayout );
+                leftLayout->removeWidget( jobsTable );
+                leftLayout->removeItem( destinationLayout );
+                leftLayout->removeItem( startLayout );
+                leftLayout->removeWidget( printButton );
+                leftLayout->removeWidget( zplButton );
+                leftLayout->removeWidget( printDescriptionLabel );
+                leftLayout->removeWidget( systemDialogButton );
+                previewLayout->removeWidget( preview );
+                previewLayout->removeItem( pageNavLayout );
+
+                auto* mainCol = new QVBoxLayout();
+                mainCol->setContentsMargins( 0, 0, 0, 0 );
+                mainCol->setSpacing( 12 );
+
+                // Header row: "Fill" + product summary on left, "Preview:" + combo on right (s12)
+                auto* headerRow = new QHBoxLayout();
+                headerRow->setSpacing( 12 );
+                headerRow->addWidget( titleLabel, 0, Qt::AlignVCenter );
+                headerRow->addWidget( productLabel, 0, Qt::AlignVCenter );
+                headerRow->addStretch( 1 );
+                headerRow->addWidget( viewModeLabel, 0, Qt::AlignVCenter );
+                headerRow->addWidget( viewModeCombo, 0, Qt::AlignVCenter );
+                mainCol->addLayout( headerRow );
+
+                // Inline toolbar row (only visible in standalone glabels-fill kiosk mode)
+                mainCol->addLayout( toolbarLayout );
+
+                // Middle row: jobs table on left, Sheet preview card on workWell on right (s12)
+                auto* middleRow = new QHBoxLayout();
+                middleRow->setSpacing( 16 );
+                middleRow->addWidget( jobsTable, 1 );
+
+                auto* previewCard = new QGroupBox( tr("Sheet preview"), this );
+                previewCard->setProperty( "role", QStringLiteral( "card" ) );
+                previewCard->setFixedWidth( 360 );
+                auto* cardLayout = new QVBoxLayout( previewCard );
+                cardLayout->setContentsMargins( 0, 0, 0, 0 );
+                cardLayout->setSpacing( 0 );
+
+                auto* well = new QFrame( previewCard );
+                well->setProperty( "role", QStringLiteral( "workWell" ) );
+                well->setAttribute( Qt::WA_StyledBackground, true );
+                auto* wellLayout = new QVBoxLayout( well );
+                wellLayout->setContentsMargins( 16, 16, 16, 12 );
+                wellLayout->setSpacing( 8 );
+                preview->setParent( well );
+                preview->setMinimumSize( 280, 320 );
+                preview->setProperty( "role", QStringLiteral( "workWell" ) );
+                wellLayout->addWidget( preview, 1 );
+                pageNavLayout->setContentsMargins( 0, 0, 0, 4 );
+                wellLayout->addLayout( pageNavLayout );
+                cardLayout->addWidget( well, 1 );
+                middleRow->addWidget( previewCard, 0 );
+                mainCol->addLayout( middleRow, 1 );
+
+                // Bottom row: Destination + Start at position + hint (+ standalone print buttons)
+                auto* footerRow = new QHBoxLayout();
+                footerRow->setSpacing( 10 );
+                footerRow->addWidget( destinationLabel, 0, Qt::AlignVCenter );
+                footerRow->addWidget( destinationCombo, 0, Qt::AlignVCenter );
+                footerRow->addSpacing( 6 );
+                footerRow->addWidget( startPositionLabel, 0, Qt::AlignVCenter );
+                footerRow->addWidget( startPositionSpin, 0, Qt::AlignVCenter );
+                footerRow->addSpacing( 8 );
+                footerRow->addWidget( printDescriptionLabel, 1, Qt::AlignVCenter );
+                footerRow->addWidget( printButton, 0, Qt::AlignVCenter );
+                footerRow->addWidget( zplButton, 0, Qt::AlignVCenter );
+                footerRow->addWidget( systemDialogButton, 0, Qt::AlignVCenter );
+                mainCol->addLayout( footerRow );
+
+                rootLayout->addLayout( mainCol, 1 );
 
                 jobsTable->setModel( &mJobsModel );
                 jobsTable->horizontalHeader()->setStretchLastSection( true );
@@ -365,7 +450,7 @@ namespace glabels
 
                 startPositionSpin->setRange( 1, mModel->frame()->nLabels() );
 
-                productLabel->setText( tr("Product: %1  (%2 per sheet)")
+                productLabel->setText( tr("%1 · %2 per sheet")
                                        .arg( mModel->tmplate().name() )
                                        .arg( mModel->frame()->nLabels() ) );
 

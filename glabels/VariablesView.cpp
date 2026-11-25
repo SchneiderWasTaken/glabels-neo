@@ -25,6 +25,7 @@
 
 #include <QColor>
 #include <QDebug>
+#include <QGridLayout>
 #include <QGroupBox>
 #include <QLabel>
 #include <QPainter>
@@ -61,17 +62,21 @@ namespace glabels
                 titleLabel->setText( tr("Variables") );
                 titleLabel->setProperty( "role", QStringLiteral( "pageTitle" ) );
 
-                if ( auto* vl = qobject_cast<QVBoxLayout*>( layout() ) )
-                {
-                        vl->setContentsMargins( 24, 20, 24, 20 );
-                        vl->setSpacing( 12 );
+                auto* intro = new QLabel(
+                        tr( "Variables are available as ${name} fields in text, barcodes and images." ), this );
+                intro->setWordWrap( true );
+                intro->setProperty( "role", QStringLiteral( "caption" ) );
 
-                        auto* intro = new QLabel(
-                                tr( "Variables are available as ${name} fields in text, barcodes and images." ), this );
-                        intro->setWordWrap( true );
-                        intro->setProperty( "role", QStringLiteral( "caption" ) );
-                        const int titleIdx = vl->indexOf( titleLabel );
-                        vl->insertWidget( titleIdx >= 0 ? titleIdx + 1 : 1, intro );
+                if ( auto* gl = qobject_cast<QGridLayout*>( layout() ) )
+                {
+                        gl->setContentsMargins( 24, 20, 24, 20 );
+                        gl->setVerticalSpacing( 10 );
+                        gl->removeWidget( table );
+                        gl->removeItem( horizontalLayout );
+                        gl->addWidget( intro, 1, 0 );
+                        gl->addWidget( table, 2, 0 );
+                        gl->addLayout( horizontalLayout, 3, 0 );
+                        gl->setRowStretch( 2, 1 );
                 }
                 for ( auto* gb : findChildren<QGroupBox*>() )
                 {

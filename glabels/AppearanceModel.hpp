@@ -23,6 +23,7 @@
 
 
 #include "model/Settings.hpp"
+#include "theme/Theme.hpp"
 
 #include <QObject>
 
@@ -66,7 +67,7 @@ namespace glabels
                 /////////////////////////////////
         public:
                 static Style style();
-	        static bool supportsSystemColorScheme();
+                static bool supportsSystemColorScheme();
 
 
                 /////////////////////////////////
@@ -79,8 +80,8 @@ namespace glabels
                 static void setDarkColorScheme( model::Settings::IconStyle iconStyle );
                 static void setSystemColorScheme( model::Settings::IconStyle iconStyle );
 
-                static void repolishStyle();
-                static void redrawAll();
+                static void setIconTheme( theme::Mode mode, model::Settings::IconStyle iconStyle );
+                static void applyTheme( theme::Mode mode, bool overrideScheme );
 
 
                 /////////////////////////////////
@@ -88,6 +89,7 @@ namespace glabels
                 /////////////////////////////////
         private slots:
                 void onSettingsChanged();
+                void onSystemColorSchemeChanged();
 
 
         private:

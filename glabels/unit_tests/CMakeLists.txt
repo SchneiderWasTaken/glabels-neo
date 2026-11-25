@@ -47,6 +47,14 @@ target_include_directories (TestThemePopups PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/
 target_link_libraries (TestThemePopups glabels_lib glabels_resources Model Qt6::Test Qt6::Widgets Qt6::Svg)
 add_test (NAME ThemePopups COMMAND TestThemePopups)
 set_tests_properties (ThemePopups PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+# Product Template Designer in the new design: step list logic, side bar, illustrations, every page
+qt6_wrap_cpp (TestThemeDesigner_moc_sources TestThemeDesigner.hpp)
+add_executable (TestThemeDesigner TestThemeDesigner.cpp ${TestThemeDesigner_moc_sources})
+target_include_directories (TestThemeDesigner PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_link_libraries (TestThemeDesigner glabels_lib glabels_resources Model Qt6::Test Qt6::Widgets Qt6::Svg)
+add_test (NAME ThemeDesigner COMMAND TestThemeDesigner)
+set_tests_properties (ThemeDesigner PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 # --- end ribbon-ui: theme ---
 
 # --- ribbon-ui: core ---

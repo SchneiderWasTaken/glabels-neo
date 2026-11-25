@@ -16,7 +16,7 @@ Fonts: Inter and JetBrains Mono are not installed, so everything renders in Sego
 Consolas. Inter has a larger x-height, so text in the captures looks about 1 px smaller than in
 the mockups at the same pixel size. Not a defect.
 
-## Fixed in this pass
+## Fixed in Round 1 (theme pass)
 
 | Mockup | What differed | Fix | File |
 |---|---|---|---|
@@ -28,34 +28,41 @@ the mockups at the same pixel size. Not a defect.
 | s03, s18 | Content panel body on `bg` instead of `panel` | stylesheet | `ThemeStyle.cpp` |
 | s09, s12, s13 | Preview paper grey (#F2F2F2) with a black outline; SPEC 4.1 says paper is white | white paper, `line2` outline | `glabels/Preview.cpp`, `glabels/SimplePreview.cpp` |
 
-## Open (not fixed; owner in brackets)
+## Fixed in Round 2 (ribbon & view polish)
+
+| Mockup | What differed | Fix | Commit / File |
+|---|---|---|---|
+| s10..s12 | Data > Data page toggles drew the active page as **disabled** instead of checked | Keep Merge / Variables / Fill actions enabled and checkable; mark active page checked (`pressed` fill, accent icon) | `fedc2e9` (`glabels/MainWindow.cpp`) |
+| s02, s03 | Backstage `Back` button and status-bar zoom-out button showed initial focus rings | Focus `Backstage` itself on show; `Qt::NoFocus` on zoom buttons, `Qt::ClickFocus` on zoom slider; focus `LabelEditor` on editor page | `fedc2e9` (`Backstage.cpp`, `RibbonStatusBar.cpp`, `MainWindow.cpp`) |
+| s03, s09, s12 | Title-case strings ("Select All", "Similar Products", "Add Row") | Sentence case: "Select all", "Similar products", "Adjustable parameters", "Add row" | `fedc2e9`, `40646c7` (`MainWindow.cpp`, `PropertiesView.cpp`, `FillView.cpp`) |
+| s04, s05, s07, s08 | Color buttons were wide bare swatches | Added `RibbonColorDecorator` paint filter rendering compact `[swatch] Name ⌄` (and `No line` / `No fill` slash swatch + `${field}`) without modifying `ColorButton.*` | `d78ae94` (`ribbon/RibbonColorDecorator.*`, `MainWindow.cpp`) |
+| s04..s07 | Position and size used a "Lock aspect" checkbox | Replaced visible checkbox with checkable `lock` / `lock-open` icon toggle synced with hidden `sizeAspectCheck` | `d78ae94` (`MainWindow.cpp`) |
+| s04, s06..s08 | Effects > Shadow had no icon | Painted 2-square shadow glyph (SPEC 4.4) for `"shadow"` icon in `RibbonButton`; fixed large drop-button chevron layout | `d78ae94` (`ribbon/RibbonButton.cpp`, `MainWindow.cpp`) |
+| s04 | Paragraph > Line spacing clipped `"1.00"` | Stacked Paragraph as 2-row grid (`Line spacing` 82 px, `Wrap mode` 104 px) + auto-shrink check below | `d78ae94` (`MainWindow.cpp`) |
+| s04, s05, s06 | Content panel used raw `FieldButton` combo and wrapped `"Use $ / {field}"` | Replaced with `{ } Insert field ⌄` / `{ } Use merge field ⌄` `RibbonDropButton` wired to `FieldButton::menu()` with disabled tooltip `"No merge fields or variables"`; non-breaking space in `"Use\u00A0${field}"`; let Image `Reset` keep natural themed height | `d78ae94`, `6743486` (`ribbon/ContentPanel.*`, `MainWindow.cpp`) |
+| s05 | Barcode style button centred without caption; "Color" vs "Bar color" | Added `"Symbology"` caption, left-aligned combo-like button style with chevron, and `"Bar color"` caption | `d78ae94` (`MainWindow.cpp`) |
+| s09 | Label page left column ~300 px, no Preview card/well, legacy Change product icon | 460 px left column, Neo `tag` icon on Change product, Preview wrapped in `Preview` card with `workWell` backdrop | `40646c7` (`glabels/PropertiesView.cpp`) |
+| s11 | Variables page missing intro caption above table | Inserted intro caption row into `QGridLayout` above `table` | `40646c7` (`glabels/VariablesView.cpp`) |
+| s12, d11 | Fill page used vertical separator + tall printer combo; product summary wrapped | Rebuilt layout to match s12 mockup (header row with single-line product summary + Preview combo, table left + 360 px `Sheet preview` card on `workWell` right, compact footer row; kiosk standalone mode retains inline toolbar and print buttons) | `40646c7`, `6743486` (`glabels/FillView.cpp`) |
+| s13 | Print page had no Preview card/well, 334 px cards, `settings-2` icon on System dialog | 380 px cards, compact 16 px combo icons, `Preview` card with `workWell` backdrop, `settings` icon on `System dialog...` | `fedc2e9`, `40646c7` (`MainWindow.cpp`, `PrintView.cpp`) |
+| s14 | Deploy cards stretched full height/width; Deploy ribbon title regular weight | Top-aligned natural-height 640 px + 340 px cards; ribbon About title uses `panelTitle` (600 weight) | `fedc2e9`, `40646c7` (`MainWindow.cpp`, `DeployView.cpp`) |
+| s03..s08, s12, s13, s15 | Canvas backdrop neutral grey, black/green/red selection handles; Preview outlines/numbers unthemed | Themed `LabelEditor` backdrop (`work`), grid (`line2`, softened alpha on dark mode), label outline (`line2`), dashed `accent` selection box & white/accent handles, `accent` rubber-band, and `Preview` outline/numbers; both repaint on `Theme::changed()` | `d2a12a0`, `6743486` (`LabelEditor.cpp`, `Preview.cpp`) |
+
+## Still open (deferred or intentional differences)
 
 | Mockup | Widget / file | What differs |
 |---|---|---|
-| s03..s08, s15 | canvas, `LabelEditor.cpp` [nobody] | backdrop is neutral grey, not `work` (#E2E8F0 / #090D1A); selection box dotted black with green/red handles, mockup `accent` dashed box and `accent` handles (SPEC 8, last bullet) |
-| s03 | status bar zoom-out button, `ribbon/RibbonStatusBar.cpp` [Gemini] | has keyboard focus on open, so it shows the 2 px focus ring; mockup shows none (initial focus should be the canvas) |
-| s02 | Backstage `Back`, `ribbon/Backstage.cpp` [Gemini] | gets initial focus (focus ring); mockup shows plain grey "Back" text |
-| s02 | Backstage nav [Gemini / platform] | Close shows Ctrl+F4, Exit and Preferences no shortcut: Windows key sequences for Close/Quit/Preferences (behaviour unchanged); mockup draws Ctrl+W, Ctrl+Q, Ctrl+, |
-| s03 | Home > Edit, `MainWindow.cpp` [Gemini] | "Select All" (action text, title case) vs mockup "Select all"; changing it changes the translation source |
-| s04, s05 | Text/Barcode colour, `ColorButton` in the ribbon [Gemini] | wide swatch-only button; mockup compact "■ Black ⌄" drop button |
-| s04..s07 | Position and size [Gemini] | "Lock aspect" check box; mockup a lock icon toggle next to W/H |
-| s04, s06..s08 | Effects > Shadow [Gemini] | text-only "Shadow ⌄" without the large icon; mockup large icon button |
-| s04 | Paragraph > Line spacing [Gemini] | field too narrow, "1.00" clipped to "1.0(" |
-| s04, s05 | Content panel insert field [Gemini] | "Insert substitution field" combo; mockup "{ } Insert field ⌄" button; caption wraps as "Use $ / {field}" |
-| s05 | Type > barcode style [Gemini] | centred push button "Code 39" without the "Symbology" caption; mockup a left-aligned combo look with caption; "Color" caption vs "Bar color" |
-| s09 | Label page, `PropertiesView` [Gemini] | left column ~300 px (mockup 460); no Preview card on a `work` well, the preview floats on `bg` behind a vertical separator; "Change product" uses the legacy icon; "Similar Products" is title case |
-| s10..s12 | Data > Data page toggles [Gemini] | the button of the page you are on is drawn **disabled**, not checked (Merge on Merge, Variables on Variables, Fill on Fill); mockup shows the current one checked (`pressed` fill) |
-| s11 | Variables page [Gemini] | no intro caption above the table |
-| s12 | Fill page, `FillView` [Gemini] | layout differs: preview right of a separator instead of a narrow "Sheet preview" card; Preview combo sits above the table instead of in the header row; Destination row has a tall printer-icon combo |
-| s13 | Print page, `PrintView` [Gemini] | no Preview card on a `work` well; cards 334 px wide (mockup 380); "System dialog..." uses `settings-2` (SPEC table) while the mockup draws `settings` |
-| s14 | Deploy page, `DeployView` and Deploy tab [Gemini] | both cards stretch to the full page height and span the width (mockup: natural height, 640 px + 340 px); ribbon About title "Single-file kiosk executable" is regular, mockup 600 weight; Printer is a line edit + Browse (today's widget) where the mockup draws a combo. Field set, status pill and Build kiosk button match |
+| s02 | Backstage nav [platform] | Close shows Ctrl+F4, Exit and Preferences no shortcut: Windows `QKeySequence::StandardKey` bindings (behaviour unchanged); mockup draws Ctrl+W, Ctrl+Q, Ctrl+, |
+| s04..s06 | Content panel Insert field button | Drawn as a flat `RibbonDropButton` (consistent with ribbon drop buttons) rather than a framed `QPushButton` border |
+| s14 | Deploy > Printer field | Remains a line edit + `Browse...` (existing `DeployView` widget) where the mockup draws a combo box |
 | d03 | Template designer | P0: ModernStyle wizard with the upstream side bitmap; the step list is P1 |
-| d06 | About | "License" is the default button while it has the initial focus (see QUESTIONS.md) |
-| d08 | Update consent | "Don't Check" is the default (filled), mockup fills "Check Automatically" (privacy default kept) |
+| d06 | About | "License" is the default button while it has initial focus (kept per owner decision; see QUESTIONS.md) |
+| d08 | Update consent | "Don't Check" is the default (filled), mockup fills "Check Automatically" (privacy default kept per owner decision) |
 
-Compared side by side with the mockup PNG: s01, s02, s03, s04, s05, s09, s12, s13, s14, s15,
-s18 (dark Text tab); d01..d11 were compared in the earlier WP6 pass and re-captured here. Looked at the capture only, against SPEC.md and the
-neighbouring mockups, without opening the matching PNG: s06, s07, s08, s10, s11, s16, and the
-dark captures other than s04 (s17, s19, s20 equivalents). Matching well in the compared set:
-tab strip, File button, Quick Access bar, group order and captions on every tab, contextual tab
-colouring, cards and dialog footers, status bar text, dark palette.
+Compared side by side with the mockup PNG in Round 1 and Round 2: s01, s02, s03, s04, s05, s06,
+s09, s12, s13, s14, s15, s18 (dark Text tab), plus Round 2 visual inspection of s07, s08, s10, s11,
+s13-dark, s14-dark, and d11-kiosk; d01..d11 were compared in the earlier WP6 pass and re-captured.
+Matching well in the compared set: tab strip, File button, Quick Access bar, group order and
+captions on every tab, contextual tab colouring and controls, Data page toggle states, Preview /
+Sheet preview cards on `workWell` backdrops, canvas backdrop/grid/handles, cards and dialog
+footers, status bar text, and dark palette.

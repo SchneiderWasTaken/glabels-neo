@@ -44,6 +44,7 @@ for (const p of prs) {
   // then neither blocks-user nor the UI holds apply, but the interface rules, the Opus review and every check still do.
   const approval = autoFixApproval(fixes);
   const autoFix = approval.approved;
+  if (autoFix && !p.head.ref.startsWith(`agent/issue-${fixes}-`)) { skip(`the branch is not for issue #${fixes}`); continue; }
   if (autoFix) {
     if (issueLabels.includes('needs-human')) { skip(`issue #${fixes} is labelled needs-human`); continue; }
   } else {
@@ -93,6 +94,9 @@ for (const p of prs) {
 
   const decision = mayAutoMerge(risk, level, now);
   if (!decision.ok) { skip(`${decision.reason} (risk ${risk})`); continue; }
+
+  // Asked once more right before the merge: a label removed meanwhile must stop it.
+  if (autoFix && !autoFixApproval(fixes).approved) { skip('the auto-fix approval was withdrawn'); continue; }
 
   console.log(`${tag}: merging (${decision.reason}, risk ${risk}${autoFix ? `, auto-fix approved by ${approval.by}` : ''})`);
   try {

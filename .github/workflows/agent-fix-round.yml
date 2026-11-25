@@ -52,6 +52,7 @@ jobs:
     outputs:
       limited: ${{ steps.agent.outputs.limited }}
       until: ${{ steps.agent.outputs.until }}
+      autofix: ${{ steps.prepare.outputs.autofix }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -77,6 +78,7 @@ jobs:
           cp previous/feedback-*/feedback.txt prev-feedback.txt
 
       - name: Prepare (no model credential)
+        id: prepare
         env:
           GH_TOKEN: ${{ github.token }}
           ISSUE_NUMBER: ${{ inputs.issue }}
@@ -142,6 +144,7 @@ jobs:
         id: verify
         env:
           ROUND: ${{ inputs.round }}
+          AUTOFIX: ${{ needs.agent.outputs.autofix }}
         run: node .github/agents/fix-step.mjs verify
 
       - name: Upload feedback for the next round

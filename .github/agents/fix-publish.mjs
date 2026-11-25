@@ -13,6 +13,8 @@ import { addedLinesOf, classifyChange } from './policy.mjs';
 
 const data = readJson('fix-result.json');
 const { number, outcome } = data;
+// Which issue's approval counts is decided by the gate job, never by a file a model's job produced.
+if (Number(process.env.GATE_ISSUE) !== Number(number)) throw new Error(`the result is for issue ${number}, but this run is for issue ${process.env.GATE_ISSUE}`);
 const title = sanitizeForComment(data.title, 80).replace(/\s+/g, ' ');
 
 function git(...args) {

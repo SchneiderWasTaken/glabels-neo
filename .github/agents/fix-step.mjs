@@ -83,6 +83,7 @@ function prepare() {
   // `auto-fix` is asked again here, from GitHub, never taken from the caller: a person with write access must have applied it.
   const approval = autoFixApproval(number);
   console.log(`auto-fix: ${approval.approved ? `approved by ${approval.by}` : approval.why}`);
+  setOutput('autofix', String(approval.approved));
   writeJson('fix-issue.json', { number, title: issue.title, body: issue.body ?? '', autoFix: approval.approved });
 
   rmSync(WORK, { recursive: true, force: true });
@@ -268,7 +269,8 @@ function verify() {
   const changed = existsSync(CHANGES) ? listFiles(CHANGES) : [];
   copyInto('.', CHANGES, changed);
 
-  const change = currentChange(changed, readJson('fix-issue.json').autoFix === true);
+  // From the job output of `prepare` (which ran before the model), never from a file the model's job produced.
+  const change = currentChange(changed, process.env.AUTOFIX === 'true');
   console.log(`change: ${change.files.length} files, risk ${change.classification.risk}`);
   let feedback = '';
   if (change.files.length === 0) {

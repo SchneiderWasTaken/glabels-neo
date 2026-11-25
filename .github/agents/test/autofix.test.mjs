@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
 import { decideApproval } from '../autofix.mjs';
-import { MIN_PARTICIPANTS, aggregate, reviewPrompt, reviewerConfig } from '../council-lib.mjs';
+import { aggregate, reviewPrompt, reviewerConfig } from '../council-lib.mjs';
 import { UI_LIMITS, classifyChange } from '../policy.mjs';
 
 const f = (path, over = {}) => ({ path, status: 'modified', additions: 5, deletions: 2, ...over });
@@ -10,33 +10,48 @@ const AF = { autoFix: true };
 
 // ------------------------------------------------------------------------------------------ who may approve
 
-const labeled = (login, type = 'User', event = 'labeled') => ({ event, label: { name: 'auto-fix' }, actor: { login, type } });
+const T0 = '2026-11-25T10:00:00Z';
+const labeled = (login, type = 'User', event = 'labeled', created_at = T0) => ({ event, created_at, label: { name: 'auto-fix' }, actor: { login, type } });
 const perm = (table) => (login) => table[login] ?? 'none';
 
 test('auto-fix counts only when a person with write access applied it last', () => {
   const people = perm({ maya: 'write', root: 'admin', lead: 'maintain', reader: 'read' });
-  assert.equal(decideApproval([labeled('maya')], ['auto-fix'], people).approved, true);
-  assert.equal(decideApproval([labeled('root')], ['auto-fix'], people).approved, true);
-  assert.equal(decideApproval([labeled('lead')], ['auto-fix'], people).approved, true);
-  assert.equal(decideApproval([labeled('maya')], ['auto-fix'], people).by, 'maya');
+  assert.equal(decideApproval([labeled('maya')], ['auto-fix'], people, null).approved, true);
+  assert.equal(decideApproval([labeled('root')], ['auto-fix'], people, null).approved, true);
+  assert.equal(decideApproval([labeled('lead')], ['auto-fix'], people, null).approved, true);
+  assert.equal(decideApproval([labeled('maya')], ['auto-fix'], people, null).by, 'maya');
   // without write access, or from a bot, or when the label is gone, or when nobody can be named: no
-  assert.equal(decideApproval([labeled('reader')], ['auto-fix'], people).approved, false);
-  assert.equal(decideApproval([labeled('stranger')], ['auto-fix'], people).approved, false);
-  assert.equal(decideApproval([labeled('github-actions[bot]', 'Bot')], ['auto-fix'], people).approved, false);
-  assert.equal(decideApproval([labeled('maya')], ['bug'], people).approved, false);
-  assert.equal(decideApproval([], ['auto-fix'], people).approved, false);
-  assert.equal(decideApproval([{ event: 'labeled', label: { name: 'auto-fix' } }], ['auto-fix'], people).approved, false);
-  assert.equal(decideApproval(undefined, ['auto-fix'], people).approved, false);
+  assert.equal(decideApproval([labeled('reader')], ['auto-fix'], people, null).approved, false);
+  assert.equal(decideApproval([labeled('stranger')], ['auto-fix'], people, null).approved, false);
+  assert.equal(decideApproval([labeled('github-actions[bot]', 'Bot')], ['auto-fix'], people, null).approved, false);
+  assert.equal(decideApproval([labeled('maya')], ['bug'], people, null).approved, false);
+  assert.equal(decideApproval([], ['auto-fix'], people, null).approved, false);
+  assert.equal(decideApproval([{ event: 'labeled', created_at: T0, label: { name: 'auto-fix' } }], ['auto-fix'], people, null).approved, false);
+  assert.equal(decideApproval(undefined, ['auto-fix'], people, null).approved, false);
+});
+
+test('approval is for the issue as it was: an edit or a rename after the label voids it, and unknown means no', () => {
+  const people = perm({ maya: 'write' });
+  const ok = (edited, extra = []) => decideApproval([labeled('maya'), ...extra], ['auto-fix'], people, edited);
+  assert.equal(ok(null).approved, true);
+  assert.equal(ok('2026-11-25T09:00:00Z').approved, true); // edited before the label: the maintainer saw this text
+  assert.equal(ok('2026-11-25T10:00:01Z').approved, false);
+  assert.match(ok('2026-11-25T11:00:00Z').why, /edited after/);
+  assert.equal(ok(undefined).approved, false); // could not ask GitHub
+  assert.equal(ok(null, [{ event: 'renamed', created_at: '2026-11-25T12:00:00Z' }]).approved, false);
+  assert.equal(ok(null, [{ event: 'renamed', created_at: '2026-11-25T08:00:00Z' }]).approved, true);
+  assert.equal(decideApproval([{ ...labeled('maya'), performed_via_github_app: { slug: 'x' } }], ['auto-fix'], people, null).approved, false);
+  assert.equal(decideApproval([{ ...labeled('maya'), created_at: undefined }], ['auto-fix'], people, null).approved, false);
 });
 
 test('the latest event decides: a label removed and re-applied by someone else is theirs', () => {
   const people = perm({ maya: 'write', reader: 'read' });
   const events = [labeled('maya'), labeled('maya', 'User', 'unlabeled'), labeled('reader')];
-  assert.equal(decideApproval(events, ['auto-fix'], people).approved, false);
-  assert.equal(decideApproval([labeled('reader'), labeled('maya')], ['auto-fix'], people).approved, true);
+  assert.equal(decideApproval(events, ['auto-fix'], people, null).approved, false);
+  assert.equal(decideApproval([labeled('reader'), labeled('maya')], ['auto-fix'], people, null).approved, true);
   // other labels do not matter
   const noise = [labeled('maya'), { event: 'labeled', label: { name: 'bug' }, actor: { login: 'reader', type: 'User' } }, { event: 'commented' }];
-  assert.equal(decideApproval(noise, ['auto-fix', 'bug'], people).approved, true);
+  assert.equal(decideApproval(noise, ['auto-fix', 'bug'], people, null).approved, true);
 });
 
 // ------------------------------------------------------------------------------------------ what it may change
@@ -76,6 +91,41 @@ test('with auto-fix, ADDING to the interface, new interface files and removing t
   assert.equal(classifyChange([f('glabels/ui/Old.ui', { status: 'renamed' })], [], AF).risk, 'blocked');
 });
 
+test('with auto-fix the "no additions to the interface" rule cannot be dodged by layout, attribute order or indirection', () => {
+  const ui = (lines) => classifyChange([f('glabels/ui/Main.ui')], lines, AF).risk;
+  const cpp = (lines) => classifyChange([f('glabels/Dialog.cpp')], lines, AF).risk;
+  // Qt Designer does not care about attribute order or line breaks
+  assert.equal(ui(['<widget name="go" class="QPushButton">']), 'blocked');
+  assert.equal(ui(['<widget', 'name="go" class="QPushButton">']), 'blocked');
+  assert.equal(ui(['<addaction name="actionGo"/>']), 'blocked');
+  assert.equal(ui(['<item><property name="text"><string>x</string></property></item>']), 'blocked');
+  assert.equal(ui(['<connection><sender>a</sender><signal>clicked()</signal><receiver>b</receiver><slot>close()</slot></connection>']), 'blocked');
+  assert.equal(ui(['<customwidget><class>Evil</class></customwidget>']), 'blocked');
+  assert.equal(ui(['<include location="local">x.h</include>']), 'blocked');
+  assert.equal(ui(['<header>x.h</header>']), 'blocked');
+  // ...but properties of what exists are fine
+  assert.equal(ui(['<property name="text"><string>Print all</string></property>', '<property name="minimumSize"><size><width>320</width><height>200</height></size></property>']), 'low');
+  // calls split over lines, other classes and calls, factories, macros and aliases
+  assert.equal(cpp(['layout->addWidget(', 'btn );']), 'blocked');
+  assert.equal(cpp(['auto* b = new', 'QPushButton( this );']), 'blocked');
+  assert.equal(cpp(['auto* b = new (std::nothrow) QPushButton( this );']), 'blocked');
+  assert.equal(cpp(['auto b = std::make_unique<QPushButton>( this );']), 'blocked');
+  assert.equal(cpp(['auto* l = new QVBoxLayout( this );']), 'blocked');
+  assert.equal(cpp(['auto* w = new QFrame( this );']), 'blocked');
+  assert.equal(cpp(['buttonBox->addButton( "Export", QDialogButtonBox::ActionRole );']), 'blocked');
+  assert.equal(cpp(['bar->addSeparator();']), 'blocked');
+  assert.equal(cpp(['setLayout( l );']), 'blocked');
+  assert.equal(cpp(['QMessageBox::information( this, "t", "x" );']), 'blocked');
+  assert.equal(cpp(['connect( a, &A::x, b, &B::close );']), 'blocked');
+  assert.equal(cpp(['#define ADDW addWidget']), 'blocked');
+  assert.equal(cpp(['using B = QPushButton;']), 'blocked');
+  assert.equal(cpp(['typedef QPushButton B;']), 'blocked');
+  // ordinary tweaks still pass
+  assert.equal(cpp(['m_label->setText( tr("Print all pages") );', 'm_layout->setSpacing( 8 );']), 'low');
+  // resource manifests are not wording or spacing
+  assert.equal(classifyChange([f('glabels/icons.qrc')], ['<file>a.png</file>'], AF).risk, 'blocked');
+});
+
 test('with auto-fix, the size limits: 100 lines and 3 files are small, up to 200 and 6 need every reviewer, beyond that a person', () => {
   const ui = (n, files = 1) => Array.from({ length: files }, (_, i) => f(`glabels/ui/F${i}.ui`, { additions: Math.ceil(n / files), deletions: 0 }));
   assert.equal(UI_LIMITS.softLines, 100);
@@ -86,9 +136,15 @@ test('with auto-fix, the size limits: 100 lines and 3 files are small, up to 200
   assert.equal(classifyChange(ui(198, 6), [], AF).risk, 'high');
   assert.equal(classifyChange(ui(201, 1), [], AF).risk, 'blocked');
   assert.equal(classifyChange(ui(30, 7), [], AF).risk, 'blocked');
-  // a change that does not touch the interface keeps the ordinary limits
+  // the label is for SMALL changes, whatever they touch
+  assert.equal(classifyChange([f('glabels/A.cpp', { additions: 90, deletions: 0 })], ['int a;'], AF).risk, 'low');
   assert.equal(classifyChange([f('glabels/A.cpp', { additions: 130, deletions: 0 })], ['int a;'], AF).risk, 'high');
-  assert.equal(classifyChange(['a', 'b', 'c', 'd'].map((n) => f(`glabels/${n}.cpp`)), ['int a;'], AF).risk, 'low');
+  assert.equal(classifyChange([f('glabels/A.cpp', { additions: 250, deletions: 0 })], ['int a;'], AF).risk, 'blocked');
+  assert.equal(classifyChange(['a', 'b', 'c', 'd'].map((n) => f(`glabels/${n}.cpp`)), ['int a;'], AF).risk, 'high');
+  assert.equal(classifyChange(['a', 'b', 'c'].map((n) => f(`glabels/${n}.cpp`)), ['int a;'], AF).risk, 'low');
+  // without the label the ordinary limits are unchanged
+  assert.equal(classifyChange([f('glabels/A.cpp', { additions: 130, deletions: 0 })], ['int a;']).risk, 'high');
+  assert.equal(classifyChange([f('glabels/A.cpp', { additions: 90, deletions: 0 })], ['int a;']).risk, 'low');
 });
 
 test('auto-fix loosens only the interface rules: every other tripwire and path rule still blocks', () => {
@@ -110,7 +166,6 @@ const approve = { verdict: 'approve', risk: 'low', scope_ok: true, backdoor_susp
 const vote = (id, over = {}) => ({ id, verdict: { ...approve, ...over } });
 
 test('an auto-fix change needs Opus: a required reviewer cannot be skipped, and its objection stops the merge', () => {
-  assert.ok(MIN_PARTICIPANTS <= 2);
   const three = [vote('deepseek'), vote('glm'), vote('claude-haiku')];
   const expected = ['deepseek', 'glm', 'claude-haiku', 'claude-opus'];
   assert.equal(aggregate([...three, vote('claude-opus')], 'low', expected, ['claude-opus']).approved, true);

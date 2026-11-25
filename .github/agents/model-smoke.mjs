@@ -31,7 +31,7 @@ for (const member of POOL) {
 
   // 1. tool-less JSON answer
   try {
-    const stage = STAGES.triage.includes(member.id) ? 'triage' : 'fix';
+    const stage = ['triage', 'fix', 'council', 'council-auto'].find((s) => STAGES[s].includes(member.id));
     const r = await runModel({ stage, prompt: 'What is 6 times 7?', tools: '', schema: ANSWER, budgets: { openrouter: 0.05, claude: 0.5 }, timeoutMs: 5 * 60 * 1000, log: quiet });
     note(member.id, 'JSON answer', r.structured?.answer === 42 && r.used === member.id, `answer=${JSON.stringify(r.structured)} cost=${r.cost.toFixed(5)} USD`);
   } catch (e) {

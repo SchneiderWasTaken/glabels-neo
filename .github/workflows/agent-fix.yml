@@ -133,6 +133,7 @@ jobs:
       - name: Open the draft PR
         env:
           GH_TOKEN: ${{ github.token }}
+          GATE_ISSUE: ${{ needs.gate.outputs.issue }}
         run: node .github/agents/fix-publish.mjs
 
   failed:

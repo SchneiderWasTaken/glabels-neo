@@ -143,12 +143,15 @@ instead of being rejected or sent to a human:
 
 - the issue (fix, triage) or PR (council) gets the label `agent-queued` and one comment from the automation with a hidden
   marker: what it is, when to retry (read from the provider's message, kept between 10 minutes and 6 hours), and the
-  fingerprint of the issue text it was approved with. The label alone does nothing: a marker not written by
-  `github-actions[bot]` is ignored;
+  fingerprint of the issue text it was approved with. The label alone does nothing: it counts only if the automation applied
+  it last and a live marker from `github-actions[bot]` exists. Starting an item turns its marker into a *consumed* one, so
+  re-adding the label later (anyone with triage rights can) replays nothing;
 - a parked fix run ends as *cancelled*, so it does not use up the daily cap (`FIX_MAX_PER_DAY`), and a postponed council
   review sets the `Council` status to *pending*, never *failure* (it only postpones when nobody who answered objects);
-- **every 30 minutes** `agent-dispatch.yml` looks at everything parked. While *any* item is still inside its wait nothing
-  starts (a limit hits all models at once, so one probe is enough). Then it starts **one** item, the most important:
+- **every 30 minutes** `agent-dispatch.yml` looks at everything parked. While a parked fix or triage is still inside its wait
+  nothing starts (every model was limited, so one probe is enough); a parked *council review* (usually Claude) holds only other
+  reviews, because triage and fixes still run on the other models. Then it starts **one** item, the most important (and only if
+  no fix, triage or review run is already going; an item whose issue was closed, edited or already has a PR is dropped):
 
   | | what | why first |
   |:--:|:--|:--|
@@ -159,7 +162,9 @@ instead of being rejected or sent to a human:
   | 4 | fixes triage marked `agent-ready` | |
 
   Older items go first within a tier. The automation level and the daily fix cap still apply;
-- an item parked 12 times is handed to a person (`needs-human`): a "limit" that never ends is something else.
+- an item parked 12 times within a day is handed to a person (`needs-human`): a "limit" that never ends is something else. The
+  count restarts for a different kind of work or a new day;
+- a run that already did its first round before the limit hit stays counted against the daily cap; one that only waited does not.
 
 ## 4. Merge policy (`automerge.yml`)
 

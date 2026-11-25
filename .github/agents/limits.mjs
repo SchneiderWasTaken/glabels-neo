@@ -15,9 +15,12 @@ export class LimitError extends Error {
 
 // What providers say when they refuse because of a limit: Claude Code ("usage limit reached|<epoch>", "5-hour limit",
 // "weekly limit"), OpenRouter and most APIs (HTTP 429 / 529 / 402, "rate limit", "overloaded", "quota", "credits").
+// Deliberately narrow: a deterministic failure (a prompt that is too long, a stack trace with a line number such as
+// file.js:429) must NOT be mistaken for a limit, or it would be parked and retried instead of reported.  Status codes count
+// only next to the words that introduce them, and token or context limits are not usage limits.
 const LIMIT_RE = new RegExp([
-  'usage limit', 'rate[ _-]?limit', 'too many requests', '\\b429\\b', '\\b529\\b', '\\b402\\b', 'overloaded', 'quota',
-  '(?:5-hour|weekly|daily|monthly|session) limit', 'limit (?:reached|exceeded|hit)', 'out of (?:credits|usage)',
+  'usage limit', 'rate[ _-]?limit', 'too many requests', '(?:http|status|code|returned|response)\\D{0,12}\\b(?:429|529|402)\\b',
+  '\\b(?:429|529)\\s+(?:too many|overloaded)', 'http/\\d(?:\\.\\d)?\\s+(?:429|529|402)\\b', 'overloaded', 'quota', '(?:5-hour|weekly|daily|monthly|session) limit', 'out of (?:credits|usage)',
   'insufficient (?:credits|funds|balance)', 'credit balance', 'resource[ _]exhausted',
 ].join('|'), 'i');
 

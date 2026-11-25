@@ -178,8 +178,21 @@ jobs:
           UNTIL: ${{ needs.round2.outputs.until || needs.round1.outputs.until }}
         run: node .github/agents/queue.mjs hold
 
-      # A run that only waited is not an attempt: ending it as cancelled keeps it out of the daily cap (gate.mjs).
+      # A run that only waited is not an attempt: ending it as cancelled keeps it out of the daily cap (gate.mjs). A run whose
+      # first round already did the work (round 2 was limited) stays counted.
       - name: End this run without counting it
+        if: needs.round1.outputs.limited == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh run cancel "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" || true
+
+      # If parking itself failed the issue would be dropped without a word: ask for a person instead.
+      - name: Ask for a person if parking failed
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ needs.gate.outputs.issue }}
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE}/labels" --method POST -f 'labels[]=needs-human' >/dev/null
+          gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE}/comments" --method POST \
+            -f body="The automatic fix had to wait for a usage limit and could not be queued. A maintainer needs to look at this one." >/dev/null

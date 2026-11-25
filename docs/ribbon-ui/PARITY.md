@@ -50,3 +50,15 @@ package are reported, not hidden.
 - [ ] Manual (F1)
 - [x] Light, dark, system; Flat, Vector; no restart (354d802, TestThemeGallery::switchesWithoutRestart on the offscreen platform; System checked on Windows 11 light only)
 - [ ] Kiosk app and admin dialogs
+
+## Seen rendered, not exercised (Opus, 2026-11-25, offscreen captures in screenshots/)
+
+Not ticked above, because nothing was clicked or edited; listed so the next tester knows what is
+already known to draw correctly. Light and dark for each:
+Welcome (New, Browse, Recent cards), File backstage nav and Open pane, Home tab with every
+group, contextual Text / Barcode / Image / Shape (box and ellipse) / Line tabs appearing for a
+single selected object of that type (asserted by TestThemeGallery), Content panel per type,
+rulers, grid and markup drawn, Label page and tab, Data > Merge / Variables / Fill pages and
+tabs, Print page and tab, Deploy page and tab, View tab, Help tab, status bar text, and every
+dialog d01..d11 including the kiosk window and its admin dialog. Differences from the mockups
+are listed in VISUAL-REVIEW.md.

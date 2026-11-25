@@ -23,8 +23,12 @@
 
 #include "theme/Theme.hpp"
 
+#include <QAbstractItemView>
 #include <QAbstractScrollArea>
 #include <QApplication>
+#include <QComboBox>
+#include <QMenu>
+#include <QStyledItemDelegate>
 #include <QEvent>
 #include <QPainter>
 #include <QPainterPath>
@@ -62,7 +66,26 @@ namespace
                         }
 
                         auto* widget = qobject_cast<QWidget*>( watched );
-                        if ( !widget || widget->property( hookedProperty ).toBool() )
+                        if ( !widget )
+                        {
+                                return false;
+                        }
+
+                        // Popups are fixed on every polish (style or stylesheet changes re-polish).
+                        if ( auto* combo = qobject_cast<QComboBox*>( widget ) )
+                        {
+                                glabels::theme::Decorator::polishCombo( combo );
+                        }
+                        else if ( auto* view = qobject_cast<QAbstractItemView*>( widget ) )
+                        {
+                                glabels::theme::Decorator::polishPopupView( view );
+                        }
+                        if ( widget->isWindow() )
+                        {
+                                glabels::theme::Decorator::polishPopupWindow( widget );
+                        }
+
+                        if ( widget->property( hookedProperty ).toBool() )
                         {
                                 return false;
                         }
@@ -128,6 +151,76 @@ namespace glabels::theme
                 {
                         watcher = new PolishWatcher( qApp );
                         qApp->installEventFilter( watcher );
+                }
+        }
+
+
+        ///
+        /// Combo boxes (POPUP-AUDIT.md)
+        ///
+        void Decorator::polishCombo( QComboBox* combo )
+        {
+                // Lists of up to 15 items open without scrolling.  Only Qt's default is raised, so a
+                // combo that chose its own limit keeps it.
+                if ( combo->maxVisibleItems() == 10 )
+                {
+                        combo->setMaxVisibleItems( popupRows );
+                }
+
+                // Qt's own combo delegates are QItemDelegates: they ignore the stylesheet's item
+                // rules, so the popup was sized for one row height and drawn with another.  A
+                // QStyledItemDelegate sizes and paints rows from the same rules.  Custom delegates
+                // (the font list, ...) are kept.
+                const QString delegate = combo->itemDelegate() ? combo->itemDelegate()->metaObject()->className() : QString();
+                if ( delegate == QLatin1String( "QComboBoxDelegate" ) || delegate == QLatin1String( "QComboMenuDelegate" ) )
+                {
+                        combo->setItemDelegate( new QStyledItemDelegate( combo ) );
+                }
+
+                polishPopupView( combo->view() );
+        }
+
+
+        ///
+        /// List views that live in a popup window (combo and completer popups)
+        ///
+        void Decorator::polishPopupView( QAbstractItemView* view )
+        {
+                if ( !view )
+                {
+                        return;
+                }
+                QWidget* window = view->window();
+                const bool inPopup = window && ( window->windowType() == Qt::Popup || window->windowType() == Qt::ToolTip );
+                if ( inPopup && !view->property( "popupList" ).toBool() )
+                {
+                        // Selected by the stylesheet: square corners and no extra padding, because the
+                        // popup window around the list is a rectangle (rounded corners leave pixels that
+                        // nothing paints, which Windows shows black).
+                        view->setProperty( "popupList", true );
+                        view->style()->unpolish( view );
+                        view->style()->polish( view );
+                }
+        }
+
+
+        ///
+        /// Top-level popup windows (custom popovers)
+        ///
+        void Decorator::polishPopupWindow( QWidget* window )
+        {
+                if ( window->windowType() != Qt::Popup ||
+                     window->testAttribute( Qt::WA_TranslucentBackground ) ||
+                     qobject_cast<QMenu*>( window ) )
+                {
+                        return;
+                }
+
+                // A frameless popup that paints a rounded panel itself leaves its corners unpainted.
+                // Filling the window background first guarantees every pixel is painted.
+                if ( !window->autoFillBackground() )
+                {
+                        window->setAutoFillBackground( true );
                 }
         }
 

@@ -284,14 +284,28 @@ QComboBox::down-arrow {
 QComboBox::down-arrow:disabled {
         image: url("@imgChevronDownDisabled");
 }
-QComboBox QAbstractItemView {
+QComboBox {
+        combobox-popup: 0;
+}
+QComboBox QAbstractItemView, QAbstractItemView[popupList="true"] {
         background: @panel;
         color: @ink;
         border: 1px solid @line2;
-        padding: 4px;
+        border-radius: 0px;
+        padding: 0px;
         outline: 0;
         selection-background-color: @pressed;
         selection-color: @ink;
+}
+QComboBox QAbstractItemView::item, QAbstractItemView[popupList="true"]::item {
+        min-height: 24px;
+        padding: 0px 8px;
+        border: none;
+}
+QComboBox QAbstractItemView::item:selected, QAbstractItemView[popupList="true"]::item:selected,
+QComboBox QAbstractItemView::item:hover, QAbstractItemView[popupList="true"]::item:hover {
+        background: @pressed;
+        color: @ink;
 }
 
 QAbstractSpinBox {
@@ -1060,10 +1074,10 @@ QLabel[role="pill"][tone="warn"] {
         background: @warnTint;
         color: @warn;
 }
-QFrame[role="popover"] {
+*[role="popover"] {
         background: @panel;
         border: 1px solid @line2;
-        border-radius: 10px;
+        border-radius: 0px;
 }
 QLabel[role="popoverSection"] {
         color: @ink3;

@@ -22,6 +22,8 @@
 #define theme_Decorator_hpp
 
 
+#include <QAbstractItemView>
+#include <QComboBox>
 #include <QDialog>
 #include <QGroupBox>
 #include <QObject>
@@ -36,7 +38,10 @@ namespace glabels::theme
         ///  - dialog footers: a `chrome` band with a `line` top border behind the bottom row of
         ///    push buttons of every QDialog (SPEC.md 7, "Dialog footers sit on chrome");
         ///  - cards: every titled, non-flat QGroupBox becomes a `panel` card with a `line`
-        ///    border, radius 10, and a 38 px `chrome` header band under its title (SPEC.md 4.3).
+        ///    border, radius 10, and a 38 px `chrome` header band under its title (SPEC.md 4.3);
+        ///  - popups (docs/ribbon-ui/POPUP-AUDIT.md): combo boxes show up to 15 rows without
+        ///    scrolling and size their rows from the stylesheet; lists in popup windows get square
+        ///    corners; frameless popup windows always paint their background.
         ///
         /// install() puts a small watcher on the application that hooks each dialog and group
         /// box once, when it is polished.  The decorator only draws; it never changes geometry,
@@ -58,6 +63,14 @@ namespace glabels::theme
 
                 /// Top of the footer band of a dialog, or -1 when it has no bottom row of buttons
                 static int footerTop( const QDialog* dialog );
+
+                /// Rows a combo box popup shows before it scrolls
+                static constexpr int popupRows = 15;
+
+                /// Popup fixes, applied on every polish (public for the tests)
+                static void polishCombo( QComboBox* combo );
+                static void polishPopupView( QAbstractItemView* view );
+                static void polishPopupWindow( QWidget* window );
 
         protected:
                 bool eventFilter( QObject* watched, QEvent* event ) override;

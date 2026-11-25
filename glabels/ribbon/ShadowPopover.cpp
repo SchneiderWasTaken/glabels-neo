@@ -167,7 +167,8 @@ namespace glabels::ribbon
                 const auto& pal = theme::Theme::instance().palette();
                 p.setPen( QPen( pal.line2, 1.0 ) );
                 p.setBrush( pal.panel );
-                p.drawRoundedRect( QRectF( rect() ).adjusted( 0.5, 0.5, -0.5, -0.5 ), 10.0, 10.0 );
+                // Square: the popup window is a rectangle, rounded corners would stay unpainted (POPUP-AUDIT.md)
+                p.drawRect( QRectF( rect() ).adjusted( 0.5, 0.5, -0.5, -0.5 ) );
         }
 
 } // namespace glabels::ribbon

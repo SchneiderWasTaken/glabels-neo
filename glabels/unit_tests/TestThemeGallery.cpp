@@ -26,6 +26,7 @@
 #include "ColorPaletteDialog.hpp"
 #include "EditVariableDialog.hpp"
 #include "FillConfig.hpp"
+#include "MainWindow.hpp"
 #include "PreferencesDialog.hpp"
 #include "ReportBugDialog.hpp"
 #include "SelectProductDialog.hpp"
@@ -40,10 +41,13 @@
 #include "merge/Factory.hpp"
 #include "model/Db.hpp"
 #include "model/Settings.hpp"
+#include "model/XmlLabelParser.hpp"
 
 #include <QApplication>
 #include <QCheckBox>
+#include <QClipboard>
 #include <QDir>
+#include <QIcon>
 #include <QMessageBox>
 #include <QPushButton>
 #include <QStandardPaths>
@@ -137,6 +141,18 @@ namespace
         }
 
 
+        MainWindow* mainWindow( bool withProject )
+        {
+                auto* window = new MainWindow();
+                if ( withProject )
+                {
+                        window->setModel( model::XmlLabelParser::readFile(
+                                QStringLiteral( GLABELS_SOURCE_DIR "/test-data/simple-shapes.glabels" ) ) );
+                }
+                return window;
+        }
+
+
         void setScheme( model::Settings::ColorScheme scheme )
         {
                 // Through the stored setting, exactly as the Preferences dialog does
@@ -160,6 +176,9 @@ void TestThemeGallery::initTestCase()
         AppearanceModel::init();
 
         qInstallMessageHandler( collectWarnings );
+
+        // model::Model::canPaste() expects clipboard data; the offscreen platform starts empty.
+        QApplication::clipboard()->setText( QStringLiteral( "gallery" ) );
 }
 
 
@@ -180,6 +199,10 @@ void TestThemeGallery::dialogs_data()
         QTest::newRow( "d10" ) << "d10-color-palette"     << QSize();
         QTest::newRow( "d11a" ) << "d11-kiosk"            << QSize( 900, 640 );
         QTest::newRow( "d11b" ) << "d11-kiosk-admin-pin"  << QSize();
+
+        // Not a dialog: the main window as it is today, to catch stylesheet regressions there
+        QTest::newRow( "main-welcome" ) << "main-window-welcome" << QSize( 1440, 900 );
+        QTest::newRow( "main-editor" )  << "main-window-editor"  << QSize( 1440, 900 );
 }
 
 
@@ -201,6 +224,8 @@ void TestThemeGallery::dialogs()
                 { "d10-color-palette",     [] { return new ColorPaletteDialog( "Default", Qt::black, Qt::black ); } },
                 { "d11-kiosk",             [] { return new FillWindow( kioskConfig() ); } },
                 { "d11-kiosk-admin-pin",   [] { return new AdminDialog( kioskConfig() ); } },
+                { "main-window-welcome",   [] { return mainWindow( false ); } },
+                { "main-window-editor",    [] { return mainWindow( true ); } },
         };
         QVERIFY( factories.contains( name ) );
 
@@ -275,6 +300,18 @@ void TestThemeGallery::switchesWithoutRestart()
         setScheme( model::Settings::LIGHT_COLOR_SCHEME );
         QCOMPARE( AppearanceModel::style(), AppearanceModel::STYLE_LIGHT );
         QCOMPARE( dialog.grab().toImage().pixelColor( 3, 3 ), lightPanel );
+
+        // Flat / Vector icon style, in both schemes, without a restart (legacy icons, SPEC Q1)
+        model::Settings::setIconStyle( model::Settings::VECTOR_ICON_STYLE );
+        QCoreApplication::processEvents();
+        QCOMPARE( QIcon::themeName(), QString( "glabels-vector" ) );
+        setScheme( model::Settings::DARK_COLOR_SCHEME );
+        QCOMPARE( QIcon::themeName(), QString( "glabels-vector-dark" ) );
+        model::Settings::setIconStyle( model::Settings::FLAT_ICON_STYLE );
+        QCoreApplication::processEvents();
+        QCOMPARE( QIcon::themeName(), QString( "glabels-flat-dark" ) );
+        setScheme( model::Settings::LIGHT_COLOR_SCHEME );
+        QCOMPARE( QIcon::themeName(), QString( "glabels-flat" ) );
 
         // System is offered (Qt 6.8) and resolves through the theme
         QVERIFY( AppearanceModel::supportsSystemColorScheme() );

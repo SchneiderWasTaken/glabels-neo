@@ -477,7 +477,7 @@ today's structure unless the line says otherwise. The mockups show the **target*
 |---|---|---|---|
 | Select product (`SelectProductDialog`) | d01 | restyle | three-column layout, tile picker with part #, size line |
 | Preferences (`PreferencesDialog`) | d02 | restyle tabs: Locale, Grid, Appearance, Startup, **Updates** (exists) | single page, five cards |
-| Product Template Designer | d03, d04 | restyle the wizard | left step list |
+| Product Template Designer | d03, d04 | **done in P0** (round 4): left step list, new sidebar graphic, Neo command cards, themed size and layout illustrations, standard buttons | |
 | Edit variable | d05 | restyle | |
 | About | d06 | restyle; keep License, Website, Close; add attribution sentence | |
 | Report a problem | d07 | restyle | |

@@ -87,6 +87,8 @@ Modifier: `primary="true"` on a `ribbonLarge` or `ribbonSmall` button gives the 
 | `dialogHeading` | `QLabel` | 15 px 600 `ink` (message box text, update dialogs) |
 | `dialogBody` | `QLabel` | 13 px `ink2` |
 | `primary` | `QPushButton` | filled `accent` (the default button already gets this through `:default`) |
+| `wizardTitle` | `QLabel` | 20 px 700 `ink` (wizard page title) |
+| `wizardPage` | `QFrame` | the wizard's page area: `panel`, no frame |
 | `mono` | `QPlainTextEdit` / `QTextEdit` / `QLabel` | mono font 12 px, `bg` fill |
 
 The dialog footer band (`chrome` with a `line` top border behind the bottom button row) is

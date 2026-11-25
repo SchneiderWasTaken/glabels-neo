@@ -41,7 +41,8 @@ if (run && stage === 'fix') {
   // The `labeled` trigger starts a (skipped) run for every label added to any issue: only runs whose gate let the
   // work through count against the cap, and this run does not count against itself.
   const listed = api(`repos/${REPO}/actions/workflows/agent-fix.yml/runs?created=%3E${encodeURIComponent(since)}&per_page=100`)?.workflow_runs ?? [];
-  const runs = listed.filter((r) => r.conclusion !== 'skipped' && String(r.id) !== String(process.env.GITHUB_RUN_ID)).length;
+  // Cancelled runs do not count: a run that only waited for a usage limit ends that way (agent-fix.yml, "queue").
+  const runs = listed.filter((r) => !['skipped', 'cancelled'].includes(r.conclusion) && String(r.id) !== String(process.env.GITHUB_RUN_ID)).length;
   const cap = Number(process.env.FIX_MAX_PER_DAY || 8);
   if (runs > cap) {
     run = false;

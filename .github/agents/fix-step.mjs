@@ -25,6 +25,7 @@ import {
   REPO, UNTRUSTED_NOTICE, api, assertNoSecrets, issueHash, readJson, runModel, sanitizeForComment, secretsFromEnv, untrusted,
   writeJson,
 } from './lib.mjs';
+import { LimitError } from './limits.mjs';
 import { addedLinesOf, classifyChange } from './policy.mjs';
 
 const mode = process.argv[2];
@@ -150,12 +151,22 @@ async function agent() {
   // A retry round starts on the next pool member (the seed moves with the round), so one weak answer is not repeated.
   // On the per-token models the budget can be lowered with FIX_BUDGET_USD but never raised above 1 USD per round.
   const budget = Math.min(Number(process.env.FIX_BUDGET_USD) || 0.5, 1);
-  const result = await runModel({
-    stage: 'fix', seed: (Number(issue.number) || 0) + Number(ROUND),
-    prompt, tools: 'edit', schema: FIX_SCHEMA,
-    cwd: WORK, budgets: { openrouter: budget, claude: 3 }, timeoutMs: 25 * 60 * 1000,
-    system: 'You are a careful C++ maintainer fixing one defect. You can only read and edit files.',
-  });
+  let result;
+  try {
+    result = await runModel({
+      stage: 'fix', seed: (Number(issue.number) || 0) + Number(ROUND),
+      prompt, tools: 'edit', schema: FIX_SCHEMA,
+      cwd: WORK, budgets: { openrouter: budget, claude: 3 }, timeoutMs: 25 * 60 * 1000,
+      system: 'You are a careful C++ maintainer fixing one defect. You can only read and edit files.',
+    });
+  } catch (e) {
+    if (!(e instanceof LimitError)) throw e;
+    // Every model is at a usage limit: not a failure.  The workflow parks the issue and the dispatcher retries it later.
+    setOutput('limited', 'true');
+    setOutput('until', String(e.until));
+    console.log(`all models are at a usage limit until ${new Date(e.until).toISOString()}; the issue will be queued`);
+    return;
+  }
   const answer = result.structured ?? { cannot_fix: true, reason: 'no structured answer', summary: '', tests_added: false };
 
   // Collect what changed relative to the clean checkout, scanning for credentials while we still hold them.

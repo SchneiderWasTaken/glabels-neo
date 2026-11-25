@@ -151,3 +151,51 @@ jobs:
           gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE}/labels" --method POST -f 'labels[]=needs-human' >/dev/null
           gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE}/comments" --method POST \
             -f body="The automatic fix attempt stopped before it produced a result (it may have run into a problem, or the issue text was edited after it was approved). A maintainer needs to look at this one." >/dev/null
+
+  queue:
+    name: Wait for the usage limit
+    needs: [gate, round1, round2]
+    # Every model was at a usage limit: park the issue; agent-dispatch.yml starts it again when the limit is over.
+    if: always() && needs.gate.outputs.run == 'true' && (needs.round1.outputs.limited == 'true' || needs.round2.outputs.limited == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+      actions: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Park the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          KIND: fix
+          NUMBER: ${{ needs.gate.outputs.issue }}
+          SHA: ${{ needs.gate.outputs.body_sha }}
+          UNTIL: ${{ needs.round2.outputs.until || needs.round1.outputs.until }}
+        run: node .github/agents/queue.mjs hold
+
+      # A run that only waited is not an attempt: ending it as cancelled keeps it out of the daily cap (gate.mjs). A run whose
+      # first round already did the work (round 2 was limited) stays counted.
+      - name: End this run without counting it
+        if: needs.round1.outputs.limited == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        # The cancel request is asynchronous: keep this step alive until the runner is stopped, or the run would end as a success.
+        run: |
+          gh run cancel "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY"
+          sleep 90
+
+      # If parking itself failed the issue would be dropped without a word: ask for a person instead.
+      - name: Ask for a person if parking failed
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE: ${{ needs.gate.outputs.issue }}
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE}/labels" --method POST -f 'labels[]=needs-human' >/dev/null
+          gh api "repos/${GITHUB_REPOSITORY}/issues/${ISSUE}/comments" --method POST \
+            -f body="The automatic fix had to wait for a usage limit and could not be queued. A maintainer needs to look at this one." >/dev/null

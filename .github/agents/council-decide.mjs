@@ -1,10 +1,11 @@
 // Council step 3: combine the verdicts, record the decision, and hand an approved PR to the merge policy.
 // Runs WITHOUT model credentials.
 
+import { spawnSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 
 import { REPO, api, gh, readJson, sanitizeForComment } from './lib.mjs';
-import { aggregate, validateVerdict } from './council-lib.mjs';
+import { aggregate, isOnlyWaitingFor, validateVerdict } from './council-lib.mjs';
 
 const input = readJson('council-input.json');
 const { pr, sha } = input;
@@ -18,16 +19,36 @@ if (now.head.sha !== sha) {
 
 const verdicts = [];
 const silent = [];
+let limitedUntil = 0; // epoch ms; set when an expected reviewer was at a usage limit
+let silentForOtherReasons = 0; // expected reviewers that gave no verdict and were NOT at a limit
 for (const f of readdirSync('.').filter((n) => /^verdict-.+\.json$/.test(n))) {
   const v = readJson(f);
   // Only reviewers that were asked, for the commit that was reviewed, count.
   if (v.sha !== sha || !input.expected.includes(v.id)) continue;
   const id = sanitizeForComment(v.id, 60);
+  if (v.limited) limitedUntil = Math.max(limitedUntil, Number(v.until) || 0);
+  else if (!v.verdict) silentForOtherReasons++;
   if (v.verdict) verdicts.push({ id, model: sanitizeForComment(v.model, 80), verdict: validateVerdict(v.verdict) });
   else silent.push(`${id} (${sanitizeForComment(v.error ?? 'no answer', 100)})`);
 }
 
 const result = aggregate(verdicts, input.classification.risk, input.expected);
+
+// A reviewer at a usage limit is not a "no": if nobody who answered objects, postpone instead of rejecting, so the PR
+// is reviewed again when the limit is over.  Any real objection still decides right away.
+// Only when every reviewer without a verdict was at a limit (a real failure of another reviewer is a failure), and only if
+// the PR could really be parked: otherwise carry on and decide as usual (no answer = not approved).
+if (limitedUntil && silentForOtherReasons === 0 && isOnlyWaitingFor(verdicts, input.classification.risk)) {
+  const r = spawnSync(process.execPath, ['.github/agents/queue.mjs', 'hold'], {
+    env: { ...process.env, KIND: 'council', NUMBER: String(pr), UNTIL: String(limitedUntil) }, stdio: 'inherit',
+  });
+  if (r.status === 0) {
+    api(`repos/${REPO}/statuses/${sha}`, { method: 'POST', body: { state: 'pending', context: 'Council', description: 'waiting for a reviewer to be out of its usage limit' } });
+    console.log(`review postponed until ${new Date(limitedUntil).toISOString()}`);
+    process.exit(0);
+  }
+  console.log(`could not park the review (exit ${r.status}); deciding with the answers there are`);
+}
 console.log(JSON.stringify({ approved: result.approved, risk: result.risk, reasons: result.reasons, participants: verdicts.map((v) => v.id) }));
 
 // ---- record it: status on the reviewed commit, labels, a comment

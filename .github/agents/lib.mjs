@@ -10,6 +10,7 @@ import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
+import { LimitError, asLimitError } from './limits.mjs';
 import { assertModelRunnable, candidatesFor } from './model-policy.mjs';
 import { buildConfig, costSoFar, extractJson, parseEvents, schemaInstruction, splitModel } from './opencode-lib.mjs';
 
@@ -132,9 +133,13 @@ export function runClaude({ prompt, model, tools = '', schema, maxBudgetUsd = 1,
       try {
         raw = JSON.parse(out);
       } catch {
-        return reject(new Error(`claude exited ${code} without JSON output: ${err.slice(0, 300)}`));
+        return reject(new Error(`claude exited ${code} without JSON output: ${(err || out).slice(0, 300)}`));
       }
-      if (raw.is_error) return reject(new Error(`claude reported an error: ${String(raw.result).slice(0, 300)}`));
+      if (raw.is_error) {
+        // The text that says WHY (a usage limit, for one) may be in the result, the error or the subtype.
+        const why = [raw.subtype, raw.error?.message ?? (typeof raw.error === 'string' ? raw.error : ''), raw.result].filter((x) => x && x !== 'null').join(' ');
+        return reject(new Error(`claude reported an error: ${why.slice(0, 300)}`));
+      }
       resolve({ structured: raw.structured_output ?? null, text: String(raw.result ?? ''), cost: raw.total_cost_usd ?? 0, raw });
     });
     child.stdin.end(prompt);
@@ -210,6 +215,14 @@ export function spawnOpencode({ prompt, model, mode = 'none', schema, maxBudgetU
   });
 }
 
+/** Start one pool member.  (Injectable in runModel for tests; the policy checks happen before this is called.) */
+function defaultRunMember(member, { prompt, schema, system, cwd, timeoutMs, tools, claudeBudget, openrouterBudget }) {
+  const common = { prompt, schema, system, cwd, timeoutMs };
+  return member.provider === 'claude'
+    ? runClaude({ ...common, model: member.model, tools: tools ? 'Read,Glob,Grep,Edit,Write' : '', permissionMode: tools ? 'acceptEdits' : undefined, maxBudgetUsd: claudeBudget })
+    : spawnOpencode({ ...common, model: `openrouter/${member.model}`, mode: tools ? 'edit' : 'none', maxBudgetUsd: openrouterBudget });
+}
+
 /**
  * Run a model for a pipeline stage.  The ONLY way the automation calls one.
  *   stage: 'triage' | 'fix' | 'council' (which pool members may be used; model-policy.mjs)
@@ -219,24 +232,31 @@ export function spawnOpencode({ prompt, model, mode = 'none', schema, maxBudgetU
  * If a model fails (usage limit, outage, no usable answer) the next member is tried; the last error is thrown if all fail.
  * Returns the runner's result plus `used`, the pool id that answered.
  */
-export async function runModel({ stage, seed = 0, tools = '', prompt, schema, system, cwd, timeoutMs, budgets = {}, log = console.log }) {
+export async function runModel({ stage, seed = 0, tools = '', prompt, schema, system, cwd, timeoutMs, budgets = {}, log = console.log, runMember = defaultRunMember }) {
   const openrouterBudget = Math.min(budgets.openrouter ?? 0.5, 1); // never more than 1 USD per run on a per-token model
   const claudeBudget = budgets.claude ?? 2;
   let lastError;
+  const limited = []; // members that refused because of a usage or rate limit: [{ id, error }]
+  let tried = 0;
   for (const member of candidatesFor(stage, { seed })) {
+    tried++;
     try {
       await assertModelRunnable(member.provider, member.model);
       log(`${stage}: using ${member.id}`);
-      const common = { prompt, schema, system, cwd, timeoutMs };
-      const result = member.provider === 'claude'
-        ? await runClaude({ ...common, model: member.model, tools: tools ? 'Read,Glob,Grep,Edit,Write' : '', permissionMode: tools ? 'acceptEdits' : undefined, maxBudgetUsd: claudeBudget })
-        : await spawnOpencode({ ...common, model: `openrouter/${member.model}`, mode: tools ? 'edit' : 'none', maxBudgetUsd: openrouterBudget });
+      const result = await runMember(member, { prompt, schema, system, cwd, timeoutMs, tools, claudeBudget, openrouterBudget });
       if (schema && !result.structured) throw new Error('the model gave no structured answer');
       return { ...result, used: member.id };
     } catch (e) {
       lastError = e;
-      log(`${stage}: ${member.id} failed (${String(e instanceof Error ? e.message : e).slice(0, 200)}); trying the next one`);
+      const limit = asLimitError(e);
+      if (limit) limited.push({ id: member.id, error: limit });
+      log(`${stage}: ${member.id} ${limit ? 'is at a usage limit' : 'failed'} (${String(e instanceof Error ? e.message : e).slice(0, 200)}); trying the next one`);
     }
+  }
+  // Every member refused because of a limit: that is "try again later", not a failure.  (A mix of limits and real
+  // failures stays a failure, so a genuinely unfixable item is not parked forever.)
+  if (tried > 0 && limited.length === tried) {
+    throw new LimitError(`every model for ${stage} is at a limit (${limited.map((l) => l.id).join(', ')})`, Math.min(...limited.map((l) => l.error.until)));
   }
   throw lastError ?? new Error(`no model could run for ${stage}`);
 }

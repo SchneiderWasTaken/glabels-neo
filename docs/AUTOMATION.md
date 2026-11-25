@@ -135,6 +135,37 @@ Only four models can ever run, and the work is spread over them so no single bud
 - Start **Model smoke test** (Actions tab) after changing models, secrets or the pinned CLI versions: it runs each member for
   real and checks the edit sandbox.
 
+### Usage limits: wait, then most important first (`agent-dispatch.yml`)
+
+A usage limit, rate limit or overloaded model is **not a failure**. When *every* model a stage may use refuses for that
+reason (`limits.mjs` recognises the messages; a mix of limits and real failures stays a failure), the work is **parked**
+instead of being rejected or sent to a human:
+
+- the issue (fix, triage) or PR (council) gets the label `agent-queued` and one comment from the automation with a hidden
+  marker: what it is, when to retry (read from the provider's message, kept between 10 minutes and 6 hours), and the
+  fingerprint of the issue text it was approved with. The label alone does nothing: it counts only if the automation applied
+  it last and a live marker from `github-actions[bot]` exists. Starting an item turns its marker into a *consumed* one, so
+  re-adding the label later (anyone with triage rights can) replays nothing;
+- a parked fix run ends as *cancelled*, so it does not use up the daily cap (`FIX_MAX_PER_DAY`), and a postponed council
+  review sets the `Council` status to *pending*, never *failure* (it only postpones when nobody who answered objects);
+- **every 30 minutes** `agent-dispatch.yml` looks at everything parked. While a parked fix or triage is still inside its wait
+  nothing starts (every model was limited, so one probe is enough); a parked *council review* (usually Claude) holds only other
+  reviews, because triage and fixes still run on the other models. Then it starts **one** item, the most important (and only if
+  no fix, triage or review run is already going; an item whose issue was closed, edited or already has a PR is dropped):
+
+  | | what | why first |
+  |:--:|:--|:--|
+  | 0 | fixes for problems that block a user (`blocks-user`) | someone cannot work |
+  | 1 | council reviews | nearly finished work |
+  | 2 | triage | cheap, and it decides everything else |
+  | 3 | fixes a maintainer asked for (`agent-fix`) | an explicit request |
+  | 4 | fixes triage marked `agent-ready` | |
+
+  Older items go first within a tier. The automation level and the daily fix cap still apply;
+- an item parked 12 times within a day is handed to a person (`needs-human`): a "limit" that never ends is something else. The
+  count restarts for a different kind of work or a new day;
+- a run that already did its first round before the limit hit stays counted against the daily cap; one that only waited does not.
+
 ## 4. Merge policy (`automerge.yml`)
 
 Every 20 minutes and whenever the council approves, **one** PR is merged if all of this holds on its head commit:
@@ -175,7 +206,7 @@ in `policy.mjs` and covered by tests.
 - Repository setting needed: *Settings > Actions > General > Workflow permissions > Allow GitHub Actions to create and
   approve pull requests*.
 - Branch protection: `main` requires `CI OK` and `Lint OK`; repository admins can bypass for maintenance.
-- Labels used: `from-app`, `needs-triage`, `triaged`, `needs-info`, `needs-human`, `agent-ready`, `blocks-user`, `ui-change`, `needs-human-review`, `agent-fix`, `agent-pr`,
+- Labels used: `agent-queued` (parked for a usage limit), `from-app`, `needs-triage`, `triaged`, `needs-info`, `needs-human`, `agent-ready`, `blocks-user`, `ui-change`, `needs-human-review`, `agent-fix`, `agent-pr`,
   `council-approved`, `council-rejected`, `risk:low|high|blocked`, `area:*`.
 
 ## Setup checklist

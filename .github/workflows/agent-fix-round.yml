@@ -32,6 +32,12 @@ on:
       status:
         description: continue | ok | cannot-fix | blocked | failed
         value: ${{ jobs.verify.outputs.status }}
+      limited:
+        description: "true when every model was at a usage limit (the work is parked, not failed)"
+        value: ${{ jobs.agent.outputs.limited }}
+      until:
+        description: Epoch milliseconds before which retrying is pointless
+        value: ${{ jobs.agent.outputs.until }}
 
 permissions: {}
 
@@ -43,6 +49,9 @@ jobs:
     permissions:
       contents: read
       issues: read
+    outputs:
+      limited: ${{ steps.agent.outputs.limited }}
+      until: ${{ steps.agent.outputs.until }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -76,6 +85,7 @@ jobs:
         run: node .github/agents/fix-step.mjs prepare
 
       - name: Agent (model credential; edits files only)
+        id: agent
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_OAUTH_TOKEN }}
           OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
@@ -84,6 +94,7 @@ jobs:
         run: node .github/agents/fix-step.mjs agent
 
       - name: Upload the model's changes
+        if: steps.agent.outputs.limited != 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: changes-${{ inputs.round }}
@@ -96,6 +107,8 @@ jobs:
   verify:
     name: Verify (round ${{ inputs.round }})
     needs: agent
+    # Nothing to verify when every model was at a usage limit (the issue is parked instead; see agent-fix.yml)
+    if: needs.agent.outputs.limited != 'true'
     runs-on: ubuntu-22.04
     timeout-minutes: 90
     permissions:

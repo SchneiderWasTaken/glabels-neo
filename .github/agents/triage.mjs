@@ -5,6 +5,7 @@
 // labels and comments happens in a different job (triage-apply.mjs) that has no model credential.
 
 import { REPO, UNTRUSTED_NOTICE, api, assertNoSecrets, issueHash, runModel, secretsFromEnv, untrusted, writeJson } from './lib.mjs';
+import { LimitError } from './limits.mjs';
 import { TRIAGE_SCHEMA, validateTriage } from './triage-lib.mjs';
 
 const number = Number(process.env.ISSUE_NUMBER);
@@ -72,16 +73,25 @@ const prompt = [
   untrusted('issue-list', others.map((o) => `#${o.number} [${o.state}] ${o.title}`).join('\n'), 9000),
 ].join('\n');
 
-const result = await runModel({
-  stage: 'triage',
-  seed: number,
-  prompt,
-  tools: '',
-  schema: TRIAGE_SCHEMA,
-  budgets: { openrouter: 0.1, claude: 0.5 },
-  timeoutMs: 8 * 60 * 1000,
-  system: 'You are a careful issue triage assistant. You have no tools. Output only the requested JSON.',
-});
+let result;
+try {
+  result = await runModel({
+    stage: 'triage',
+    seed: number,
+    prompt,
+    tools: '',
+    schema: TRIAGE_SCHEMA,
+    budgets: { openrouter: 0.1, claude: 0.5 },
+    timeoutMs: 8 * 60 * 1000,
+    system: 'You are a careful issue triage assistant. You have no tools. Output only the requested JSON.',
+  });
+} catch (e) {
+  if (!(e instanceof LimitError)) throw e;
+  // Every model is at a usage limit: park the issue (triage-apply.mjs) and let the dispatcher retry it later.
+  console.log(`all models are at a usage limit until ${new Date(e.until).toISOString()}; triage will be queued`);
+  writeJson('triage-result.json', { limited: true, number, until: e.until });
+  process.exit(0);
+}
 
 const triage = validateTriage(result.structured, others.map((o) => o.number));
 const output = { number, fromApp, existingLabels: labels, triage, bodySha: issueHash(issue.title, issue.body), cost: result.cost };

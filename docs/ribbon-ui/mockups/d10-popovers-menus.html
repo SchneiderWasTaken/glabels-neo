@@ -1,0 +1,116 @@
+<!doctype html><html><head><meta charset='utf-8'><link rel='stylesheet' href='https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'><style>html,body{margin:0}</style></head><body><!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Neo Ribbon dialogs</title>
+
+</head>
+<body>
+
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0}
+.st{width:1200px;height:760px;display:flex;align-items:center;justify-content:center;gap:24px;overflow:hidden;font:13px/1.3 Inter,'Segoe UI',system-ui,sans-serif;background:var(--work);color:var(--ink);position:relative}
+.st *{box-sizing:border-box}
+.light{--bg:#F8FAFC;--chrome:#F1F5F9;--rib:#FFFFFF;--work:#CBD5E1;--panel:#FFFFFF;--line:#E2E8F0;--line2:#CBD5E1;--ink:#0F172A;--ink2:#475569;--ink3:#64748B;--acc:#4F46E5;--tint:#EDE9FE;--grad:linear-gradient(135deg,#7C3AED,#4F46E5 50%,#2563EB);--ongrad:#FFFFFF;--hover:#F1F5F9;--press:#E0E7FF;--ok:#047857;--okt:#ECFDF5;--warn:#B45309}
+.dark{--bg:#090D1A;--chrome:#0F172A;--rib:#151E32;--work:#05070F;--panel:#0F172A;--line:#1E293B;--line2:#334155;--ink:#F8FAFC;--ink2:#CBD5E1;--ink3:#94A3B8;--acc:#818CF8;--tint:#1E293B;--grad:linear-gradient(135deg,#A78BFA,#818CF8 50%,#60A5FA);--ongrad:#090D1A;--hover:#1E293B;--press:#2B3556;--ok:#34D399;--okt:#064E3B;--warn:#FBBF24}
+.ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.dlg{background:var(--panel);border:1px solid var(--line2);border-radius:12px;box-shadow:0 24px 60px rgba(0,0,0,.35);display:flex;flex-direction:column;overflow:hidden;flex:none}
+.dt{height:36px;display:flex;align-items:center;gap:8px;padding:0 0 0 14px;background:var(--chrome);border-bottom:1px solid var(--line);font-size:12px;color:var(--ink2);flex:none}
+.dt b{flex:1;font-weight:500;color:var(--ink)}
+.dt .x{width:44px;height:36px;display:flex;align-items:center;justify-content:center}
+.db{flex:1;padding:18px 20px;display:flex;flex-direction:column;gap:12px;min-height:0}
+.df{height:56px;display:flex;align-items:center;justify-content:flex-end;gap:8px;padding:0 16px;border-top:1px solid var(--line);background:var(--chrome);flex:none}
+.btn{height:30px;padding:0 14px;border:1px solid var(--line2);border-radius:6px;background:var(--rib);color:var(--ink);font:inherit;font-size:12px;font-weight:500;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:var(--ongrad);font-weight:600}
+.fld{height:28px;border:1px solid var(--line2);border-radius:6px;background:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:6px;padding:0 8px;font-size:12px;white-space:nowrap}
+.cap{font-size:12px;color:var(--ink3)}
+.lab{font-size:12px;color:var(--ink2);margin-bottom:4px}
+.row{display:flex;align-items:center;gap:8px}
+.chk{width:16px;height:16px;border-radius:4px;background:var(--acc);color:var(--ongrad);display:flex;align-items:center;justify-content:center;flex:none}
+.chk.off{background:var(--bg);border:1px solid var(--line2)}
+.chk .ic{width:12px;height:12px;stroke-width:3}
+.rad{width:16px;height:16px;border-radius:8px;border:1.5px solid var(--line2);flex:none;display:flex;align-items:center;justify-content:center;background:var(--bg)}
+.rad.on{border-color:var(--acc)}
+.rad.on::after{content:"";width:8px;height:8px;border-radius:4px;background:var(--acc)}
+.opt{display:flex;gap:8px;align-items:center;font-size:13px}
+.card{border:1px solid var(--line);border-radius:10px;background:var(--panel);overflow:hidden}
+.card>.ch{height:34px;display:flex;align-items:center;padding:0 14px;font-weight:600;font-size:13px;border-bottom:1px solid var(--line);background:var(--chrome)}
+.card>.cb{padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.kv{display:grid;grid-template-columns:90px 1fr;gap:5px 10px;font-size:12px}
+.kv span:nth-child(odd){color:var(--ink3)}
+.code{font-family:'JetBrains Mono',Consolas,monospace;font-size:12px;color:var(--acc);background:var(--tint);border-radius:6px;padding:2px 7px}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line)}
+.tabs div{padding:8px 16px;color:var(--ink2);font-weight:500;border-bottom:2px solid transparent}
+.tabs div.on{color:var(--ink);border-bottom-color:var(--acc);font-weight:600}
+.tile{border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px;align-items:center;background:var(--bg);font-size:12px}
+.tile.on{border:2px solid var(--acc);background:var(--press)}
+.menu{background:var(--panel);border:1px solid var(--line2);border-radius:10px;box-shadow:0 12px 32px rgba(0,0,0,.25);padding:6px;display:flex;flex-direction:column;gap:1px;font-size:13px}
+.mi{height:30px;display:flex;align-items:center;gap:10px;padding:0 10px;border-radius:6px}
+.mi.on{background:var(--press);color:var(--acc)}
+.mi .k{margin-left:auto;color:var(--ink3);font-size:12px}
+.ms{padding:6px 10px 2px;font-size:11px;font-weight:600;color:var(--ink3);text-transform:uppercase;letter-spacing:.05em}
+.sep{height:1px;background:var(--line);margin:4px 2px}
+.sw{width:18px;height:18px;border-radius:4px;border:1px solid var(--line2)}
+.gridc{display:grid;grid-template-columns:repeat(8,22px);gap:4px}
+.ptitle{font-size:18px;font-weight:700;letter-spacing:-.01em}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M20 20l-4-4"></path></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"></path></symbol>
+<symbol id="i-chevr" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"></path></symbol>
+<symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12 M18 6 6 18"></path></symbol>
+<symbol id="i-grid" viewBox="0 0 24 24"><path d="M4 4h7v7H4z M13 4h7v7h-7z M4 13h7v7H4z M13 13h7v7h-7z"></path></symbol>
+<symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z M14 3v5h5"></path></symbol>
+<symbol id="i-label" viewBox="0 0 24 24"><path d="M5 6h14a2 2 0 0 1 2 2v6l-5 5H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z M16 19v-3a1 1 0 0 1 1-1h4"></path></symbol>
+<symbol id="i-braces" viewBox="0 0 24 24"><path d="M8 3H7a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h1 M16 3h1a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-1"></path></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14 M5 12h14"></path></symbol>
+<symbol id="i-new" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z M14 3v5h5 M12 12v6 M9 15h6"></path></symbol>
+<symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20l4-1 11-11-3-3L5 16z"></path></symbol>
+<symbol id="i-send" viewBox="0 0 24 24"><path d="M3 11l18-8-8 18-2-8z"></path></symbol>
+</defs></svg>
+<div class="light" style="width:1200px;height:760px">
+<div class="st">
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<div style="display:grid;grid-template-columns:repeat(3,auto);gap:28px 36px;align-items:start">
+  <div><div class="cap" style="margin-bottom:6px">Color popover (every color button)</div><div class="menu" style="width:250px;padding:12px;gap:10px"><div class="lab" style="margin:0">Standard colors</div><div class="gridc"><span class="sw" style="background:#000"></span><span class="sw" style="background:#475569"></span><span class="sw" style="background:#94A3B8"></span><span class="sw" style="background:#fff"></span><span class="sw" style="background:#DC2626"></span><span class="sw" style="background:#D97706"></span><span class="sw" style="background:#059669"></span><span class="sw" style="background:#2563EB"></span><span class="sw" style="background:#4F46E5"></span><span class="sw" style="background:#7C3AED"></span><span class="sw" style="background:#DB2777"></span><span class="sw" style="background:#0891B2"></span><span class="sw" style="background:#65A30D"></span><span class="sw" style="background:#EA580C"></span><span class="sw" style="background:#78350F"></span><span class="sw" style="background:#EDE9FE"></span></div><div class="lab" style="margin:0">Recent colors</div><div class="gridc"><span class="sw" style="background:#4F46E5"></span><span class="sw" style="background:#EDE9FE"></span><span class="sw" style="background:#0F172A"></span></div><div class="sep"></div><span class="btn">Custom color...</span><span class="btn"><svg class="ic"><use href="#i-braces"></use></svg>Use substitution field</span></div></div>
+  <div><div class="cap" style="margin-bottom:6px">Barcode type menu</div><div class="menu" style="width:250px"><div class="ms">Linear</div><div class="mi">Code 39<span class="k">&gt;</span></div><div class="mi on"><svg class="ic"><use href="#i-check"></use></svg>Code 128<span class="k">&gt;</span></div><div class="mi">EAN-13</div><div class="mi">UPC-A</div><div class="mi">POSTNET<span class="k">&gt;</span></div><div class="ms">2D</div><div class="mi">QR Code</div><div class="mi">Data Matrix</div><div class="mi">PDF417</div><div class="mi">Aztec</div></div><div class="cap" style="margin-top:4px;max-width:250px">Entries and sub-menus come from the barcode backends.</div></div>
+  <div><div class="cap" style="margin-bottom:6px">Insert field menu</div><div class="menu" style="width:250px"><div class="ms">Merge fields</div><div class="mi"><span class="code">${product}</span></div><div class="mi"><span class="code">${sku}</span></div><div class="mi"><span class="code">${weight}</span></div><div class="mi"><span class="code">${batch}</span></div><div class="ms">Variables</div><div class="mi"><span class="code">${lot}</span></div><div class="mi"><span class="code">${serial}</span></div></div></div>
+  <div><div class="cap" style="margin-bottom:6px">Shadow popover</div><div class="menu" style="width:260px;padding:14px;gap:10px"><div class="opt"><span class="chk"><svg class="ic"><use href="#i-check"></use></svg></span>Enable shadow</div><div class="row"><span class="cap" style="width:70px">X offset</span><div class="fld" style="width:90px">1.0 pt</div></div><div class="row"><span class="cap" style="width:70px">Y offset</span><div class="fld" style="width:90px">1.0 pt</div></div><div class="row"><span class="cap" style="width:70px">Color</span><div class="fld" style="width:110px"><span class="row" style="gap:6px"><span class="sw" style="width:14px;height:14px;background:#000"></span>Black</span><svg class="ic" style="width:14px;height:14px"><use href="#i-chev"></use></svg></div></div><div class="row"><span class="cap" style="width:70px">Opacity</span><div class="fld" style="width:90px">50 %</div></div></div></div>
+  <div><div class="cap" style="margin-bottom:6px">Canvas context menu</div><div class="menu" style="width:230px"><div class="mi">Cut<span class="k">Ctrl+X</span></div><div class="mi">Copy<span class="k">Ctrl+C</span></div><div class="mi">Paste<span class="k">Ctrl+V</span></div><div class="mi">Delete<span class="k">Del</span></div><div class="sep"></div><div class="mi">Order<span class="k">&gt;</span></div><div class="mi">Rotate/Flip<span class="k">&gt;</span></div><div class="mi">Alignment<span class="k">&gt;</span></div><div class="mi">Center<span class="k">&gt;</span></div></div><div class="cap" style="margin-top:4px;max-width:230px">No selection: only Paste.</div></div>
+  <div><div class="cap" style="margin-bottom:6px">Ribbon tooltip (title, shortcut, status tip)</div><div class="menu" style="width:260px;padding:10px 12px;gap:2px"><div style="font-weight:600">Undo Create Barcode <span class="cap" style="font-weight:400">(Ctrl+Z)</span></div><div class="cap">Undo the last change.</div></div><div class="cap" style="margin:14px 0 6px">Ribbon overflow (narrow window)</div><div class="menu" style="width:200px"><div class="mi">Arrange<span class="k">&gt;</span></div><div class="mi">Zoom<span class="k">&gt;</span></div></div></div>
+</div>
+
+
+
+
+</div>
+</div>
+
+
+</body>
+</html>
+</body></html>

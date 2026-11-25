@@ -90,3 +90,11 @@ Modifier: `primary="true"` on a `ribbonLarge` or `ribbonSmall` button gives the 
 
 The dialog footer band (`chrome` with a `line` top border behind the bottom button row) is
 painted by `theme::DialogDecorator`; dialogs need no property for it.
+
+## Resources and helpers
+
+| What | Where |
+|---|---|
+| Neo icons, tinted per role and state | `theme::Theme::instance().icon( "save", theme::IconRole::Accent )` (names = files in `glabels/icons/neo/`) |
+| The gLabels Neo mark, as is | `:/brand/mark.svg`, or `theme::ThemeIcons::brandMark( 72, devicePixelRatioF() )` |
+| Opt out of the painted dialog footer / card | dynamic property `plainFooter` (QDialog) / `plainCard` (QGroupBox) set to `true` |

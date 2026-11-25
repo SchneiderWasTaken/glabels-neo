@@ -48,5 +48,5 @@ package are reported, not hidden.
 - [ ] Report a problem
 - [ ] About with License and Website
 - [ ] Manual (F1)
-- [ ] Light, dark, system; Flat, Vector; no restart
+- [x] Light, dark, system; Flat, Vector; no restart (354d802, TestThemeGallery::switchesWithoutRestart on the offscreen platform; System checked on Windows 11 light only)
 - [ ] Kiosk app and admin dialogs

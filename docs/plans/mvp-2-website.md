@@ -15,7 +15,7 @@ is one of the results, and the page they land on makes the download obvious.
 | Checks | `site/check.py`, `.github/workflows/site.yml` | Fails the build on a broken internal link or anchor, a missing or duplicate title, a page without exactly one `h1`, malformed starter files, or a sitemap that does not match the pages. Runs on every pull request that touches the site or the templates. |
 | Pictures | `docs/assets/`, `site/assets/img/`, `scripts/make-marketing-assets.py` | Real screenshots from a test (`TestMarketingShots`) on reproducible sample projects, so they can be regenerated after any UI change. |
 
-The 1,495 starter files were opened with the real parser (`glabels-batch-qt`) to confirm they load.
+A representative set of starter files (one for every distinct kind of label: shapes, corner radii, centre holes, waste values, custom paper) was rendered with the real application code (`glabels-batch-qt`) and loaded, except Avery 5691-Spine (a 0.22 in wide spine label with rounded corners), which produced no output. I did not find out whether the application's own template for it behaves the same way. The other starter files were checked only as well-formed XML.
 
 ## Going live
 

@@ -448,18 +448,21 @@ namespace glabels
                 fileShowMergePageAction = new QAction( tr("&Merge"), this );
                 fileShowMergePageAction->setShortcut( QKeySequence( Qt::CTRL | Qt::Key_3 ) );
                 fileShowMergePageAction->setStatusTip( tr("Select project Merge mode") );
+                fileShowMergePageAction->setCheckable( true );
                 connect( fileShowMergePageAction, SIGNAL(triggered()), this, SLOT(fileShowMergePage()) );
                 registerAction( fileShowMergePageAction );
 
                 fileShowVariablesPageAction = new QAction( tr("&Variables"), this );
                 fileShowVariablesPageAction->setShortcut( QKeySequence( Qt::CTRL | Qt::Key_4 ) );
                 fileShowVariablesPageAction->setStatusTip( tr("Select project Variables mode") );
+                fileShowVariablesPageAction->setCheckable( true );
                 connect( fileShowVariablesPageAction, SIGNAL(triggered()), this, SLOT(fileShowVariablesPage()) );
                 registerAction( fileShowVariablesPageAction );
 
                 fileShowFillPageAction = new QAction( tr("&Fill"), this );
                 fileShowFillPageAction->setShortcut( QKeySequence( Qt::CTRL | Qt::Key_5 ) );
                 fileShowFillPageAction->setStatusTip( tr("Select project Fill mode") );
+                fileShowFillPageAction->setCheckable( true );
                 connect( fileShowFillPageAction, SIGNAL(triggered()), this, SLOT(fileShowFillPage()) );
                 registerAction( fileShowFillPageAction );
 
@@ -537,7 +540,7 @@ namespace glabels
                 connect( editDeleteAction, SIGNAL(triggered()), this, SLOT(editDelete()) );
                 registerAction( editDeleteAction );
 
-                editSelectAllAction = new QAction( tr("Select &All"), this );
+                editSelectAllAction = new QAction( tr("Select &all"), this );
                 editSelectAllAction->setIcon( QIcon::fromTheme( "edit-select-all" ) );
                 editSelectAllAction->setShortcut( QKeySequence::SelectAll );
                 editSelectAllAction->setStatusTip( tr("Select all objects") );
@@ -1240,7 +1243,7 @@ namespace glabels
 
                 mFillSystemDialogRibbonBtn = new Btn( Btn::Size::Large, Btn::Variant::Standard, mDataFillOutputGroup );
                 mFillSystemDialogRibbonBtn->setText( tr( "System dialog..." ) );
-                mFillSystemDialogRibbonBtn->setIconName( QStringLiteral( "settings-2" ) );
+                mFillSystemDialogRibbonBtn->setIconName( QStringLiteral( "settings" ) );
                 connect( mFillSystemDialogRibbonBtn, &QAbstractButton::clicked, mFillView->systemDialogButton, &QAbstractButton::click );
                 mDataFillOutputGroup->addWidget( mFillSystemDialogRibbonBtn );
 
@@ -1270,7 +1273,7 @@ namespace glabels
 
                 mPrintSystemDialogRibbonBtn = new Btn( Btn::Size::Large, Btn::Variant::Standard, outGrp );
                 mPrintSystemDialogRibbonBtn->setText( tr( "System dialog..." ) );
-                mPrintSystemDialogRibbonBtn->setIconName( QStringLiteral( "settings-2" ) );
+                mPrintSystemDialogRibbonBtn->setIconName( QStringLiteral( "settings" ) );
                 connect( mPrintSystemDialogRibbonBtn, &QAbstractButton::clicked,
                          mPrintView->systemDialogButton, &QAbstractButton::click );
                 outGrp->addWidget( mPrintSystemDialogRibbonBtn );
@@ -1336,7 +1339,7 @@ namespace glabels
                 col->setContentsMargins( 4, 4, 4, 0 );
                 col->setSpacing( 4 );
                 auto* l1 = new QLabel( tr( "Single-file kiosk executable" ), aboutGrp );
-                l1->setProperty( "role", QStringLiteral( "cardTitle" ) );
+                l1->setProperty( "role", QStringLiteral( "panelTitle" ) );
                 auto* l2 = new QLabel( tr( "Embeds this label. Selected fields are locked." ), aboutGrp );
                 l2->setProperty( "role", QStringLiteral( "ribbonCaption" ) );
                 auto* l3 = new QLabel( tr( "Runs on Windows with no install." ), aboutGrp );
@@ -2191,6 +2194,10 @@ namespace glabels
                 }
 
                 mRibbonStatusBar->setEditorControlsVisible( page == ribbon::PageId::Editor );
+                if ( page == ribbon::PageId::Editor && mLabelEditor )
+                {
+                        mLabelEditor->setFocus( Qt::OtherFocusReason );
+                }
                 updateDataTabGroups();
                 updateContextualTabState( false );
                 manageActions();
@@ -2508,9 +2515,13 @@ namespace glabels
                 fileSaveAsAction->setEnabled( hasModel );
                 fileShowEditorPageAction->setEnabled( !isWelcomePage && !isEditorPage );
                 fileShowPropertiesPageAction->setEnabled( !isWelcomePage && !isPropertiesPage );
-                fileShowMergePageAction->setEnabled( !isWelcomePage && !isMergePage );
-                fileShowVariablesPageAction->setEnabled( !isWelcomePage && !isVariablesPage );
-                fileShowFillPageAction->setEnabled( !isWelcomePage && !isFillPage );
+                // Data sub-page toggles stay enabled and show checked state for the active page (SPEC 6.1, s10-s12)
+                fileShowMergePageAction->setEnabled( !isWelcomePage );
+                fileShowMergePageAction->setChecked( isMergePage );
+                fileShowVariablesPageAction->setEnabled( !isWelcomePage );
+                fileShowVariablesPageAction->setChecked( isVariablesPage );
+                fileShowFillPageAction->setEnabled( !isWelcomePage );
+                fileShowFillPageAction->setChecked( isFillPage );
                 fileShowPrintPageAction->setEnabled( !isWelcomePage && !isPrintPage );
                 fileShowDeployPageAction->setEnabled( !isWelcomePage && !isDeployPage );
                 fileTemplateDesignerAction->setEnabled( true );

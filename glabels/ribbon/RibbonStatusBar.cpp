@@ -79,12 +79,14 @@ namespace glabels::ribbon
                                                 RibbonButton::Variant::Standard,
                                                 mZoomContainer );
                 mZoomOutBtn->setFixedSize( 22, 22 );
+                mZoomOutBtn->setFocusPolicy( Qt::NoFocus );
                 zl->addWidget( mZoomOutBtn );
 
                 mZoomSlider = new QSlider( Qt::Horizontal, mZoomContainer );
                 mZoomSlider->setRange( 0, kNumZoomLevels - 1 );
                 mZoomSlider->setValue( 4 ); // 100%
                 mZoomSlider->setFixedWidth( 120 );
+                mZoomSlider->setFocusPolicy( Qt::ClickFocus );
                 mZoomSlider->setAccessibleName( tr( "Zoom" ) );
                 mZoomSlider->setProperty( "role", QStringLiteral( "zoomSlider" ) );
                 connect( mZoomSlider, &QSlider::valueChanged,
@@ -97,6 +99,7 @@ namespace glabels::ribbon
                                                RibbonButton::Variant::Standard,
                                                mZoomContainer );
                 mZoomInBtn->setFixedSize( 22, 22 );
+                mZoomInBtn->setFocusPolicy( Qt::NoFocus );
                 zl->addWidget( mZoomInBtn );
 
                 mZoomPercentLabel = new QLabel( QStringLiteral( "100%" ), mZoomContainer );

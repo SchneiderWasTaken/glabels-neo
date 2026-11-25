@@ -335,6 +335,7 @@ namespace glabels::ribbon
                 , mActions( actions )
         {
                 setProperty( "role", QStringLiteral( "backstage" ) );
+                setFocusPolicy( Qt::StrongFocus );
 
                 auto* root = new QHBoxLayout( this );
                 root->setContentsMargins( 0, 0, 0, 0 );
@@ -548,6 +549,8 @@ namespace glabels::ribbon
         {
                 QWidget::showEvent( event );
                 refresh();
+                // Keep initial focus on the backstage surface so Back does not draw a focus ring on open (s02)
+                setFocus( Qt::OtherFocusReason );
         }
 
 

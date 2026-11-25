@@ -1,0 +1,38 @@
+{
+  "title": "gLabels Neo - Free Label Maker Software for Windows, Mac and Linux",
+  "description": "Free, open-source label maker. Design and print address, shipping and product labels with barcodes on Avery and nearly 1,500 other label sheets. No account, no subscription, works offline.",
+  "jsonld": [
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "gLabels Neo",
+      "applicationCategory": "DesignApplication",
+      "operatingSystem": "Windows, macOS, Linux",
+      "description": "Free, open-source label maker for designing and printing address labels, shipping labels, product labels, name badges and barcodes.",
+      "url": "{{ORIGIN}}/",
+      "downloadUrl": "{{REPO}}/releases/latest",
+      "license": "https://www.gnu.org/licenses/gpl-3.0.html",
+      "isAccessibleForFree": true,
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" }
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "gLabels Neo",
+      "url": "{{ORIGIN}}/"
+    },
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        { "@type": "Question", "name": "Is gLabels Neo really free?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. It is open-source software under the GPL-3.0-or-later license. There is no account, no trial, no watermark, no ads and no per-label fee." } },
+        { "@type": "Question", "name": "Does it work with Avery label sheets?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. It includes templates for Avery sheets such as 5160, 5163 and 8160, plus Online Labels, Herma, Hisago, Rayfilm and many other makers, nearly 1,500 in total. If your sheet is not listed, the Product Template Designer lets you create it." } },
+        { "@type": "Question", "name": "Which computers does it run on?", "acceptedAnswer": { "@type": "Answer", "text": "Windows 10 and 11 (64-bit), macOS on Apple Silicon, and Linux on x86_64." } },
+        { "@type": "Question", "name": "Can I print labels from an Excel or CSV list?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Use the Fill page to import a CSV or Excel file, choose a quantity for each row, preview the sheet and print the rows you select." } },
+        { "@type": "Question", "name": "Does it support Zebra and other thermal label printers?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. It can send raw ZPL to Zebra and compatible printers over USB or the network, and it has roll and thermal label templates." } },
+        { "@type": "Question", "name": "Does it need an internet connection?", "acceptedAnswer": { "@type": "Answer", "text": "No. Designing and printing work offline. The only network use is an optional check for new versions, which asks for your permission first." } },
+        { "@type": "Question", "name": "How is it different from gLabels?", "acceptedAnswer": { "@type": "Answer", "text": "gLabels Neo is an independent fork of gLabels. It adds a ribbon interface, colour themes, snapping and guides, the Fill page, kiosk deployment, ZPL thermal printing, an improved template designer and automatic updates. All credit for the original application goes to Jaye Evins and the gLabels contributors." } }
+      ]
+    }
+  ]
+}

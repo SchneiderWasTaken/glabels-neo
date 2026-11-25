@@ -78,3 +78,12 @@ target_link_libraries (TestSnap glabels_lib glabels_resources Model Qt6::Test Qt
 add_test (NAME Snap COMMAND TestSnap)
 set_tests_properties (Snap PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 # --- end ribbon-ui: core ---
+
+# Pictures for the README and the website: skipped unless GLABELS_MARKETING_SHOTS=<dir> is set.
+qt6_wrap_cpp (TestMarketingShots_moc_sources TestMarketingShots.hpp)
+add_executable (TestMarketingShots TestMarketingShots.cpp ${TestMarketingShots_moc_sources})
+target_include_directories (TestMarketingShots PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_compile_definitions (TestMarketingShots PRIVATE GLABELS_SOURCE_DIR="${CMAKE_SOURCE_DIR}")
+target_link_libraries (TestMarketingShots glabels_lib glabels_resources Model Qt6::Test Qt6::Widgets Qt6::Svg)
+add_test (NAME MarketingShots COMMAND TestMarketingShots)
+set_tests_properties (MarketingShots PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")

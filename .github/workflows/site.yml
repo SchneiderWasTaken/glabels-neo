@@ -1,0 +1,83 @@
+# The website (site/): built and checked on every change; published to GitHub Pages from main.
+#
+# Publishing is off until the repository opts in:
+#   1. Settings > Pages > Build and deployment > Source: GitHub Actions
+#   2. Settings > Secrets and variables > Actions > Variables: PAGES_ENABLED = true
+# For a custom domain also set SITE_ORIGIN (https://example.com) and SITE_BASE (/).
+# See docs/plans/mvp-2-website.md.
+
+name: Site
+
+on:
+  pull_request:
+    paths:
+      - "site/**"
+      - "templates/**"
+      - "brand/**"
+      - "docs/assets/samples/**"
+      - ".github/workflows/site.yml"
+  push:
+    branches: [main]
+    paths:
+      - "site/**"
+      - "templates/**"
+      - "brand/**"
+      - "docs/assets/samples/**"
+      - ".github/workflows/site.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: site-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  SITE_ORIGIN: ${{ vars.SITE_ORIGIN || 'https://schneiderwastaken.github.io' }}
+  SITE_BASE: ${{ vars.SITE_BASE || '/glabels-neo' }}
+
+jobs:
+  build:
+    name: Build and check the site
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: "3.12"
+
+      - name: Build
+        run: python site/build.py site/dist
+
+      - name: Check links, titles and starter files
+        run: python site/check.py site/dist "${SITE_BASE%/}"
+
+      - name: Upload the site
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: site/dist
+
+  deploy:
+    name: Publish to GitHub Pages
+    needs: build
+    if: github.event_name != 'pull_request' && vars.PAGES_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

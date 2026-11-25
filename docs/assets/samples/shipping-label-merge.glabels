@@ -1,0 +1,21 @@
+<?xml version="1.0"?>
+<Glabels-document version="4.0">
+  <Template brand="Avery" description="Shipping labels" part="5163" size="US-Letter">
+    <Label-rectangle height="144pt" id="0" round="9pt" width="288pt" x_waste="0pt" y_waste="0pt">
+      <Markup-margin size="9pt"/>
+      <Layout dx="301.5pt" dy="144pt" nx="2" ny="5" x0="11.7pt" y0="36pt"/>
+    </Label-rectangle>
+  </Template>
+  <Objects id="0" rotate="false">
+    <Object-box x="9pt" y="9pt" w="270pt" h="20pt" a0="1" a1="0" a2="0" a3="1" a4="0" a5="0" line_width="0pt" line_color="0x0" fill_color="0x0f172aff" shadow="false" lock_aspect_ratio="false"/>
+    <Object-text x="15pt" y="12pt" w="258pt" h="14pt" a0="1" a1="0" a2="0" a3="1" a4="0" a5="0" font_family="Segoe UI" font_size="9" font_weight="bold" font_italic="false" font_underline="false" color="0xffffffff" align="left" valign="vcenter" wrap="word" line_spacing="1" auto_shrink="false" shadow="false" lock_aspect_ratio="false"><p>HARBOR &amp; PINE COFFEE  -  PRIORITY SHIPPING</p></Object-text>
+    <Object-text x="9pt" y="36pt" w="170pt" h="12pt" a0="1" a1="0" a2="0" a3="1" a4="0" a5="0" font_family="Segoe UI" font_size="7" font_weight="bold" font_italic="false" font_underline="false" color="0x64748bff" align="left" valign="top" wrap="word" line_spacing="1" auto_shrink="false" shadow="false" lock_aspect_ratio="false"><p>SHIP TO</p></Object-text>
+    <Object-text x="9pt" y="46pt" w="180pt" h="22pt" a0="1" a1="0" a2="0" a3="1" a4="0" a5="0" font_family="Segoe UI" font_size="16" font_weight="bold" font_italic="false" font_underline="false" color="0x0f172aff" align="left" valign="top" wrap="word" line_spacing="1" auto_shrink="false" shadow="false" lock_aspect_ratio="false"><p>${name}</p></Object-text>
+    <Object-text x="9pt" y="68pt" w="180pt" h="40pt" a0="1" a1="0" a2="0" a3="1" a4="0" a5="0" font_family="Segoe UI" font_size="10" font_weight="regular" font_italic="false" font_underline="false" color="0x1e293bff" align="left" valign="top" wrap="word" line_spacing="1.1" auto_shrink="false" shadow="false" lock_aspect_ratio="false"><p>${street}</p><p>${city}</p></Object-text>
+    <Object-barcode x="203pt" y="38pt" w="70pt" h="70pt" a0="1" a1="0" a2="0" a3="1" a4="0" a5="0" backend="" style="datamatrix" data="${tracking}" text="false" checksum="false" color="0xff" lock_aspect_ratio="true"/>
+    <Object-line x="9pt" y="113pt" dx="270pt" dy="0pt" a0="1" a1="0" a2="0" a3="1" a4="0" a5="0" line_width="0.75pt" line_color="0xcbd5e1ff" shadow="false"/>
+    <Object-barcode x="9pt" y="117pt" w="170pt" h="18pt" a0="1" a1="0" a2="0" a3="1" a4="0" a5="0" backend="" style="code39" data="${order}" text="false" checksum="false" color="0xff" lock_aspect_ratio="false"/>
+    <Object-text x="190pt" y="119pt" w="89pt" h="14pt" a0="1" a1="0" a2="0" a3="1" a4="0" a5="0" font_family="Segoe UI" font_size="9" font_weight="bold" font_italic="false" font_underline="false" color="0x334155ff" align="right" valign="vcenter" wrap="word" line_spacing="1" auto_shrink="false" shadow="false" lock_aspect_ratio="false"><p>Order ${order}</p></Object-text>
+  </Objects>
+  <Data/>
+</Glabels-document>

@@ -26,6 +26,11 @@ upstream/master..HEAD` lists exactly what this fork adds
 | Kiosk application and self-extracting single-file build | `glabels-fill/` |
 | ZPL thermal printing | `glabels/ZplRenderer.*` |
 | Thermal/roll template designer page | `glabels/TemplateDesigner.*`, `glabels/ui/TemplateDesignerThermalPage.ui` |
+| Ribbon interface (tabs, File backstage, contextual tools, Content panel) | `glabels/ribbon/`, `glabels/MainWindow.*`, `glabels/ObjectEditor.*` |
+| Theme layer: six colour schemes in light and dark, theme picker, monoline icon set | `glabels/theme/`, `glabels/icons/neo/`, `glabels/icons/neo-art/`, `glabels/AppearanceModel.*` |
+| Snapping and guides in the label editor | `glabels/SnapEngine.*`, `glabels/LabelEditor.*` |
+| Template Designer step sidebar | `glabels/TemplateDesignerSteps.*`, `glabels/TemplateDesignerSidebar.*` |
+| Brand kit, README and website pictures, sample projects | `brand/`, `docs/assets/`, `scripts/make-marketing-assets.py` |
 | Build, CI and packaging | `.github/workflows/`, `scripts/package-*`, `cmake/MacDeployFixup.cmake`, `run.ps1` |
 | Documentation | `docs/FILL-AND-DEPLOY.md`, `docs/CHANGES-FROM-UPSTREAM.md` |
 

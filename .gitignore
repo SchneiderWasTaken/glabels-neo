@@ -52,3 +52,7 @@ OLD*
 # Packaging output
 *.dmg
 dist/
+
+# Website build output
+site/dist/
+__pycache__/

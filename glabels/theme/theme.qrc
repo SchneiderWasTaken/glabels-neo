@@ -102,4 +102,14 @@
 <qresource prefix="/brand">
 	<file alias="mark.svg">../../brand/mark.svg</file>
 </qresource>
+<!-- Original gLabels Neo illustrations (Template Designer); palette sentinels, see ThemeIcons::illustration -->
+<qresource prefix="/icons/neo-art">
+	<file alias="designer-sidebar.svg">../icons/neo-art/designer-sidebar.svg</file>
+	<file alias="layout-one.svg">../icons/neo-art/layout-one.svg</file>
+	<file alias="layout-two.svg">../icons/neo-art/layout-two.svg</file>
+	<file alias="size-cd.svg">../icons/neo-art/size-cd.svg</file>
+	<file alias="size-ellipse.svg">../icons/neo-art/size-ellipse.svg</file>
+	<file alias="size-rect.svg">../icons/neo-art/size-rect.svg</file>
+	<file alias="size-round.svg">../icons/neo-art/size-round.svg</file>
+</qresource>
 </RCC>

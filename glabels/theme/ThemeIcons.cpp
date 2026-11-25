@@ -190,6 +190,60 @@ namespace
                 QString  mName;
                 IconRole mRole;
         };
+
+
+        ///
+        /// Icon glyph on a rounded tint chip (palette resolved when drawn)
+        ///
+        class ChipIconEngine : public QIconEngine
+        {
+        public:
+                explicit ChipIconEngine( const QString& name ) : mName( name ) {}
+
+                QIconEngine* clone() const override { return new ChipIconEngine( mName ); }
+                QString key() const override { return QStringLiteral( "glabels-neo-chip" ); }
+                QSize actualSize( const QSize& size, QIcon::Mode, QIcon::State ) override { return size; }
+
+                void paint( QPainter* painter, const QRect& rect, QIcon::Mode mode, QIcon::State state ) override
+                {
+                        qreal dpr = painter->device() ? painter->device()->devicePixelRatioF() : 1.0;
+                        painter->drawPixmap( rect, scaledPixmap( rect.size(), mode, state, dpr ) );
+                }
+
+                QPixmap pixmap( const QSize& size, QIcon::Mode mode, QIcon::State state ) override
+                {
+                        return scaledPixmap( size, mode, state, 1.0 );
+                }
+
+                QPixmap scaledPixmap( const QSize& size, QIcon::Mode mode, QIcon::State, qreal scale ) override
+                {
+                        const auto& p = glabels::theme::Theme::instance().palette();
+                        const int side = qMin( size.width(), size.height() );
+                        const int px = qCeil( side * scale );
+                        QImage image( px, px, QImage::Format_ARGB32_Premultiplied );
+                        image.fill( Qt::transparent );
+                        {
+                                QPainter painter( &image );
+                                painter.setRenderHint( QPainter::Antialiasing );
+                                if ( mode == QIcon::Disabled )
+                                {
+                                        painter.setOpacity( 0.4 );
+                                }
+                                painter.setPen( Qt::NoPen );
+                                painter.setBrush( p.tint );
+                                painter.drawRoundedRect( QRectF( 0, 0, px, px ), px * 0.22, px * 0.22 );
+                                const int glyph = qRound( px * 0.5 );
+                                QImage g = ThemeIcons::render( mName, p.accent, QSize( glyph, glyph ) );
+                                painter.drawImage( QPointF( ( px - glyph ) / 2.0, ( px - glyph ) / 2.0 ), g );
+                        }
+                        QPixmap pm = QPixmap::fromImage( image );
+                        pm.setDevicePixelRatio( scale );
+                        return pm;
+                }
+
+        private:
+                QString mName;
+        };
 }
 
 
@@ -206,6 +260,19 @@ namespace glabels::theme
                         return QIcon();
                 }
                 return QIcon( new NeoIconEngine( name, role ) );
+        }
+
+
+        ///
+        /// Chip icon
+        ///
+        QIcon ThemeIcons::chipIcon( const QString& name )
+        {
+                if ( !exists( name ) )
+                {
+                        return QIcon();
+                }
+                return QIcon( new ChipIconEngine( name ) );
         }
 
 
@@ -353,6 +420,63 @@ namespace glabels::theme
 
                 return writeOnce( QStringLiteral( "radio-%1-%2-%3.svg" )
                                   .arg( colorKey( ring ), colorKey( fill ), colorKey( dot ) ), data );
+        }
+
+
+        ///
+        /// Illustration source with palette colours
+        ///
+        QByteArray ThemeIcons::illustrationSvg( const QString& name, const Palette& palette )
+        {
+                QFile file( QStringLiteral( ":/icons/neo-art/%1.svg" ).arg( name ) );
+                if ( !file.open( QIODevice::ReadOnly ) )
+                {
+                        return QByteArray();
+                }
+                QByteArray data = file.readAll();
+                const struct { const char* sentinel; QColor color; } map[] = {
+                        { "#010203", palette.ink2 },
+                        { "#040506", palette.line2 },
+                        { "#070809", palette.accent },
+                        { "#0A0B0C", palette.panel },
+                        { "#101112", palette.tint },
+                };
+                for ( const auto& m : map )
+                {
+                        const QByteArray hex = m.color.name( QColor::HexRgb ).toLatin1();
+                        data.replace( m.sentinel, hex );
+                        data.replace( QByteArray( m.sentinel ).toLower(), hex );
+                }
+                return data;
+        }
+
+
+        ///
+        /// Illustration in the current palette
+        ///
+        QPixmap ThemeIcons::illustration( const QString& name, const QSize& size, qreal devicePixelRatio )
+        {
+                const Palette& palette = Theme::instance().palette();
+                QSvgRenderer renderer( illustrationSvg( name, palette ) );
+                if ( !renderer.isValid() || size.isEmpty() )
+                {
+                        return QPixmap();
+                }
+
+                QSizeF art = renderer.defaultSize();
+                art.scale( size, Qt::KeepAspectRatio );
+                const QSize px( qCeil( art.width() * devicePixelRatio ), qCeil( art.height() * devicePixelRatio ) );
+
+                QImage image( px, QImage::Format_ARGB32_Premultiplied );
+                image.fill( Qt::transparent );
+                {
+                        QPainter painter( &image );
+                        painter.setRenderHints( QPainter::Antialiasing | QPainter::TextAntialiasing | QPainter::SmoothPixmapTransform );
+                        renderer.render( &painter, QRectF( 0, 0, px.width(), px.height() ) );
+                }
+                QPixmap pixmap = QPixmap::fromImage( image );
+                pixmap.setDevicePixelRatio( devicePixelRatio );
+                return pixmap;
         }
 
 

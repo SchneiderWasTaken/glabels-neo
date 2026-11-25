@@ -72,6 +72,18 @@ namespace glabels::theme
                 /// The gLabels Neo mark (brand/mark.svg, as is) at a logical size and device pixel ratio
                 static QPixmap brandMark( int size, qreal devicePixelRatio = 1.0 );
 
+                /// An illustration (glabels/icons/neo-art/<name>.svg) in the current palette, fitted
+                /// into a logical size (aspect kept) at a device pixel ratio.  The artwork uses five
+                /// sentinel colours that are replaced by tokens: #010203 ink2, #040506 line2,
+                /// #070809 accent, #0A0B0C panel, #101112 tint.  Null if the name is unknown.
+                static QPixmap illustration( const QString& name, const QSize& size, qreal devicePixelRatio = 1.0 );
+
+                /// The illustration source with the sentinels replaced for a palette (for tests)
+                static QByteArray illustrationSvg( const QString& name, const Palette& palette );
+
+                /// An icon on a rounded `tint` chip, glyph in `accent` (command cards, mockup d03)
+                static QIcon chipIcon( const QString& name );
+
                 /// Drop cached pixmaps (theme switch)
                 static void invalidate();
         };

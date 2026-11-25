@@ -148,19 +148,23 @@ QCommandLinkButton {
         border: 1px solid @line;
         border-radius: 10px;
         padding: 12px 14px;
-        font-weight: 600;
         text-align: left;
 }
 QCommandLinkButton:hover {
         background: @hover;
         border-color: @line2;
 }
-QCommandLinkButton:checked, QCommandLinkButton:default {
+QCommandLinkButton:default {
+        background: @panel;
+        border: 1px solid @line;
+        color: @ink;
+}
+QCommandLinkButton:checked, QCommandLinkButton:pressed {
         background: @pressed;
         border: 1px solid @accent;
         color: @ink;
 }
-QCommandLinkButton:focus {
+QCommandLinkButton:focus, QCommandLinkButton:default:focus {
         border: 2px solid @accent;
         padding: 11px 13px;
 }
@@ -402,8 +406,15 @@ QCheckBox::indicator:checked:disabled, QGroupBox::indicator:checked:disabled {
 QCheckBox:focus, QRadioButton:focus {
         outline: none;
 }
-QCheckBox::indicator:focus, QRadioButton::indicator:focus {
+QCheckBox::indicator:focus {
         border: 2px solid @accent;
+}
+QRadioButton::indicator:focus {
+        border: none;
+        image: url("@imgRadioOffHover");
+}
+QRadioButton::indicator:checked:focus {
+        image: url("@imgRadioOn");
 }
 QRadioButton::indicator {
         width: 16px;
@@ -1135,8 +1146,12 @@ glabels--ReportBugDialog QPlainTextEdit:read-only {
 }
 QWizard QLabel#qt_wizard_title, QWizard QLabel[role="wizardTitle"] {
         color: @ink;
-        font-size: 15px;
-        font-weight: 600;
+        font-size: 20px;
+        font-weight: 700;
+}
+*[role="wizardPage"] {
+        background: @panel;
+        border: none;
 }
 )QSS";
 

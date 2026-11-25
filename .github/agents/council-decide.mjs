@@ -32,7 +32,7 @@ for (const f of readdirSync('.').filter((n) => /^verdict-.+\.json$/.test(n))) {
   else silent.push(`${id} (${sanitizeForComment(v.error ?? 'no answer', 100)})`);
 }
 
-const result = aggregate(verdicts, input.classification.risk, input.expected);
+const result = aggregate(verdicts, input.classification.risk, input.expected, input.required ?? []);
 
 // A reviewer at a usage limit is not a "no": if nobody who answered objects, postpone instead of rejecting, so the PR
 // is reviewed again when the limit is over.  Any real objection still decides right away.
@@ -60,6 +60,14 @@ api(`repos/${REPO}/statuses/${sha}`, {
     description: result.approved ? `approved by ${verdicts.length} reviewers (${result.risk} risk)` : sanitizeForComment(result.reasons.join('; '), 130),
   },
 });
+
+// An auto-fix change needs its required reviewers (Opus) as well: that is recorded as a separate status the merge policy checks.
+if (input.autoFix) {
+  api(`repos/${REPO}/statuses/${sha}`, {
+    method: 'POST',
+    body: { state: result.approved ? 'success' : 'failure', context: 'Council (auto-fix)', description: result.approved ? `approved by ${verdicts.map((v) => v.id).join(', ')}` : 'required reviewers did not all approve' },
+  });
+}
 
 const labels = [result.approved ? 'council-approved' : 'council-rejected', `risk:${result.risk}`];
 for (const stale of ['council-approved', 'council-rejected', 'risk:low', 'risk:high', 'risk:blocked']) {

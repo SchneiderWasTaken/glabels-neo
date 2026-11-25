@@ -100,6 +100,18 @@ export const UI_SIGNALS = [
   [/\b(?:add|insert)(?:Widget|Layout|Action|Menu|Tab|Item|Row|Spacing|Stretch)\s*\(|\bnew\s+Q(?:PushButton|ToolButton|Label|CheckBox|RadioButton|ComboBox|LineEdit|GroupBox|Dialog|Action|Menu|TabWidget|Splitter)\b|\bsetMinimumSize\s*\(|\bsetFixedSize\s*\(|\bsetContentsMargins\s*\(|\bsetSizePolicy\s*\(/, 'widgets or layout'],
 ];
 
+// With the maintainer's `auto-fix` label (autofix.mjs) a SMALL change to what already exists is allowed: wording, spacing,
+// sizes, colours, icons.  ADDING to the interface (widgets, actions, menus, layouts, new forms) stays a person's decision.
+export const UI_STRUCTURAL = [
+  /\b(?:add|insert)(?:Widget|Layout|Action|Menu|Tab|Item|Row)\s*\(/,
+  /\bnew\s+Q(?:PushButton|ToolButton|Label|CheckBox|RadioButton|ComboBox|LineEdit|GroupBox|Dialog|Action|Menu|TabWidget|Splitter)\b/,
+  /<widget\s+class=|<action\s+name=|<layout\s+class=|<spacer\b/,
+];
+// Up to the soft limit an auto-fix interface change is an ordinary low-risk change.  Beyond it (a good reason is needed)
+// it is HIGH risk: every reviewer, Opus included, must agree and it merges only in the morning window.  Beyond the hard limit
+// a person must decide.
+export const UI_LIMITS = { softLines: 100, softFiles: 3, hardLines: 200, hardFiles: 6 };
+
 // Areas where a regression hurts users most: file formats, printing, data merge, barcodes.
 const HIGH_AREAS = [/^model\/Xml/, /^model\/PageRenderer/, /Zpl/i, /Print/i, /^merge\//, /^model\/Merge/, /^glbarcode\//, /^backends\//, /^glabels-fill\//];
 
@@ -112,11 +124,14 @@ export const LIMITS = { maxFiles: 12, maxChangedLines: 600, highFiles: 5, highCh
  *   files: [{ path, status: 'added'|'modified'|'removed'|'renamed', additions, deletions, binary?, mode? }]
  *   addedLines: array of added line texts (without the leading "+")
  *   options.diffChars: size of the whole diff text, when known
- * Returns { risk: 'low' | 'high' | 'blocked', reasons: string[] }.
+ *   options.autoFix: the issue carries an approved `auto-fix` label, so a small change to the existing interface is allowed
+ * Returns { risk: 'low' | 'high' | 'blocked', reasons: string[], ui: boolean } (ui: the change touches the interface).
  */
 export function classifyChange(files, addedLines = [], options = {}) {
   const blocked = [];
   const high = [];
+  const autoFix = options.autoFix === true;
+  let ui = false;
 
   if (files.length === 0) blocked.push('empty change');
   if ((options.diffChars ?? 0) > LIMITS.maxDiffChars) blocked.push(`diff is ${options.diffChars} characters (max ${LIMITS.maxDiffChars})`);
@@ -139,15 +154,32 @@ export function classifyChange(files, addedLines = [], options = {}) {
   if (files.length > LIMITS.highFiles) high.push(`${files.length} files`);
 
   for (const f of files) {
-    if (UI_FILES.some((r) => r.test(f.path))) blocked.push(`user-interface change (needs human review): ${f.path}`);
+    if (!UI_FILES.some((r) => r.test(f.path))) continue;
+    ui = true;
+    if (!autoFix) blocked.push(`user-interface change (needs human review): ${f.path}`);
+    else if (f.status !== 'modified') blocked.push(`new, removed or renamed interface file (a person decides): ${f.path}`);
   }
   const uiSeen = new Set();
   for (const line of addedLines) {
+    if (autoFix && UI_STRUCTURAL.some((r) => r.test(line))) {
+      ui = true;
+      blocked.push(`adds to the interface - a widget, action, menu or layout (a person decides): ${line.trim().slice(0, 70)}`);
+      continue;
+    }
     for (const [test, label] of UI_SIGNALS) {
-      if (test.test(line) && !uiSeen.has(label)) {
+      if (!test.test(line)) continue;
+      ui = true;
+      if (!autoFix && !uiSeen.has(label)) {
         uiSeen.add(label);
         blocked.push(`user-interface change (needs human review): added line changes ${label}: ${line.trim().slice(0, 70)}`);
       }
+    }
+  }
+  if (autoFix && ui) {
+    if (changed > UI_LIMITS.hardLines || files.length > UI_LIMITS.hardFiles) {
+      blocked.push(`interface change of ${changed} lines in ${files.length} files (auto-fix allows at most ${UI_LIMITS.hardLines} lines in ${UI_LIMITS.hardFiles} files)`);
+    } else if (changed > UI_LIMITS.softLines || files.length > UI_LIMITS.softFiles) {
+      high.push(`interface change of ${changed} lines in ${files.length} files (small is ${UI_LIMITS.softLines} lines in ${UI_LIMITS.softFiles} files)`);
     }
   }
 
@@ -165,9 +197,9 @@ export function classifyChange(files, addedLines = [], options = {}) {
     if (trips(test, joined)) blocked.push(`added code trips "${label}" (after joining lines)`);
   }
 
-  if (blocked.length) return { risk: 'blocked', reasons: [...new Set(blocked)] };
-  if (high.length) return { risk: 'high', reasons: [...new Set(high)] };
-  return { risk: 'low', reasons: [] };
+  if (blocked.length) return { risk: 'blocked', reasons: [...new Set(blocked)], ui };
+  if (high.length) return { risk: 'high', reasons: [...new Set(high)], ui };
+  return { risk: 'low', reasons: [], ui };
 }
 
 const ORDER = { low: 0, high: 1, blocked: 2 };

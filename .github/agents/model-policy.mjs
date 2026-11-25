@@ -18,6 +18,8 @@ export const POOL = Object.freeze([
   Object.freeze({ id: 'glm', provider: 'openrouter', model: 'z-ai/glm-5.3-flash' }),
   Object.freeze({ id: 'claude-sonnet', provider: 'claude', model: 'sonnet' }),
   Object.freeze({ id: 'claude-haiku', provider: 'claude', model: 'haiku' }),
+  // Opus reviews only `auto-fix` pull requests (STAGES['council-auto']): it is the most expensive subscription model.
+  Object.freeze({ id: 'claude-opus', provider: 'claude', model: 'opus' }),
 ]);
 
 /** Which pool members each stage may use.  Haiku is for reading tasks; code edits use Sonnet. */
@@ -25,6 +27,8 @@ export const STAGES = Object.freeze({
   triage: ['deepseek', 'glm', 'claude-haiku'],
   fix: ['deepseek', 'glm', 'claude-sonnet'],
   council: ['deepseek', 'glm', 'claude-haiku'],
+  // Reviewers added to the council for an `auto-fix` pull request, all REQUIRED to take part and approve (council-lib.mjs).
+  'council-auto': ['claude-opus'],
 });
 
 /** The secret each provider needs; a member without it is skipped. */

@@ -7,6 +7,7 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
+import { autoFixApproval } from './autofix.mjs';
 import { REPO, api, assertNoSecrets, gh, readJson, sanitizeForComment } from './lib.mjs';
 import { addedLinesOf, classifyChange } from './policy.mjs';
 
@@ -66,7 +67,7 @@ for (const f of files) {
   if (summaryLines.some((l) => l.includes('delete mode') && l.endsWith(` ${f.path}`))) f.status = 'removed';
   if (summaryLines.some((l) => l.includes('create mode') && l.endsWith(` ${f.path}`))) f.status = 'added';
 }
-const classification = classifyChange(files, addedLinesOf(patch), { diffChars: patch.length });
+const classification = classifyChange(files, addedLinesOf(patch), { diffChars: patch.length, autoFix: autoFixApproval(number).approved });
 if (classification.risk === 'blocked') {
   needsHuman(`The fix agent's change was rejected by the safety rules (${classification.reasons.slice(0, 5).join('; ')}).`);
   console.log('no PR: blocked on re-check');

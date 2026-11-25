@@ -25,6 +25,7 @@ import {
   REPO, UNTRUSTED_NOTICE, api, assertNoSecrets, issueHash, readJson, runModel, sanitizeForComment, secretsFromEnv, untrusted,
   writeJson,
 } from './lib.mjs';
+import { autoFixApproval } from './autofix.mjs';
 import { LimitError } from './limits.mjs';
 import { addedLinesOf, classifyChange } from './policy.mjs';
 
@@ -79,7 +80,10 @@ function prepare() {
   if (process.env.BODY_SHA && issueHash(issue.title, issue.body) !== process.env.BODY_SHA) {
     throw new Error('the issue was edited after it was approved for a fix attempt; stopping');
   }
-  writeJson('fix-issue.json', { number, title: issue.title, body: issue.body ?? '' });
+  // `auto-fix` is asked again here, from GitHub, never taken from the caller: a person with write access must have applied it.
+  const approval = autoFixApproval(number);
+  console.log(`auto-fix: ${approval.approved ? `approved by ${approval.by}` : approval.why}`);
+  writeJson('fix-issue.json', { number, title: issue.title, body: issue.body ?? '', autoFix: approval.approved });
 
   rmSync(WORK, { recursive: true, force: true });
   mkdirSync(WORK);
@@ -123,24 +127,33 @@ const repoGuidance = `Project: gLabels Neo, a Qt6 / C++20 label designer (CMake)
 (Qt Test; see TestStrUtil.cpp for the pattern) - add or extend a test for the behaviour you fix whenever the code
 is in model/ or is otherwise testable.`;
 
-const rules = `Rules:
+const baseRules = `Rules:
 - Make the smallest change that fixes the problem. Do not refactor, rename, reformat or "improve" other code.
 - You may only change files under glabels/, model/, glbarcode/, glabels-batch/, glabels-fill/, backends/,
   templates/, translations/, test-data/, user-docs/ or docs/. NEVER change CMakeLists.txt, *.cmake, scripts,
   .github, packaging, licenses, or any dotfile.
 - Do not add network access, process execution, dynamic library loading, environment-variable reads or URLs.
 - Do not delete or weaken tests. Do not add binary files.
-- Fix the defect only. Do not change how anything looks or reads: no new or reworded user-visible text, widgets, layout,
-  styling, icons or .ui files. If the right fix needs that, set cannot_fix true and say so: a person decides.
+- __UI_RULE__
 - If the report is unclear, describes something that is not a bug, or you cannot fix it safely, set cannot_fix
   true and explain briefly. That is a good outcome.
 - You cannot run the build; it is run for you after you finish, and failures are reported back to you.`;
+
+const noUiRule = 'Fix the defect only. Do not change how anything looks or reads: no new or reworded user-visible text, widgets, layout,\n' +
+  '  styling, icons or .ui files. If the right fix needs that, set cannot_fix true and say so: a person decides.';
+// A maintainer applied `auto-fix`: a SMALL change to the existing interface is allowed (policy.mjs UI_LIMITS, checked again later).
+const uiRule = 'A maintainer approved a SMALL user-interface change for this issue. You may edit existing .ui and .qss files and existing\n' +
+  '  C++ interface code to change wording, spacing, sizes, colours or icons exactly as the issue asks, in at most 100 changed lines\n' +
+  '  in at most 3 files. Do NOT add widgets, actions, menus, layouts or new files, do not redesign anything and do not touch anything the\n' +
+  '  issue does not mention. Match the wording style and the look of the surrounding interface. If the right change is bigger than\n' +
+  '  that, set cannot_fix true and say so: a person decides.';
+const rulesFor = (autoFix) => baseRules.replace('__UI_RULE__', autoFix ? uiRule : noUiRule);
 
 async function agent() {
   const issue = readJson('fix-issue.json');
   const feedback = existsSync('prev-feedback.txt') ? readFileSync('prev-feedback.txt', 'utf8') : '';
   const prompt = [
-    UNTRUSTED_NOTICE, '', repoGuidance, '', rules, '', 'Fix this issue.',
+    UNTRUSTED_NOTICE, '', repoGuidance, '', rulesFor(issue.autoFix === true), '', 'Fix this issue.',
     untrusted('issue-title', issue.title, 300),
     untrusted('issue-body', issue.body, 12000),
     feedback ? `\nYour previous attempt had problems:\n${untrusted('feedback', feedback, 6000)}\nFix them.` : '',
@@ -190,7 +203,7 @@ async function agent() {
 }
 
 // ------------------------------------------------------------------------------------------------- verify
-function currentChange(changed) {
+function currentChange(changed, autoFix) {
   // Stage only the files the model changed (the checkout also holds build caches and other untracked files).
   sh('git', ['add', '--', ...changed]);
   const nameStatus = sh('git', ['diff', '--cached', '--name-status', '--no-renames']).stdout.trim().split('\n').filter(Boolean);
@@ -214,7 +227,7 @@ function currentChange(changed) {
       mode: oddModes.get(path),
     };
   });
-  return { files, patch, classification: classifyChange(files, addedLinesOf(patch), { diffChars: patch.length }) };
+  return { files, patch, classification: classifyChange(files, addedLinesOf(patch), { diffChars: patch.length, autoFix }) };
 }
 
 function buildAndTest() {
@@ -255,7 +268,7 @@ function verify() {
   const changed = existsSync(CHANGES) ? listFiles(CHANGES) : [];
   copyInto('.', CHANGES, changed);
 
-  const change = currentChange(changed);
+  const change = currentChange(changed, readJson('fix-issue.json').autoFix === true);
   console.log(`change: ${change.files.length} files, risk ${change.classification.risk}`);
   let feedback = '';
   if (change.files.length === 0) {

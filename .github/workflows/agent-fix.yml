@@ -1,6 +1,7 @@
 # Fix agent (automation level >= 2): attempt a fix for one issue and open a DRAFT pull request.
 #
-# Started by a maintainer applying the `agent-fix` label, or (level >= 3) by triage marking an issue `agent-ready`.
+# Started by a maintainer applying the `agent-fix` or `auto-fix` label (auto-fix also allows a SMALL interface change and a
+# merge without a person; see autofix.mjs), or (level >= 3) by triage marking an issue `agent-ready`.
 #
 # Security shape - the issue text is untrusted input to a model that can edit files:
 #   rounds (agent-fix-round.yml): per round, an "agent" job that holds the model credential and only edits files in a
@@ -34,7 +35,7 @@ permissions: {}
 jobs:
   gate:
     name: Gate
-    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'agent-fix'
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'agent-fix' || github.event.label.name == 'auto-fix'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:

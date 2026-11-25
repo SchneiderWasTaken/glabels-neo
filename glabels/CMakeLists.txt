@@ -92,6 +92,43 @@ set (glabels_qobject_headers
   ZplRenderer.hpp
 )
 
+# --- ribbon-ui: core ---
+list (APPEND glabels_sources
+  ribbon/Backstage.cpp
+  ribbon/ContentPanel.cpp
+  ribbon/EditorRulers.cpp
+  ribbon/QuickAccessBar.cpp
+  ribbon/RibbonBar.cpp
+  ribbon/RibbonButton.cpp
+  ribbon/RibbonDropButton.cpp
+  ribbon/RibbonField.cpp
+  ribbon/RibbonGroup.cpp
+  ribbon/RibbonStatusBar.cpp
+  ribbon/RibbonTab.cpp
+  ribbon/RibbonToggleGroup.cpp
+  ribbon/RibbonTypes.cpp
+  ribbon/ShadowPopover.cpp
+)
+list (APPEND glabels_qobject_headers
+  ribbon/Backstage.hpp
+  ribbon/ContentPanel.hpp
+  ribbon/EditorRulers.hpp
+  ribbon/QuickAccessBar.hpp
+  ribbon/RibbonBar.hpp
+  ribbon/RibbonButton.hpp
+  ribbon/RibbonDropButton.hpp
+  ribbon/RibbonField.hpp
+  ribbon/RibbonGroup.hpp
+  ribbon/RibbonStatusBar.hpp
+  ribbon/RibbonTab.hpp
+  ribbon/RibbonToggleGroup.hpp
+  ribbon/ShadowPopover.hpp
+)
+if (NOT "theme/Theme.hpp" IN_LIST glabels_qobject_headers)
+  list (APPEND glabels_qobject_headers theme/Theme.hpp)
+endif ()
+# --- end ribbon-ui: core ---
+
 set (glabels_forms
   ui/AboutDialog.ui
   ui/EditVariableDialog.ui

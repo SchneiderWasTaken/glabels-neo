@@ -96,7 +96,7 @@ for (const p of prs) {
   if (!decision.ok) { skip(`${decision.reason} (risk ${risk})`); continue; }
 
   // Asked once more right before the merge: a label removed meanwhile must stop it.
-  if (autoFix && !autoFixApproval(fixes).approved) { skip('the auto-fix approval was withdrawn'); continue; }
+  if (autoFix && !autoFixApproval(fixes).approved) { skip('the auto-fix approval was withdrawn, or the issue is now marked needs-human'); continue; }
 
   console.log(`${tag}: merging (${decision.reason}, risk ${risk}${autoFix ? `, auto-fix approved by ${approval.by}` : ''})`);
   try {

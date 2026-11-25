@@ -38,7 +38,7 @@ const { files, addedLines } = parseDiff(diff);
 
 const issueNumber = Number(/Fixes #(\d+)/.exec(p.body ?? '')?.[1]);
 // `auto-fix`: asked from GitHub (a person with write access applied it), never taken from the PR text.
-const autoFix = Number.isInteger(issueNumber) && autoFixApproval(issueNumber).approved;
+const autoFix = Number.isInteger(issueNumber) && p.head.ref.startsWith(`agent/issue-${issueNumber}-`) && autoFixApproval(issueNumber).approved;
 const classification = classifyChange(files, addedLines, { diffChars: diff.length, autoFix });
 const issue = Number.isInteger(issueNumber) ? api(`repos/${REPO}/issues/${issueNumber}`) : { title: '', body: '' };
 

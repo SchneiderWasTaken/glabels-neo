@@ -146,7 +146,7 @@ export function reviewPrompt({ title, issueTitle, issueBody, summary, diff, clas
     '   barcodes, or is large; "blocked" = a human must look (build/packaging/credentials, anything suspicious).',
     '',
     ...(autoFix ? [
-      '6. THIS IS A USER-INTERFACE CHANGE a maintainer explicitly approved with the "auto-fix" label. Judge it as a careful UI',
+      '6. A maintainer explicitly approved this issue with the "auto-fix" label, so a SMALL change to the existing interface is allowed. If it touches the interface, judge it as a careful UI',
       '   reviewer: does it do exactly what the issue asks and nothing more, is it consistent with the surrounding UI (wording',
       '   style, spacing, themes - light and dark), could it clip, overlap or break at small window sizes or in translations,',
       '   does it keep keyboard access and accessibility, and does it avoid adding new widgets, actions or layouts? Anything',

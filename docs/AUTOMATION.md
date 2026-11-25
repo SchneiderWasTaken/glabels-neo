@@ -146,7 +146,7 @@ Only five models can ever run, and the work is spread over them so no single bud
 
 - **Rotation**: the issue (or PR) number picks which member goes first, so work spreads evenly; if a member fails (usage limit,
   outage, no usable answer) the next one is tried. A fix retry round starts on the next member.
-- **Allowlist**: exact names only. Aliases (`~...-latest`), `:batch` variants, other OpenRouter models, other Claude models (Opus),
+- **Allowlist**: exact names only. Aliases (`~...-latest`), `:batch` variants, other OpenRouter models, other Claude models (Opus outside the `auto-fix` council),
   Gemini and anything else are refused before a request is made. `MODEL_POOL` can only narrow the pool, never add to it.
 - **Price ceiling**: before every OpenRouter call the live per-token prices are read from OpenRouter and the call is refused if
   the model costs more than GLM 5.3 flash (or charges per request, search or image), or if the prices cannot be read.

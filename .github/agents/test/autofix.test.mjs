@@ -36,7 +36,11 @@ test('approval is for the issue as it was: an edit or a rename after the label v
   assert.equal(ok(null).approved, true);
   assert.equal(ok('2026-11-25T09:00:00Z').approved, true); // edited before the label: the maintainer saw this text
   assert.equal(ok('2026-11-25T10:00:01Z').approved, false);
-  assert.match(ok('2026-11-25T11:00:00Z').why, /edited after/);
+  assert.match(ok('2026-11-25T11:00:00Z').why, /edited at or after/);
+  assert.equal(ok(T0).approved, false); // the same second cannot be told apart from later
+  assert.equal(ok('not a date').approved, false); // unreadable counts as later
+  assert.equal(ok(null, [{ event: 'renamed', created_at: T0 }]).approved, false);
+  assert.equal(ok(null, [{ event: 'renamed', created_at: 'garbage' }]).approved, false);
   assert.equal(ok(undefined).approved, false); // could not ask GitHub
   assert.equal(ok(null, [{ event: 'renamed', created_at: '2026-11-25T12:00:00Z' }]).approved, false);
   assert.equal(ok(null, [{ event: 'renamed', created_at: '2026-11-25T08:00:00Z' }]).approved, true);
@@ -120,6 +124,20 @@ test('with auto-fix the "no additions to the interface" rule cannot be dodged by
   assert.equal(cpp(['#define ADDW addWidget']), 'blocked');
   assert.equal(cpp(['using B = QPushButton;']), 'blocked');
   assert.equal(cpp(['typedef QPushButton B;']), 'blocked');
+  // comments, the project's own widgets, stack widgets, static dialogs, macros split over lines
+  assert.equal(cpp(['layout->addWidget/**/( w );']), 'blocked');
+  assert.equal(cpp(['setLayout/* x */( l );']), 'blocked');
+  assert.equal(cpp(['auto* b = new RibbonButton( this );']), 'blocked');
+  assert.equal(cpp(['QDialog dlg( this );']), 'blocked');
+  assert.equal(cpp(['QPushButton btn( tr("x"), this );']), 'blocked');
+  assert.equal(cpp(['auto name = QFileDialog::getOpenFileName( this );']), 'blocked');
+  assert.equal(cpp(['dlg.exec();']), 'blocked');
+  assert.equal(cpp(['using', 'B = QPushButton;']), 'blocked');
+  assert.equal(cpp(['#\\', 'define X addWidget']), 'blocked');
+  // icons are part of the interface: changing one is fine, adding or removing one is not
+  assert.equal(classifyChange([f('glabels/icons/a.svg', { status: 'added' })], [], AF).risk, 'blocked');
+  assert.equal(classifyChange([f('glabels/icons/a.svg', { status: 'removed' })], [], AF).risk, 'blocked');
+  assert.equal(classifyChange([f('glabels/icons/a.svg')], ['<path d="M0 0"/>'], AF).risk, 'low');
   // ordinary tweaks still pass
   assert.equal(cpp(['m_label->setText( tr("Print all pages") );', 'm_layout->setSpacing( 8 );']), 'low');
   // resource manifests are not wording or spacing
@@ -185,5 +203,5 @@ test('the council gets Opus and a UI-minded prompt only for an auto-fix change',
   assert.equal(reviewerConfig({ autoFix: true }).at(-1).model, 'opus');
   const base = { title: 't', issueTitle: 'i', issueBody: 'b', summary: 's', diff: 'd', classification: { risk: 'low', reasons: [] } };
   assert.doesNotMatch(reviewPrompt(base), /USER-INTERFACE CHANGE/);
-  assert.match(reviewPrompt({ ...base, autoFix: true }), /USER-INTERFACE CHANGE a maintainer explicitly approved/);
+  assert.match(reviewPrompt({ ...base, autoFix: true }), /explicitly approved this issue with the "auto-fix" label/);
 });

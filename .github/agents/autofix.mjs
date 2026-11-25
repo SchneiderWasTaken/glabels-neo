@@ -30,21 +30,28 @@ export function decideApproval(events, labelsNow, permissionOf, lastEditedAt) {
   const at = Date.parse(last.created_at);
   if (!Number.isFinite(at)) return { approved: false, by: actor.login, why: 'cannot tell when the auto-fix label was applied' };
   if (lastEditedAt === undefined) return { approved: false, by: actor.login, why: 'could not read when the issue text was last edited' };
-  if (lastEditedAt !== null && Date.parse(lastEditedAt) > at) return { approved: false, by: actor.login, why: 'the issue text was edited after the auto-fix label was applied' };
-  if ((events ?? []).some((e) => e.event === 'renamed' && Date.parse(e.created_at) > at)) return { approved: false, by: actor.login, why: 'the issue was renamed after the auto-fix label was applied' };
+  // GitHub's times have one-second resolution: an edit in the same second as the label cannot be told apart, so it counts as
+  // later.  A time that cannot be read counts as later too.
+  if (lastEditedAt !== null) {
+    const edited = Date.parse(lastEditedAt);
+    if (!Number.isFinite(edited) || edited >= at) return { approved: false, by: actor.login, why: 'the issue text was edited at or after the moment the auto-fix label was applied' };
+  }
+  if ((events ?? []).some((e) => e.event === 'renamed' && !(Date.parse(e.created_at) < at))) return { approved: false, by: actor.login, why: 'the issue was renamed at or after the moment the auto-fix label was applied' };
   if (!MAY_WRITE.includes(permissionOf(actor.login))) return { approved: false, by: actor.login, why: `${actor.login} cannot approve auto-fix (no write access)` };
   return { approved: true, by: actor.login, why: 'ok' };
 }
 
 /** Ask GitHub: is `auto-fix` approved on this issue right now? */
 export function autoFixApproval(issueNumber) {
-  const issue = api(`repos/${REPO}/issues/${issueNumber}`);
-  if (!issue || issue.pull_request) return { approved: false, by: null, why: 'not an issue' };
+  const issue = api(`repos/${REPO}/issues/${issueNumber}`, { allowFail: true });
+  if (!issue || issue.pull_request || issue.state !== 'open') return { approved: false, by: null, why: 'not an open issue', labels: [] };
   const events = api(`repos/${REPO}/issues/${issueNumber}/events?per_page=100`, { paginate: true, allowFail: true }) ?? [];
   const labelsNow = (issue.labels ?? []).map((l) => l.name);
-  return decideApproval(events, labelsNow, (login) =>
+  const decision = decideApproval(events, labelsNow, (login) =>
     api(`repos/${REPO}/collaborators/${encodeURIComponent(login)}/permission`, { allowFail: true })?.permission ?? 'none',
   lastEdited(issueNumber));
+  // The labels are returned from the SAME read, so callers can also see needs-human without a second snapshot.
+  return { ...decision, approved: decision.approved && !labelsNow.includes('needs-human'), labels: labelsNow };
 }
 
 /** When the issue text (body) was last edited: an ISO time, null if never, undefined if GitHub could not be asked. */

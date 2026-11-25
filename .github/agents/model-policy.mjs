@@ -1,9 +1,10 @@
 // Which models the automation may run, and what they may cost.  Nothing in the pipeline (triage, fixes, council) may
 // call a model that is not in POOL, whatever a repository variable, an environment variable or a model's own output says.
 //
-// The pool spreads the work over four models so that no single budget or usage limit carries it all:
+// The pool spreads the work over five models so that no single budget or usage limit carries it all:
 //   - two cheap OpenRouter models (DeepSeek V4.1 flash 1017, GLM 5.3 flash), paid per token;
-//   - Claude Sonnet and Haiku, on the maintainer's Claude subscription (usage limits, no per-token bill).
+//   - Claude Sonnet and Haiku, on the maintainer's Claude subscription (usage limits, no per-token bill), and Claude Opus,
+//     only as the required reviewer of `auto-fix` pull requests.
 // Nothing else, in particular no other OpenRouter model: the ceiling for per-token spending is what GLM 5.3 flash costs.
 //
 // Gates, all checked before every model call and all fail-closed:

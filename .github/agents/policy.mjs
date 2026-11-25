@@ -92,7 +92,7 @@ function collapse(text) {
 // How the app looks and reads is a decision for a person.  Whatever the issue said, a change that edits a Qt Designer
 // form or stylesheet, or adds or changes user-visible text, widgets, layout or styling, is held for human review.  (A
 // crash fix almost never needs any of these; when it does, a person should look at it anyway.)
-const UI_FILES = [/\.ui$/i, /\.qss$/i, /\.css$/i, /\.qrc$/i];
+const UI_FILES = [/\.ui$/i, /\.qss$/i, /\.css$/i, /\.qrc$/i, /\.svg$/i];
 export const UI_SIGNALS = [
   [/\b(?:QObject::)?tr\s*\(|\bQT_TR(?:ANSLATE)?_NOOP\w*\s*\(|\bQCoreApplication::translate\s*\(/, 'user-visible text'],
   [/\bsetStyleSheet\s*\(|\bsetPalette\s*\(|\bsetFont\s*\(|\bsetIcon\w*\s*\(|\bQIcon\s*\(|\bsetStyle\s*\(/, 'styling'],
@@ -106,14 +106,19 @@ export const UI_SIGNALS = [
 // The XML tags are matched by NAME, whatever their attributes or the line breaks: Qt Designer does not care about either.
 export const UI_STRUCTURAL = [
   /\b(?:add|insert)(?:Widget|Layout|Action|Actions|Menu|Tab|Item|Items|Row|Button|Separator|ToolBar|DockWidget|Page|Section|Column|Child)\s*\(/,
-  /\bnew\b[^;]{0,80}\bQ[A-Za-z]*(?:Widget|Layout|Button|Box|Label|Frame|Dialog|Bar|Menu|Action|Edit|Slider|Splitter|View|List|Table|Tree|Tab|Stack|Area|Shortcut|Group|Dial|Browser|Window)\b/,
+  // Small wording, spacing and colour changes never create objects: any `new` is a person's decision (this also covers the
+  // project's own widgets: RibbonButton, ColorButton...).  Stack-allocated widgets and dialogs, and the static dialogs, too.
+  /\bnew\b/,
+  /\bQ[A-Za-z]*(?:Dialog|MessageBox|Menu|Action|Widget|Button|Box|Label|Frame|Edit|Bar|Splitter)\s+[A-Za-z_]\w*\s*[({]/,
+  /\bQ(?:File|Input|Color|Font|Message|ProgressDialog)\w*\s*::/,
+  /\.\s*exec\s*\(/,
   /\bmake_(?:unique|shared)\s*<\s*Q[A-Za-z]*/,
   /\b(?:setLayout|setCentralWidget|setMenuBar|setStatusBar|setCornerWidget|setStandardButtons|setMenu|setParent|setBuddy|setTabOrder|connect)\s*\(/,
   /\bQMessageBox\s*::\s*\w+\s*\(/,
   /<(?:widget|action|addaction|layout|spacer|item|connection|connections|slot|signal|sender|receiver|customwidget|customwidgets|include|includes|header|resources|resource|tabstops|tabstop|buddy)\b/i,
 ];
 // Macros and aliases can hide any of the above from a line-by-line check.
-export const UI_INDIRECTION = /^\s*#\s*(?:define|undef)\b|\btypedef\b|\busing\s+\w+\s*=/;
+export const UI_INDIRECTION = /#\s*(?:define|undef)\b|\btypedef\b|\busing\s+\w+\s*=/;
 // Up to the soft limit an auto-fix interface change is an ordinary low-risk change.  Beyond it (a good reason is needed)
 // it is HIGH risk: every reviewer, Opus included, must agree and it merges only in the morning window.  Beyond the hard limit
 // a person must decide.
@@ -169,7 +174,7 @@ export function classifyChange(files, addedLines = [], options = {}) {
   }
   const uiSeen = new Set();
   for (const line of addedLines) {
-    if (autoFix && UI_STRUCTURAL.some((r) => r.test(line))) {
+    if (autoFix && UI_STRUCTURAL.some((r) => r.test(line.replace(/\/\*.*?\*\//g, ' ')))) {
       ui = true;
       blocked.push(`adds to the interface - a widget, action, menu or layout (a person decides): ${line.trim().slice(0, 70)}`);
       continue;
@@ -190,13 +195,14 @@ export function classifyChange(files, addedLines = [], options = {}) {
     } else if (changed > UI_LIMITS.softLines || files.length > UI_LIMITS.softFiles) {
       high.push(`auto-fix change of ${changed} lines in ${files.length} files (small is ${UI_LIMITS.softLines} lines in ${UI_LIMITS.softFiles} files)`);
     }
-    const flat = collapse(addedLines.join('\n')).replace(/\s+/g, ' ');
+    // Comments cannot be used to break a call apart: they are removed before the joined text is checked.
+    const flat = collapse(addedLines.join('\n')).replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ').replace(/\s+/g, ' ');
     if (UI_STRUCTURAL.some((r) => r.test(flat))) {
       ui = true;
       blocked.push('adds to the interface - a widget, action, menu, layout, connection or include (a person decides), seen after joining lines');
     }
-    for (const line of addedLines) {
-      if (UI_INDIRECTION.test(line)) { blocked.push(`macro or alias that could hide a change (a person decides): ${line.trim().slice(0, 70)}`); break; }
+    if (UI_INDIRECTION.test(flat) || addedLines.some((line) => UI_INDIRECTION.test(line))) {
+      blocked.push('macro or alias that could hide a change (a person decides)');
     }
   }
 

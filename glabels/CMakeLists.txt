@@ -42,6 +42,7 @@ set (glabels_sources
   RollTemplatePath.cpp
   SelectProductDialog.cpp
   SimplePreview.cpp
+  SnapEngine.cpp
   StartupView.cpp
   TemplateDesigner.cpp
   TemplatePicker.cpp

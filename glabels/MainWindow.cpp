@@ -1620,14 +1620,13 @@ namespace glabels
                         mImageResetSubWidget = new QWidget( mSharedRectSizeWidget );
                         auto* imgCol = new QVBoxLayout( mImageResetSubWidget );
                         imgCol->setContentsMargins( 6, 0, 0, 0 );
-                        imgCol->setSpacing( 4 );
+                        imgCol->setSpacing( 3 );
                         QWidget* origLbl  = ctrl( Cid::SizeOriginalSizeLabel );
                         QWidget* resetBtn = ctrl( Cid::SizeResetImageButton );
                         origLbl->setParent( mImageResetSubWidget );
                         origLbl->setProperty( "role", QStringLiteral( "ribbonCaption" ) );
                         origLbl->show();
                         resetBtn->setParent( mImageResetSubWidget );
-                        resetBtn->setFixedHeight( theme::Metrics::field );
                         resetBtn->show();
                         imgCol->addWidget( origLbl );
                         imgCol->addWidget( resetBtn, 0, Qt::AlignLeft );

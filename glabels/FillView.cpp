@@ -133,6 +133,7 @@ namespace glabels
                 titleLabel->setText( tr("Fill") );
                 titleLabel->setProperty( "role", QStringLiteral( "pageTitle" ) );
                 productLabel->setProperty( "role", QStringLiteral( "caption" ) );
+                productLabel->setWordWrap( false );
                 printDescriptionLabel->setProperty( "role", QStringLiteral( "caption" ) );
                 printDescriptionLabel->setAlignment( Qt::AlignLeft | Qt::AlignVCenter );
                 addRowButton->setText( tr("Add row") );

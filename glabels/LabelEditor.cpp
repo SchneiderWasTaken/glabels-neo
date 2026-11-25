@@ -1190,7 +1190,8 @@ namespace glabels
                         painter->setClipPath( mModel->frame()->path() );
 
                         QColor themedGrid = theme::Theme::instance().palette().line2;
-                        themedGrid.setAlpha( 160 );
+                        // Paper is always white; soften darker dark-mode line2 so the grid stays subtle
+                        themedGrid.setAlpha( themedGrid.lightness() < 128 ? 56 : 160 );
                         QPen pen( themedGrid, gridLineWidthPixels );
                         pen.setCosmetic( true );
                         painter->setPen( pen );

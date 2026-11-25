@@ -1,9 +1,10 @@
 // Which models the automation may run, and what they may cost.  Nothing in the pipeline (triage, fixes, council) may
 // call a model that is not in POOL, whatever a repository variable, an environment variable or a model's own output says.
 //
-// The pool spreads the work over four models so that no single budget or usage limit carries it all:
+// The pool spreads the work over five models so that no single budget or usage limit carries it all:
 //   - two cheap OpenRouter models (DeepSeek V4.1 flash 1017, GLM 5.3 flash), paid per token;
-//   - Claude Sonnet and Haiku, on the maintainer's Claude subscription (usage limits, no per-token bill).
+//   - Claude Sonnet and Haiku, on the maintainer's Claude subscription (usage limits, no per-token bill), and Claude Opus,
+//     only as the required reviewer of `auto-fix` pull requests.
 // Nothing else, in particular no other OpenRouter model: the ceiling for per-token spending is what GLM 5.3 flash costs.
 //
 // Gates, all checked before every model call and all fail-closed:
@@ -18,6 +19,8 @@ export const POOL = Object.freeze([
   Object.freeze({ id: 'glm', provider: 'openrouter', model: 'z-ai/glm-5.3-flash' }),
   Object.freeze({ id: 'claude-sonnet', provider: 'claude', model: 'sonnet' }),
   Object.freeze({ id: 'claude-haiku', provider: 'claude', model: 'haiku' }),
+  // Opus reviews only `auto-fix` pull requests (STAGES['council-auto']): it is the most expensive subscription model.
+  Object.freeze({ id: 'claude-opus', provider: 'claude', model: 'opus' }),
 ]);
 
 /** Which pool members each stage may use.  Haiku is for reading tasks; code edits use Sonnet. */
@@ -25,6 +28,8 @@ export const STAGES = Object.freeze({
   triage: ['deepseek', 'glm', 'claude-haiku'],
   fix: ['deepseek', 'glm', 'claude-sonnet'],
   council: ['deepseek', 'glm', 'claude-haiku'],
+  // Reviewers added to the council for an `auto-fix` pull request, all REQUIRED to take part and approve (council-lib.mjs).
+  'council-auto': ['claude-opus'],
 });
 
 /** The secret each provider needs; a member without it is skipped. */

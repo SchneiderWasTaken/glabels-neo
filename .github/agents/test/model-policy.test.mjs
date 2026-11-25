@@ -11,10 +11,13 @@ const GLM = { id: 'z-ai/glm-5.3-flash', pricing: { prompt: '0.00000012', complet
 const catalogue = (...entries) => async () => ({ ok: true, status: 200, json: async () => ({ data: entries }) });
 const KEYS = { OPENROUTER_API_KEY: 'k1', CLAUDE_CODE_OAUTH_TOKEN: 'k2' };
 
-test('the pool is DeepSeek V4.1 flash 1017, GLM 5.3 flash, and Claude Sonnet and Haiku - nothing else', () => {
+test('the pool is DeepSeek V4.1 flash 1017, GLM 5.3 flash, and Claude Sonnet, Haiku and Opus - nothing else', () => {
   assert.deepEqual([...ALLOWED_OPENROUTER], ['deepseek/deepseek-v4.1-flash-1017', 'z-ai/glm-5.3-flash']);
-  assert.deepEqual([...ALLOWED_CLAUDE], ['sonnet', 'haiku']);
-  assert.equal(POOL.length, 4);
+  assert.deepEqual([...ALLOWED_CLAUDE], ['sonnet', 'haiku', 'opus']);
+  assert.equal(POOL.length, 5);
+  // Opus is the most expensive subscription model: only the auto-fix council may use it, as a required reviewer
+  for (const stage of ['triage', 'fix', 'council']) assert.ok(!STAGES[stage].includes('claude-opus'), stage);
+  assert.deepEqual([...STAGES['council-auto']], ['claude-opus']);
   assert.equal(new Set(POOL.map((m) => m.id)).size, POOL.length);
   for (const ids of Object.values(STAGES)) ids.forEach(memberById); // every stage member exists
   assert.ok(STAGES.fix.includes('claude-sonnet') && !STAGES.fix.includes('claude-haiku'), 'code edits use Sonnet, not Haiku');
@@ -34,7 +37,7 @@ test('everything else is refused: other models, aliases, variants, other provide
     ['openrouter', '~z-ai/glm-flash-latest'], ['openrouter', '~deepseek/deepseek-flash-latest'], ['openrouter', 'deepseek/deepseek-v4.1-flash'],
     ['openrouter', 'deepseek/deepseek-v4.1-flash-1017:batch'], ['openrouter', 'z-ai/glm-5.3-flash:batch'], ['openrouter', 'x/deepseek/deepseek-v4.1-flash-1017'],
     ['openrouter', 'openrouter/openrouter/z-ai/glm-5.3-flash'], ['openrouter', 'DEEPSEEK/deepseek-v4.1-flash-1017'], ['openrouter', 'opencode/glm-5.3-flash-free'],
-    ['claude', 'opus'], ['claude', 'claude-opus-5-5'], ['claude', 'sonnet[1m]'], ['claude', 'fable'], ['claude', 'deepseek/deepseek-v4.1-flash-1017'],
+    ['claude', 'claude-opus-5-5'], ['claude', 'opus[1m]'], ['claude', 'Opus'], ['claude', 'sonnet[1m]'], ['claude', 'fable'], ['claude', 'deepseek/deepseek-v4.1-flash-1017'],
     ['gemini', 'gemini-4-neon'], ['gemini', 'sonnet'], ['openrouter', 'sonnet '.trim()], ['claude', 'z-ai/glm-5.3-flash'], ['openai', 'gpt'],
   ];
   for (const [provider, model] of refused) assert.throws(() => assertAllowedModel(provider, model), /not permitted/, `${provider}:${model}`);
@@ -87,7 +90,8 @@ test('price ceiling: GLM 5.3 flash is the most expensive OpenRouter model allowe
 test('assertModelRunnable: allowlist first, then the live price for OpenRouter, and fail closed', async () => {
   resetCatalogue();
   await assert.rejects(assertModelRunnable('openrouter', 'sonnet', { fetchImpl: catalogue(GOOD) }), /not permitted/);
-  await assert.rejects(assertModelRunnable('claude', 'opus'), /not permitted/);
+  await assert.rejects(assertModelRunnable('claude', 'fable'), /not permitted/);
+  assert.deepEqual(await assertModelRunnable('claude', 'opus'), { provider: 'claude', model: 'opus' });
   assert.deepEqual(await assertModelRunnable('claude', 'sonnet'), { provider: 'claude', model: 'sonnet' }); // no price lookup for Claude
   assert.deepEqual(await assertModelRunnable('openrouter', 'openrouter/deepseek/deepseek-v4.1-flash-1017', { fetchImpl: catalogue(GOOD, GLM) }), { provider: 'openrouter', model: 'deepseek/deepseek-v4.1-flash-1017' });
 

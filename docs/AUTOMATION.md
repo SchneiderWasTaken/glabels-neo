@@ -39,7 +39,7 @@ Unset means **1**.
 | **3** | + Pick up issues that triage marks `agent-ready`. **Low-risk** PRs that the council approves and CI passes are merged automatically. |
 | **4** | + **High-risk** PRs that the council approves are merged automatically, but only 05:00-09:00 Central, so they ship in the 10:00 release and have a day to be watched. |
 
-Changes classified **blocked** are never merged automatically at any level. Turning the level down takes effect on the
+Changes classified **blocked** are never merged automatically at any level. A maintainer can approve one issue for small interface changes with the `auto-fix` label (below). Turning the level down takes effect on the
 next run; nothing needs redeploying.
 
 Other switches (repository variables):
@@ -88,6 +88,27 @@ branch. Daily cap: `FIX_MAX_PER_DAY`.
 | **high** | sensitive area or large | printing, file format, mail-merge, barcodes, kiosk, >120 changed lines or >5 files, deleting a file |
 | **blocked** | a human must decide | any **user-interface change** (forms, stylesheets, visible text, widgets, layout), any path outside the allowed source directories (build files, scripts, `.github`, packaging, licenses, dotfiles, anything executable such as `.py`/`.js`, and the reporting/branding/attribution code), a diff longer than 60,000 characters (the council reads at most 70,000), binary files, executable bits, removed tests, >600 lines or >12 files, or **added lines that mention** process execution, networking, dynamic loading, environment variables, URLs or long encoded strings |
 
+### The `auto-fix` label: small changes, including the interface, without waiting for a person
+
+Everything above keeps decisions about how the app looks and reads with a person. `auto-fix` is how a maintainer makes that
+decision once, for one issue: **apply the label to an issue** and an agent prepares the change (it also starts the fix agent,
+at level 2 or higher), and the pull request merges by itself (level 3 or higher) once the review and every check agree.
+
+- **Who**: only a person with write access. The label is believed when its *latest* event on the issue is "labeled" by a
+  human account with write access; a bot, a reader, a removed label or an unknown labeler all mean "no". Every stage asks
+  GitHub again for itself (fix agent, publish, council, merge), so removing the label stops the work at the next stage.
+- **What may change** (`policy.mjs`): wording, spacing, sizes, colours, icons in the interface that already exists, up to
+  **100 changed lines in 3 files**. Up to **200 lines in 6 files** is allowed as a **high-risk** change (all reviewers must
+  agree, level 4, merged only 05:00-09:00 Central). Beyond that, or **adding** a widget, action, menu, layout, a new, removed or
+  renamed `.ui`/`.qss` file, anything outside the application source, or any of the usual tripwires (process execution,
+  networking, environment, URLs...) is *blocked* and left to a person.
+- **Review**: the council as usual **plus Claude Opus as a required reviewer** (a separate `Council (auto-fix)` status that
+  merge checks). A reviewer that cannot take part cannot be skipped, and any objection stops the merge. Opus is used for no
+  other work. The reviewers are also told to judge the change as UI: consistency, clipping at small sizes, translations, themes.
+- **After the merge**: the edge build starts at once (and the issue gets a comment); the change ships in the next 10:00 or 14:00
+  Central release, as every change does.
+- Without the label nothing changes: any interface change is still *blocked* and merging still needs `blocks-user`.
+
 ### Human review for UI changes
 
 Autonomy is for problems that stop someone working. Anything about appearance or preference is a person's call, enforced in
@@ -113,7 +134,7 @@ approval harder (two must take part and all who take part must approve).
 
 ### Models and cost (`.github/agents/model-policy.mjs`)
 
-Only four models can ever run, and the work is spread over them so no single budget or usage limit carries it all:
+Only five models can ever run, and the work is spread over them so no single budget or usage limit carries it all:
 
 | id | model | paid by | used for |
 |:--|:--|:--|:--|
@@ -121,10 +142,11 @@ Only four models can ever run, and the work is spread over them so no single bud
 | `glm` | OpenRouter `z-ai/glm-5.3-flash` | per token ($0.12 / $0.38 per million) | triage, fixes, council |
 | `claude-sonnet` | Claude Sonnet | Claude subscription | fixes |
 | `claude-haiku` | Claude Haiku | Claude subscription | triage, council |
+| `claude-opus` | Claude Opus | Claude subscription | council, only for `auto-fix` pull requests (required) |
 
 - **Rotation**: the issue (or PR) number picks which member goes first, so work spreads evenly; if a member fails (usage limit,
   outage, no usable answer) the next one is tried. A fix retry round starts on the next member.
-- **Allowlist**: exact names only. Aliases (`~...-latest`), `:batch` variants, other OpenRouter models, other Claude models (Opus),
+- **Allowlist**: exact names only. Aliases (`~...-latest`), `:batch` variants, other OpenRouter models, other Claude models (Opus outside the `auto-fix` council),
   Gemini and anything else are refused before a request is made. `MODEL_POOL` can only narrow the pool, never add to it.
 - **Price ceiling**: before every OpenRouter call the live per-token prices are read from OpenRouter and the call is refused if
   the model costs more than GLM 5.3 flash (or charges per request, search or image), or if the prices cannot be read.
@@ -160,6 +182,7 @@ instead of being rejected or sent to a human:
   | 2 | triage | cheap, and it decides everything else |
   | 3 | fixes a maintainer asked for (`agent-fix`) | an explicit request |
   | 4 | fixes triage marked `agent-ready` | |
+  | 5 | `auto-fix` issues | small changes a maintainer approved |
 
   Older items go first within a tier. The automation level and the daily fix cap still apply;
 - an item parked 12 times within a day is handed to a person (`needs-human`): a "limit" that never ends is something else. The
@@ -206,7 +229,7 @@ in `policy.mjs` and covered by tests.
 - Repository setting needed: *Settings > Actions > General > Workflow permissions > Allow GitHub Actions to create and
   approve pull requests*.
 - Branch protection: `main` requires `CI OK` and `Lint OK`; repository admins can bypass for maintenance.
-- Labels used: `agent-queued` (parked for a usage limit), `from-app`, `needs-triage`, `triaged`, `needs-info`, `needs-human`, `agent-ready`, `blocks-user`, `ui-change`, `needs-human-review`, `agent-fix`, `agent-pr`,
+- Labels used: `agent-queued` (parked for a usage limit), `auto-fix`, `from-app`, `needs-triage`, `triaged`, `needs-info`, `needs-human`, `agent-ready`, `blocks-user`, `ui-change`, `needs-human-review`, `agent-fix`, `agent-pr`,
   `council-approved`, `council-rejected`, `risk:low|high|blocked`, `area:*`.
 
 ## Setup checklist

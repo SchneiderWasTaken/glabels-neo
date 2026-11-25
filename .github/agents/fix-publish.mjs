@@ -7,11 +7,15 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 
+import { autoFixApproval } from './autofix.mjs';
 import { REPO, api, assertNoSecrets, gh, readJson, sanitizeForComment } from './lib.mjs';
-import { addedLinesOf, classifyChange } from './policy.mjs';
+import { parseDiff } from './diff-lib.mjs';
+import { classifyChange } from './policy.mjs';
 
 const data = readJson('fix-result.json');
 const { number, outcome } = data;
+// Which issue's approval counts is decided by the gate job, never by a file a model's job produced.
+if (Number(process.env.GATE_ISSUE) !== Number(number)) throw new Error(`the result is for issue ${number}, but this run is for issue ${process.env.GATE_ISSUE}`);
 const title = sanitizeForComment(data.title, 80).replace(/\s+/g, ' ');
 
 function git(...args) {
@@ -51,22 +55,11 @@ assertNoSecrets(patch, []);
 
 // Re-derive the change from the patch itself.
 git('apply', '--check', 'fix.patch');
-const files = git('apply', '--numstat', 'fix.patch')
-  .trim()
-  .split('\n')
-  .filter(Boolean)
-  .map((line) => {
-    const [add, del, ...rest] = line.split('\t');
-    return { path: rest.join('\t'), status: 'modified', additions: add === '-' ? 0 : Number(add), deletions: del === '-' ? 0 : Number(del), binary: add === '-' };
-  });
-const summaryLines = git('apply', '--summary', 'fix.patch').split('\n');
-for (const f of files) {
-  if (summaryLines.some((l) => l.includes(`create mode`) && l.endsWith(` ${f.path}`) && !l.includes('100644'))) f.mode = 'exec';
-  if (summaryLines.some((l) => l.includes('mode change') && l.endsWith(` ${f.path}`))) f.mode = 'changed';
-  if (summaryLines.some((l) => l.includes('delete mode') && l.endsWith(` ${f.path}`))) f.status = 'removed';
-  if (summaryLines.some((l) => l.includes('create mode') && l.endsWith(` ${f.path}`))) f.status = 'added';
-}
-const classification = classifyChange(files, addedLinesOf(patch), { diffChars: patch.length });
+// The same parser as the council and the merge policy use (renames are a removal plus an addition, modes are read exactly,
+// unusual paths fail closed), so every stage classifies the same patch the same way.
+const parsed = parseDiff(patch);
+const files = parsed.files;
+const classification = classifyChange(files, parsed.addedLines, { diffChars: patch.length, autoFix: autoFixApproval(number).approved });
 if (classification.risk === 'blocked') {
   needsHuman(`The fix agent's change was rejected by the safety rules (${classification.reasons.slice(0, 5).join('; ')}).`);
   console.log('no PR: blocked on re-check');

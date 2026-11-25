@@ -5,13 +5,15 @@
 // validated and scanned for secrets before it is written out.
 
 import { assertNoSecrets, readJson, runClaude, secretsFromEnv, writeJson } from './lib.mjs';
-import { assertModelRunnable } from './model-policy.mjs';
+import { STAGES, assertModelRunnable } from './model-policy.mjs';
 import { asLimitError } from './limits.mjs';
 import { extractJson } from './opencode-lib.mjs';
 import { VERDICT_SCHEMA, reviewPrompt, validateVerdict } from './council-lib.mjs';
 
 const reviewer = JSON.parse(process.argv[2]);
 const input = readJson('council-input.json');
+// A reviewer that was not asked for this change does not run (Opus only reviews auto-fix changes).
+if (!input.expected.includes(reviewer.id) || (!input.autoFix && STAGES['council-auto'].includes(reviewer.id))) throw new Error(`reviewer ${reviewer.id} is not part of this review`);
 const prompt = reviewPrompt(input);
 
 async function viaClaude() {

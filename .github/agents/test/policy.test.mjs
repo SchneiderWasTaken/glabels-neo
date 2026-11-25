@@ -42,7 +42,7 @@ test('shippable paths', () => {
 
 test('small ordinary fix is low risk', () => {
   const r = classifyChange([f('glabels/ObjectEditor.cpp'), f('model/unit_tests/TestFoo.cpp', { status: 'added' })], ['int x = 3;']);
-  assert.deepEqual(r, { risk: 'low', reasons: [] });
+  assert.deepEqual(r, { risk: 'low', reasons: [], ui: false });
 });
 
 test('template data fixes are low risk', () => {

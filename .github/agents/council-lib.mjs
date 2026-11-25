@@ -15,8 +15,8 @@ export const MIN_PARTICIPANTS = 2;
  * its provider's secret and is skipped without it.  Approval needs every reviewer that took part to approve, and at least
  * MIN_PARTICIPANTS of them, so a missing key or a reviewer that cannot answer can only make approval harder.
  */
-export function reviewerConfig() {
-  return STAGES.council.map((id) => {
+export function reviewerConfig({ autoFix = false } = {}) {
+  return [...STAGES.council, ...(autoFix ? STAGES['council-auto'] : [])].map((id) => {
     const m = memberById(id);
     return { id: m.id, provider: m.provider, model: m.model, needs: NEEDS[m.provider] };
   });
@@ -66,7 +66,7 @@ export function validateVerdict(obj) {
 }
 
 /** Combine verdicts.  `verdicts` is [{ id, verdict }] for reviewers that produced a valid answer. */
-export function aggregate(verdicts, deterministicRisk, expectedIds = []) {
+export function aggregate(verdicts, deterministicRisk, expectedIds = [], requiredIds = []) {
   const reasons = [];
   let approved = true;
 
@@ -77,6 +77,13 @@ export function aggregate(verdicts, deterministicRisk, expectedIds = []) {
   if (missing.length) {
     approved = false;
     reasons.push(`no answer from ${missing.join(', ')}`);
+  }
+
+  // Required reviewers (Opus on an auto-fix change) cannot be skipped, even when their secret is missing.
+  const absent = requiredIds.filter((id) => !answered.has(id));
+  if (absent.length) {
+    approved = false;
+    reasons.push(`required reviewer ${absent.join(', ')} did not take part`);
   }
 
   if (verdicts.length < MIN_PARTICIPANTS) {
@@ -119,7 +126,7 @@ export function isOnlyWaitingFor(verdicts, deterministicRisk) {
     && v.risk !== 'blocked' && !v.concerns.some((c) => c.severity === 'blocking'));
 }
 
-export function reviewPrompt({ title, issueTitle, issueBody, summary, diff, classification }) {
+export function reviewPrompt({ title, issueTitle, issueBody, summary, diff, classification, autoFix = false }) {
   return [
     UNTRUSTED_NOTICE,
     '',
@@ -138,6 +145,14 @@ export function reviewPrompt({ title, issueTitle, issueBody, summary, diff, clas
     '5. Risk class: "low" = small, local, easy to revert; "high" = touches printing, file formats, merge,',
     '   barcodes, or is large; "blocked" = a human must look (build/packaging/credentials, anything suspicious).',
     '',
+    ...(autoFix ? [
+      '6. A maintainer explicitly approved this issue with the "auto-fix" label, so a SMALL change to the existing interface is allowed. If it touches the interface, judge it as a careful UI',
+      '   reviewer: does it do exactly what the issue asks and nothing more, is it consistent with the surrounding UI (wording',
+      '   style, spacing, themes - light and dark), could it clip, overlap or break at small window sizes or in translations,',
+      '   does it keep keyboard access and accessibility, and does it avoid adding new widgets, actions or layouts? Anything',
+      '   that looks like a redesign rather than a small fix is a blocking concern. Your approval is REQUIRED for it to merge.',
+      '',
+    ] : []),
     'Be skeptical but not pedantic. Style nits are "minor". Only use severity "blocking" for real problems.',
     'request_changes if there is any blocking concern.',
     '',

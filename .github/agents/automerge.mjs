@@ -9,6 +9,7 @@
 //   - policy.mayAutoMerge(risk, AUTOMATION_LEVEL, now) allows it (high risk only in the morning window)
 // Runs without model credentials.  Merges are rebase merges pinned to the checked commit.
 
+import { autoFixApproval } from './autofix.mjs';
 import { REPO, api, gh } from './lib.mjs';
 import { parseDiff } from './diff-lib.mjs';
 import { classifyChange, isShippable, mayAutoMerge, maxRisk, parseLevel } from './policy.mjs';
@@ -39,9 +40,18 @@ for (const p of prs) {
   const fixes = Number(/Fixes #(\d+)/.exec(p.body ?? '')?.[1]);
   if (!Number.isInteger(fixes)) { skip('the PR does not name the issue it fixes'); continue; }
   const issueLabels = (api(`repos/${REPO}/issues/${fixes}`)?.labels ?? []).map((l) => l.name);
-  if (!issueLabels.includes('blocks-user')) { skip(`issue #${fixes} is not labelled blocks-user: a person decides whether to merge it`); continue; }
-  const heldFor = ['ui-change', 'enhancement', 'needs-human-review', 'needs-human'].filter((l) => issueLabels.includes(l));
-  if (heldFor.length) { skip(`issue #${fixes} is labelled ${heldFor.join(', ')}: a person decides`); continue; }
+  // A maintainer's `auto-fix` label (applied by a person with write access, asked again right now) is the decision itself:
+  // then neither blocks-user nor the UI holds apply, but the interface rules, the Opus review and every check still do.
+  const approval = autoFixApproval(fixes);
+  const autoFix = approval.approved;
+  if (autoFix && !p.head.ref.startsWith(`agent/issue-${fixes}-`)) { skip(`the branch is not for issue #${fixes}`); continue; }
+  if (autoFix) {
+    if (issueLabels.includes('needs-human')) { skip(`issue #${fixes} is labelled needs-human`); continue; }
+  } else {
+    if (!issueLabels.includes('blocks-user')) { skip(`issue #${fixes} is not labelled blocks-user: a person decides whether to merge it`); continue; }
+    const heldFor = ['ui-change', 'enhancement', 'needs-human-review', 'needs-human'].filter((l) => issueLabels.includes(l));
+    if (heldFor.length) { skip(`issue #${fixes} is labelled ${heldFor.join(', ')}: a person decides`); continue; }
+  }
 
   const sha = p.head.sha;
 
@@ -51,6 +61,10 @@ for (const p of prs) {
   const status = api(`repos/${REPO}/commits/${sha}/status`);
   const council = (status.statuses ?? []).filter((s) => s.context === 'Council').sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))[0];
   if (council?.state !== 'success') { skip(`Council status is ${council?.state ?? 'missing'} for this commit`); continue; }
+  if (autoFix) {
+    const opus = (status.statuses ?? []).filter((s) => s.context === 'Council (auto-fix)').sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))[0];
+    if (opus?.state !== 'success') { skip(`Council (auto-fix) status is ${opus?.state ?? 'missing'}: the required reviewers have not all approved`); continue; }
+  }
 
   const runs = api(`repos/${REPO}/commits/${sha}/check-runs?per_page=100`).check_runs ?? [];
   const bad = REQUIRED_CHECKS.map((n) => [n, latestConclusion(runs, n)]).filter(([, c]) => c !== 'success');
@@ -73,7 +87,7 @@ for (const p of prs) {
   const diffText = gh(['pr', 'diff', String(p.number), '--repo', REPO]);
   if (api(`repos/${REPO}/pulls/${p.number}`).head.sha !== sha) { skip('the PR changed while it was being checked'); continue; }
   const { files, addedLines } = parseDiff(diffText);
-  const fresh = classifyChange(files, addedLines, { diffChars: diffText.length });
+  const fresh = classifyChange(files, addedLines, { diffChars: diffText.length, autoFix });
   const labelled = ['blocked', 'high', 'low'].find((r) => labels.includes(`risk:${r}`)) ?? 'blocked';
   // The label can only make the class stricter than the fresh analysis, never looser.
   const risk = maxRisk(fresh.risk, labelled);
@@ -81,7 +95,10 @@ for (const p of prs) {
   const decision = mayAutoMerge(risk, level, now);
   if (!decision.ok) { skip(`${decision.reason} (risk ${risk})`); continue; }
 
-  console.log(`${tag}: merging (${decision.reason}, risk ${risk})`);
+  // Asked once more right before the merge: a label removed meanwhile must stop it.
+  if (autoFix && !autoFixApproval(fixes).approved) { skip('the auto-fix approval was withdrawn, or the issue is now marked needs-human'); continue; }
+
+  console.log(`${tag}: merging (${decision.reason}, risk ${risk}${autoFix ? `, auto-fix approved by ${approval.by}` : ''})`);
   try {
     gh(['pr', 'merge', String(p.number), '--repo', REPO, '--rebase', '--match-head-commit', sha, '--delete-branch']);
   } catch (e) {

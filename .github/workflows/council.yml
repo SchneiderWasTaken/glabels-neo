@@ -5,7 +5,7 @@
 # later push invalidates it. The decide job has no model credential.
 #
 # Reviewers are the pool in .github/agents/model-policy.mjs: DeepSeek V4.1 flash and GLM 5.3 flash (OpenRouter) and
-# Claude Haiku. A reviewer joins when its secret exists (OPENROUTER_API_KEY, CLAUDE_OAUTH_TOKEN). Nothing else can run.
+# Claude Haiku, plus Claude Opus as a required reviewer of `auto-fix` pull requests. A reviewer joins when its secret exists (OPENROUTER_API_KEY, CLAUDE_OAUTH_TOKEN). Nothing else can run.
 
 name: Council
 

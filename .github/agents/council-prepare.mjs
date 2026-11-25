@@ -4,7 +4,9 @@
 import { appendFileSync } from 'node:fs';
 
 import { REPO, api, gh, writeJson } from './lib.mjs';
+import { autoFixApproval } from './autofix.mjs';
 import { reviewerConfig } from './council-lib.mjs';
+import { STAGES } from './model-policy.mjs';
 import { parseDiff } from './diff-lib.mjs';
 import { classifyChange } from './policy.mjs';
 
@@ -33,14 +35,16 @@ const diff = gh(['pr', 'diff', String(pr), '--repo', REPO]);
 if (api(`repos/${REPO}/pulls/${pr}`).head.sha !== sha) throw new Error('the PR changed while it was being read; run the council again');
 
 const { files, addedLines } = parseDiff(diff);
-const classification = classifyChange(files, addedLines, { diffChars: diff.length });
 
 const issueNumber = Number(/Fixes #(\d+)/.exec(p.body ?? '')?.[1]);
+// `auto-fix`: asked from GitHub (a person with write access applied it), never taken from the PR text.
+const autoFix = Number.isInteger(issueNumber) && p.head.ref.startsWith(`agent/issue-${issueNumber}-`) && autoFixApproval(issueNumber).approved;
+const classification = classifyChange(files, addedLines, { diffChars: diff.length, autoFix });
 const issue = Number.isInteger(issueNumber) ? api(`repos/${REPO}/issues/${issueNumber}`) : { title: '', body: '' };
 
 // Reviewers that can run (external ones need their secret to exist; the workflow tells us which).
 const available = new Set((process.env.AVAILABLE_SECRETS || '').split(',').filter(Boolean));
-const reviewers = reviewerConfig().filter((r) => !r.needs || available.has(r.needs));
+const reviewers = reviewerConfig({ autoFix }).filter((r) => !r.needs || available.has(r.needs));
 
 writeJson('council-input.json', {
   pr,
@@ -54,6 +58,8 @@ writeJson('council-input.json', {
   files,
   classification,
   expected: reviewers.map((r) => r.id), // every one of these must answer for an approval
+  autoFix,
+  required: autoFix ? [...STAGES['council-auto']] : [], // must take part even when their secret is missing
 });
 
 console.log(`PR #${pr} @ ${sha.slice(0, 8)}: ${files.length} files, deterministic risk ${classification.risk}; reviewers: ${reviewers.map((r) => r.id).join(', ')}`);

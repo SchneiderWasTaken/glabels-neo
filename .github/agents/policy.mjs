@@ -92,13 +92,37 @@ function collapse(text) {
 // How the app looks and reads is a decision for a person.  Whatever the issue said, a change that edits a Qt Designer
 // form or stylesheet, or adds or changes user-visible text, widgets, layout or styling, is held for human review.  (A
 // crash fix almost never needs any of these; when it does, a person should look at it anyway.)
-const UI_FILES = [/\.ui$/i, /\.qss$/i, /\.css$/i, /\.qrc$/i];
+const UI_FILES = [/\.ui$/i, /\.qss$/i, /\.css$/i, /\.qrc$/i, /\.svg$/i];
 export const UI_SIGNALS = [
   [/\b(?:QObject::)?tr\s*\(|\bQT_TR(?:ANSLATE)?_NOOP\w*\s*\(|\bQCoreApplication::translate\s*\(/, 'user-visible text'],
   [/\bsetStyleSheet\s*\(|\bsetPalette\s*\(|\bsetFont\s*\(|\bsetIcon\w*\s*\(|\bQIcon\s*\(|\bsetStyle\s*\(/, 'styling'],
   [/\bsetWindowTitle\s*\(|\bsetToolTip\s*\(|\bsetStatusTip\s*\(|\bsetWhatsThis\s*\(|\bsetPlaceholderText\s*\(|\bsetText\s*\(\s*"/, 'user-visible text'],
   [/\b(?:add|insert)(?:Widget|Layout|Action|Menu|Tab|Item|Row|Spacing|Stretch)\s*\(|\bnew\s+Q(?:PushButton|ToolButton|Label|CheckBox|RadioButton|ComboBox|LineEdit|GroupBox|Dialog|Action|Menu|TabWidget|Splitter)\b|\bsetMinimumSize\s*\(|\bsetFixedSize\s*\(|\bsetContentsMargins\s*\(|\bsetSizePolicy\s*\(/, 'widgets or layout'],
 ];
+
+// With the maintainer's `auto-fix` label (autofix.mjs) a SMALL change to what already exists is allowed: wording, spacing,
+// sizes, colours, icons.  ADDING to the interface (widgets, actions, menus, layouts, new forms) stays a person's decision.
+// Matched per added line AND against the joined, whitespace-flattened added text, so splitting a call over lines does not help.
+// The XML tags are matched by NAME, whatever their attributes or the line breaks: Qt Designer does not care about either.
+export const UI_STRUCTURAL = [
+  /\b(?:add|insert)(?:Widget|Layout|Action|Actions|Menu|Tab|Item|Items|Row|Button|Separator|ToolBar|DockWidget|Page|Section|Column|Child)\s*\(/,
+  // Small wording, spacing and colour changes never create objects: any `new` is a person's decision (this also covers the
+  // project's own widgets: RibbonButton, ColorButton...).  Stack-allocated widgets and dialogs, and the static dialogs, too.
+  /\bnew\b/,
+  /\bQ[A-Za-z]*(?:Dialog|MessageBox|Menu|Action|Widget|Button|Box|Label|Frame|Edit|Bar|Splitter)\s+[A-Za-z_]\w*\s*[({]/,
+  /\bQ(?:File|Input|Color|Font|Message|ProgressDialog)\w*\s*::/,
+  /\.\s*exec\s*\(/,
+  /\bmake_(?:unique|shared)\s*<\s*Q[A-Za-z]*/,
+  /\b(?:setLayout|setCentralWidget|setMenuBar|setStatusBar|setCornerWidget|setStandardButtons|setMenu|setParent|setBuddy|setTabOrder|connect)\s*\(/,
+  /\bQMessageBox\s*::\s*\w+\s*\(/,
+  /<(?:widget|action|addaction|layout|spacer|item|connection|connections|slot|signal|sender|receiver|customwidget|customwidgets|include|includes|header|resources|resource|tabstops|tabstop|buddy)\b/i,
+];
+// Macros and aliases can hide any of the above from a line-by-line check.
+export const UI_INDIRECTION = /#\s*(?:define|undef)\b|\btypedef\b|\busing\s+\w+\s*=/;
+// Up to the soft limit an auto-fix interface change is an ordinary low-risk change.  Beyond it (a good reason is needed)
+// it is HIGH risk: every reviewer, Opus included, must agree and it merges only in the morning window.  Beyond the hard limit
+// a person must decide.
+export const UI_LIMITS = { softLines: 100, softFiles: 3, hardLines: 200, hardFiles: 6 };
 
 // Areas where a regression hurts users most: file formats, printing, data merge, barcodes.
 const HIGH_AREAS = [/^model\/Xml/, /^model\/PageRenderer/, /Zpl/i, /Print/i, /^merge\//, /^model\/Merge/, /^glbarcode\//, /^backends\//, /^glabels-fill\//];
@@ -112,11 +136,14 @@ export const LIMITS = { maxFiles: 12, maxChangedLines: 600, highFiles: 5, highCh
  *   files: [{ path, status: 'added'|'modified'|'removed'|'renamed', additions, deletions, binary?, mode? }]
  *   addedLines: array of added line texts (without the leading "+")
  *   options.diffChars: size of the whole diff text, when known
- * Returns { risk: 'low' | 'high' | 'blocked', reasons: string[] }.
+ *   options.autoFix: the issue carries an approved `auto-fix` label, so a small change to the existing interface is allowed
+ * Returns { risk: 'low' | 'high' | 'blocked', reasons: string[], ui: boolean } (ui: the change touches the interface).
  */
 export function classifyChange(files, addedLines = [], options = {}) {
   const blocked = [];
   const high = [];
+  const autoFix = options.autoFix === true;
+  let ui = false;
 
   if (files.length === 0) blocked.push('empty change');
   if ((options.diffChars ?? 0) > LIMITS.maxDiffChars) blocked.push(`diff is ${options.diffChars} characters (max ${LIMITS.maxDiffChars})`);
@@ -139,15 +166,43 @@ export function classifyChange(files, addedLines = [], options = {}) {
   if (files.length > LIMITS.highFiles) high.push(`${files.length} files`);
 
   for (const f of files) {
-    if (UI_FILES.some((r) => r.test(f.path))) blocked.push(`user-interface change (needs human review): ${f.path}`);
+    if (!UI_FILES.some((r) => r.test(f.path))) continue;
+    ui = true;
+    if (!autoFix) blocked.push(`user-interface change (needs human review): ${f.path}`);
+    else if (/\.qrc$/i.test(f.path)) blocked.push(`resource manifest (a person decides): ${f.path}`);
+    else if (f.status !== 'modified') blocked.push(`new, removed or renamed interface file (a person decides): ${f.path}`);
   }
   const uiSeen = new Set();
   for (const line of addedLines) {
+    if (autoFix && UI_STRUCTURAL.some((r) => r.test(line.replace(/\/\*.*?\*\//g, ' ')))) {
+      ui = true;
+      blocked.push(`adds to the interface - a widget, action, menu or layout (a person decides): ${line.trim().slice(0, 70)}`);
+      continue;
+    }
     for (const [test, label] of UI_SIGNALS) {
-      if (test.test(line) && !uiSeen.has(label)) {
+      if (!test.test(line)) continue;
+      ui = true;
+      if (!autoFix && !uiSeen.has(label)) {
         uiSeen.add(label);
         blocked.push(`user-interface change (needs human review): added line changes ${label}: ${line.trim().slice(0, 70)}`);
       }
+    }
+  }
+  if (autoFix) {
+    // The label is for SMALL changes, whatever they touch: the size limits apply to every auto-fix change.
+    if (changed > UI_LIMITS.hardLines || files.length > UI_LIMITS.hardFiles) {
+      blocked.push(`auto-fix change of ${changed} lines in ${files.length} files (auto-fix allows at most ${UI_LIMITS.hardLines} lines in ${UI_LIMITS.hardFiles} files)`);
+    } else if (changed > UI_LIMITS.softLines || files.length > UI_LIMITS.softFiles) {
+      high.push(`auto-fix change of ${changed} lines in ${files.length} files (small is ${UI_LIMITS.softLines} lines in ${UI_LIMITS.softFiles} files)`);
+    }
+    // Comments cannot be used to break a call apart: they are removed before the joined text is checked.
+    const flat = collapse(addedLines.join('\n')).replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/\/\/[^\n]*/g, ' ').replace(/\s+/g, ' ');
+    if (UI_STRUCTURAL.some((r) => r.test(flat))) {
+      ui = true;
+      blocked.push('adds to the interface - a widget, action, menu, layout, connection or include (a person decides), seen after joining lines');
+    }
+    if (UI_INDIRECTION.test(flat) || addedLines.some((line) => UI_INDIRECTION.test(line))) {
+      blocked.push('macro or alias that could hide a change (a person decides)');
     }
   }
 
@@ -165,9 +220,9 @@ export function classifyChange(files, addedLines = [], options = {}) {
     if (trips(test, joined)) blocked.push(`added code trips "${label}" (after joining lines)`);
   }
 
-  if (blocked.length) return { risk: 'blocked', reasons: [...new Set(blocked)] };
-  if (high.length) return { risk: 'high', reasons: [...new Set(high)] };
-  return { risk: 'low', reasons: [] };
+  if (blocked.length) return { risk: 'blocked', reasons: [...new Set(blocked)], ui };
+  if (high.length) return { risk: 'high', reasons: [...new Set(high)], ui };
+  return { risk: 'low', reasons: [], ui };
 }
 
 const ORDER = { low: 0, high: 1, blocked: 2 };

@@ -127,12 +127,21 @@ namespace glabels::theme
                 /// Select the mode (does not apply it; call applyToApplication())
                 void            setMode( Mode mode );
 
+                /// Select the colour scheme by id (ThemeScheme.hpp); unknown ids select Neo.
+                /// Does not apply it; call applyToApplication().
+                void            setScheme( const QString& id );
+
+                /// Id of the current colour scheme
+                QString         scheme() const;
+
                 /// QPalette built from the tokens, for the Fusion base style
                 QPalette        qtPalette() const;
 
-                /// Token tables
+                /// Token tables of the Neo scheme (the default)
                 static Palette  lightPalette();
                 static Palette  darkPalette();
+
+                /// Token table of a mode in the current scheme
                 static const Palette& paletteFor( Mode mode );
 
                 /// Colour of an icon role in a palette (for the normal, enabled state)
@@ -159,6 +168,7 @@ namespace glabels::theme
                 /////////////////////////////////
         private:
                 Mode    mMode;
+                QString mSchemeId;
                 QString mBaseStyleName;
         };
 

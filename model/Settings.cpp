@@ -489,6 +489,25 @@ namespace glabels::model
         }
 
 
+        QString Settings::themeScheme()
+        {
+                mInstance->beginGroup( "Appearance" );
+                QString value = mInstance->value( "themeScheme", "neo" ).toString();
+                mInstance->endGroup();
+                return value;
+        }
+
+
+        void Settings::setThemeScheme( const QString& id )
+        {
+                mInstance->beginGroup( "Appearance" );
+                mInstance->setValue( "themeScheme", id );
+                mInstance->endGroup();
+
+                emit mInstance->changed();
+        }
+
+
         Settings::IconStyle Settings::iconStyle()
         {
                 mInstance->beginGroup( "Appearance" );

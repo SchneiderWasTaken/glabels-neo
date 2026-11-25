@@ -385,6 +385,7 @@ target_sources (glabels_lib PRIVATE
   theme/Decorator.cpp
   theme/Theme.cpp
   theme/ThemeIcons.cpp
+  theme/ThemeScheme.cpp
   theme/ThemeStyle.cpp
   ${glabels_theme_moc_sources}
 )

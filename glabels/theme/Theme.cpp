@@ -22,6 +22,7 @@
 #include "theme/Theme.hpp"
 
 #include "theme/Decorator.hpp"
+#include "theme/ThemeScheme.hpp"
 #include "theme/ThemeIcons.hpp"
 #include "theme/ThemeStyle.hpp"
 
@@ -57,7 +58,7 @@ namespace glabels::theme
         /// Constructor
         ///
         Theme::Theme()
-                : mMode( Mode::Light )
+                : mMode( Mode::Light ), mSchemeId( QStringLiteral( "neo" ) )
         {
         }
 
@@ -143,9 +144,7 @@ namespace glabels::theme
         ///
         const Palette& Theme::paletteFor( Mode mode )
         {
-                static const Palette light = lightPalette();
-                static const Palette dark  = darkPalette();
-                return mode == Mode::Dark ? dark : light;
+                return ThemeSchemes::find( instance().mSchemeId ).palette( mode );
         }
 
 
@@ -208,6 +207,21 @@ namespace glabels::theme
         void Theme::setMode( Mode mode )
         {
                 mMode = mode;
+        }
+
+
+        ///
+        /// Colour scheme
+        ///
+        void Theme::setScheme( const QString& id )
+        {
+                mSchemeId = ThemeSchemes::find( id ).id;
+        }
+
+
+        QString Theme::scheme() const
+        {
+                return mSchemeId;
         }
 
 

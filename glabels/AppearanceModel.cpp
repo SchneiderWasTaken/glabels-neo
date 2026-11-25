@@ -40,6 +40,7 @@ namespace glabels
         std::unique_ptr<AppearanceModel> AppearanceModel::mInstance;
         model::Settings::ColorScheme AppearanceModel::mColorScheme = model::Settings::LIGHT_COLOR_SCHEME;
         model::Settings::IconStyle AppearanceModel::mIconStyle = model::Settings::FLAT_ICON_STYLE;
+        QString AppearanceModel::mThemeScheme;
 
 
         //
@@ -241,6 +242,8 @@ namespace glabels
 #endif
 
                 auto& th = theme::Theme::instance();
+                mThemeScheme = model::Settings::themeScheme();
+                th.setScheme( mThemeScheme );
                 th.setMode( mode );
                 th.applyToApplication();      // palette, font, stylesheet (re-polishes every widget)
 
@@ -256,7 +259,8 @@ namespace glabels
 
                 auto newScheme = model::Settings::colorScheme();
                 auto newIconStyle = model::Settings::iconStyle();
-                if ( (newScheme != mColorScheme) || (newIconStyle != mIconStyle) )
+                if ( (newScheme != mColorScheme) || (newIconStyle != mIconStyle) ||
+                     (model::Settings::themeScheme() != mThemeScheme) )
                 {
                         setColorScheme( newScheme, newIconStyle );
                 }

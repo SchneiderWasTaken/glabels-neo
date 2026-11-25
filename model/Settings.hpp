@@ -119,6 +119,10 @@ namespace glabels::model
                 static IconStyle iconStyle();
                 static void setIconStyle( IconStyle style );
 
+                /// Colour scheme of the theme ("neo", "graphite", ...; see glabels/theme/ThemeScheme)
+                static QString themeScheme();
+                static void setThemeScheme( const QString& id );
+
                 static QString startupPath();
                 static void setStartupPath( const QString& path );
 

@@ -96,6 +96,7 @@ namespace glabels
                 static std::unique_ptr<AppearanceModel> mInstance;
                 static model::Settings::ColorScheme mColorScheme;
                 static model::Settings::IconStyle mIconStyle;
+                static QString mThemeScheme;
 
         };
 

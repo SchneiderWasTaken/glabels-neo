@@ -34,7 +34,9 @@ namespace
         //
         // The stylesheet template.  Sections follow SPEC.md section 8; sizes follow 4.3.
         //
-        const char* styleTemplateText = R"QSS(
+        // Split into several literals: MSVC rejects a single string literal over 16380 bytes (C2026).
+        const char* const styleTemplateParts[] = {
+        R"QSS(
 /* ===================================================================== base surfaces */
 
 QDialog, QMessageBox, QWizard {
@@ -434,6 +436,8 @@ QRadioButton::indicator:disabled {
 QRadioButton::indicator:checked:disabled {
         image: url("@imgRadioOnDisabled");
 }
+)QSS",
+        R"QSS(
 
 /* ======================================================= group boxes as cards (6.4) */
 /* The card surface and its header band are painted by theme::Decorator.            */
@@ -935,6 +939,8 @@ QLabel[role="ribbonCaption"], QLabel[role="ribbonInfo"] {
         color: @ink2;
         font-size: 12px;
 }
+)QSS",
+        R"QSS(
 
 /* ================================================== backstage, welcome, content panel */
 
@@ -1153,7 +1159,8 @@ QWizard QLabel#qt_wizard_title, QWizard QLabel[role="wizardTitle"] {
         background: @panel;
         border: none;
 }
-)QSS";
+)QSS"
+        };
 
 
         QString rgbaCss( const QColor& color )
@@ -1209,7 +1216,12 @@ namespace glabels::theme
         ///
         QString ThemeStyle::styleTemplate()
         {
-                return QString::fromUtf8( styleTemplateText );
+                QString text;
+                for ( const char* part : styleTemplateParts )
+                {
+                        text += QString::fromUtf8( part );
+                }
+                return text;
         }
 
 

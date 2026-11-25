@@ -55,7 +55,7 @@ namespace
         const int     nZoomLevels = 11;
         const double  zoomLevels[nZoomLevels] = { 8, 6, 4, 3, 2, 1.5, 1, 0.75, 0.67, 0.50, 0.33 };
 
-        const double  ZOOM_TO_FIT_PAD = 16.0;
+        const double  ZOOM_TO_FIT_PAD = 96.0;   // total pixels around the label (48 per side) so it floats in the canvas
 
         const QColor  shadowColor( 0, 0, 0, 64 );
         const double  shadowOffsetPixels = 4;

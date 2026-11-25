@@ -21,6 +21,7 @@
 
 #include "ContentPanel.hpp"
 
+#include "RibbonDropButton.hpp"
 #include "theme/Theme.hpp"
 
 #include <QApplication>
@@ -368,10 +369,20 @@ namespace glabels::ribbon
                         if ( controls.textInsertFieldButton )
                         {
                                 controls.textInsertFieldButton->setParent( mTextPage );
-                                controls.textInsertFieldButton->show();
-                                btnRow->addWidget( controls.textInsertFieldButton );
+                                controls.textInsertFieldButton->hide();
+                                mTextFieldSource = qobject_cast<QPushButton*>( controls.textInsertFieldButton );
                         }
-                        auto* hint = new QLabel( tr( "Plain text. Use ${field} for merge data." ), mTextPage );
+                        mTextFieldBtn = new RibbonDropButton(
+                                tr( "Insert field" ), QStringLiteral( "braces" ),
+                                RibbonButton::Size::Small, mTextPage );
+                        if ( mTextFieldSource )
+                        {
+                                mTextFieldBtn->setMenu( mTextFieldSource->menu() );
+                        }
+                        btnRow->addWidget( mTextFieldBtn, 0, Qt::AlignVCenter );
+
+                        auto* hint = new QLabel(
+                                tr( "Plain text. Use\u00A0${field} for merge data." ), mTextPage );
                         hint->setWordWrap( true );
                         hint->setProperty( "role", QStringLiteral( "caption" ) );
                         btnRow->addWidget( hint, 1 );
@@ -400,9 +411,17 @@ namespace glabels::ribbon
                         if ( controls.barcodeInsertFieldButton )
                         {
                                 controls.barcodeInsertFieldButton->setParent( mBarcodePage );
-                                controls.barcodeInsertFieldButton->show();
-                                l->addWidget( controls.barcodeInsertFieldButton, 0, Qt::AlignLeft );
+                                controls.barcodeInsertFieldButton->hide();
+                                mBarcodeFieldSource = qobject_cast<QPushButton*>( controls.barcodeInsertFieldButton );
                         }
+                        mBarcodeFieldBtn = new RibbonDropButton(
+                                tr( "Insert field" ), QStringLiteral( "braces" ),
+                                RibbonButton::Size::Small, mBarcodePage );
+                        if ( mBarcodeFieldSource )
+                        {
+                                mBarcodeFieldBtn->setMenu( mBarcodeFieldSource->menu() );
+                        }
+                        l->addWidget( mBarcodeFieldBtn, 0, Qt::AlignLeft );
                 }
 
                 // Page 3: Image
@@ -441,12 +460,22 @@ namespace glabels::ribbon
                         if ( controls.imageFieldButton )
                         {
                                 controls.imageFieldButton->setParent( mImagePage );
-                                controls.imageFieldButton->show();
-                                row->addWidget( controls.imageFieldButton );
+                                controls.imageFieldButton->hide();
+                                mImageFieldSource = qobject_cast<QPushButton*>( controls.imageFieldButton );
                         }
+                        mImageFieldBtn = new RibbonDropButton(
+                                tr( "Use merge field" ), QStringLiteral( "braces" ),
+                                RibbonButton::Size::Small, mImagePage );
+                        if ( mImageFieldSource )
+                        {
+                                mImageFieldBtn->setMenu( mImageFieldSource->menu() );
+                        }
+                        row->addWidget( mImageFieldBtn );
                         row->addStretch( 1 );
                         l->addLayout( row );
                 }
+
+                syncFieldButtons();
         }
 
 
@@ -534,6 +563,7 @@ namespace glabels::ribbon
                 {
                         mFieldsSection->hide();
                         mVariablesSection->hide();
+                        syncFieldButtons();
                         return;
                 }
 
@@ -588,6 +618,32 @@ namespace glabels::ribbon
                         }
                         mVariablesSection->show();
                 }
+
+                syncFieldButtons();
+        }
+
+
+        void ContentPanel::syncFieldButtons()
+        {
+                const bool hasAny = mModel && ( ( mModel->merge() && !mModel->merge()->keys().isEmpty() ) ||
+                                                !mModel->constVariables().isEmpty() );
+                const QString tipDisabled = tr( "No merge fields or variables" );
+                const QString tipEnabled  = tr( "Insert a merge field or variable" );
+
+                auto apply = [&]( RibbonDropButton* btn, QPushButton* src )
+                {
+                        if ( !btn )
+                        {
+                                return;
+                        }
+                        const bool en = src ? ( src->isEnabled() || hasAny ) : hasAny;
+                        btn->setEnabled( en );
+                        btn->setToolTip( en ? tipEnabled : tipDisabled );
+                };
+
+                apply( mTextFieldBtn, mTextFieldSource );
+                apply( mBarcodeFieldBtn, mBarcodeFieldSource );
+                apply( mImageFieldBtn, mImageFieldSource );
         }
 
 

@@ -100,6 +100,7 @@ list (APPEND glabels_sources
   ribbon/QuickAccessBar.cpp
   ribbon/RibbonBar.cpp
   ribbon/RibbonButton.cpp
+  ribbon/RibbonColorDecorator.cpp
   ribbon/RibbonDropButton.cpp
   ribbon/RibbonField.cpp
   ribbon/RibbonGroup.cpp

@@ -23,6 +23,7 @@
 #include "MainWindow.hpp"
 
 #include "AppearanceModel.hpp"
+#include "ColorButton.hpp"
 #include "DeployView.hpp"
 #include "File.hpp"
 #include "FillView.hpp"
@@ -43,6 +44,7 @@
 #include "ribbon/QuickAccessBar.hpp"
 #include "ribbon/RibbonBar.hpp"
 #include "ribbon/RibbonButton.hpp"
+#include "ribbon/RibbonColorDecorator.hpp"
 #include "ribbon/RibbonDropButton.hpp"
 #include "ribbon/RibbonField.hpp"
 #include "ribbon/RibbonGroup.hpp"
@@ -1486,6 +1488,13 @@ namespace glabels
                         return lbl;
                 };
 
+                // Compact Neo ribbon color style ([swatch] Name v) on all ColorButtons (s04-s08)
+                ribbon::installRibbonColorStyle( qobject_cast<ColorButton*>( ctrl( Cid::TextColorButton ) ) );
+                ribbon::installRibbonColorStyle( qobject_cast<ColorButton*>( ctrl( Cid::BarcodeColorButton ) ) );
+                ribbon::installRibbonColorStyle( qobject_cast<ColorButton*>( ctrl( Cid::LineColorButton ) ), tr( "No line" ) );
+                ribbon::installRibbonColorStyle( qobject_cast<ColorButton*>( ctrl( Cid::FillColorButton ) ), tr( "No fill" ) );
+                ribbon::installRibbonColorStyle( qobject_cast<ColorButton*>( ctrl( Cid::ShadowColorButton ) ) );
+
                 // -----------------------------------------------------------------
                 // Single shared ShadowPopover (SPEC 6.2 & mockup d10)
                 // Used by Text, Image, Shape, Line — NEVER Barcode!
@@ -1550,14 +1559,62 @@ namespace glabels
                         grid->addWidget( sizeH, 1, 1 );
                         row->addLayout( grid );
 
-                        QWidget* aspectCheck = ctrl( Cid::SizeAspectCheck );
-                        aspectCheck->setParent( mSharedRectSizeWidget );
-                        if ( auto* cb = qobject_cast<QCheckBox*>( aspectCheck ) )
+                        // Keep ObjectEditor's sizeAspectCheck alive (hidden) and expose it as a compact
+                        // lock / lock-open icon toggle matching mockups s04..s07.
+                        auto* aspectCheck = qobject_cast<QCheckBox*>( ctrl( Cid::SizeAspectCheck ) );
+                        if ( aspectCheck )
                         {
-                                cb->setText( tr( "Lock aspect" ) );
+                                aspectCheck->setParent( mSharedRectSizeWidget );
+                                aspectCheck->hide();
                         }
-                        aspectCheck->show();
-                        row->addWidget( aspectCheck, 0, Qt::AlignVCenter );
+
+                        mLockAspectButton = new QToolButton( mSharedRectSizeWidget );
+                        mLockAspectButton->setCheckable( true );
+                        mLockAspectButton->setFixedSize( 28, 28 );
+                        mLockAspectButton->setIconSize( QSize( 16, 16 ) );
+                        mLockAspectButton->setCursor( Qt::PointingHandCursor );
+                        mLockAspectButton->setProperty( "role", QStringLiteral( "ribbonToggle" ) );
+                        mLockAspectButton->setToolTip( tr( "Lock aspect ratio" ) );
+                        mLockAspectButton->setAccessibleName( tr( "Lock aspect ratio" ) );
+
+                        auto refreshLockIcon = [this]()
+                        {
+                                if ( !mLockAspectButton )
+                                {
+                                        return;
+                                }
+                                const bool locked = mLockAspectButton->isChecked();
+                                mLockAspectButton->setIcon( theme::Theme::instance().icon(
+                                        locked ? QStringLiteral( "lock" ) : QStringLiteral( "lock-open" ),
+                                        locked ? theme::IconRole::Accent : theme::IconRole::Normal ) );
+                        };
+
+                        if ( aspectCheck )
+                        {
+                                mLockAspectButton->setChecked( aspectCheck->isChecked() );
+                                connect( mLockAspectButton, &QToolButton::toggled, this, [aspectCheck, refreshLockIcon]( bool checked )
+                                {
+                                        if ( aspectCheck->isChecked() != checked )
+                                        {
+                                                aspectCheck->setChecked( checked );
+                                        }
+                                        refreshLockIcon();
+                                } );
+                                connect( aspectCheck, &QCheckBox::toggled, this, [this, refreshLockIcon]( bool checked )
+                                {
+                                        if ( mLockAspectButton && mLockAspectButton->isChecked() != checked )
+                                        {
+                                                const QSignalBlocker b( mLockAspectButton );
+                                                mLockAspectButton->setChecked( checked );
+                                        }
+                                        refreshLockIcon();
+                                } );
+                        }
+                        connect( &theme::Theme::instance(), &theme::Theme::changed,
+                                 mLockAspectButton, [refreshLockIcon]() { refreshLockIcon(); } );
+                        refreshLockIcon();
+
+                        row->addWidget( mLockAspectButton, 0, Qt::AlignVCenter );
 
                         // Image-only sub-widget (Original size + Reset button)
                         mImageResetSubWidget = new QWidget( mSharedRectSizeWidget );
@@ -1590,7 +1647,7 @@ namespace glabels
                         lw->setParent( mSharedLineWidget );
                         lc->setParent( mSharedLineWidget );
                         lw->setFixedWidth( 84 );
-                        lc->setFixedWidth( 96 );
+                        lc->setFixedWidth( 104 );
                         lw->show();
                         lc->show();
 
@@ -1623,9 +1680,9 @@ namespace glabels
 
                 auto addEffectsGroup = [this]( ribbon::RibbonTab* tab )
                 {
-                        auto* grp = tab->addGroup( tr( "Effects" ), QStringLiteral( "layers" ), 2 );
+                        auto* grp = tab->addGroup( tr( "Effects" ), QStringLiteral( "shadow" ), 2 );
                         auto* shadowBtn = new ribbon::RibbonDropButton(
-                                tr( "Shadow" ), QStringLiteral( "layers" ), Btn::Size::Large, grp );
+                                tr( "Shadow" ), QStringLiteral( "shadow" ), Btn::Size::Large, grp );
                         shadowBtn->setToolTip( tr( "Enable and configure drop shadow" ) );
                         shadowBtn->setPopupWidget( mShadowPopover );
                         connect( shadowBtn, &ribbon::RibbonDropButton::aboutToShowPopup,
@@ -1691,7 +1748,7 @@ namespace glabels
                                 w->setParent( fontGrp );
                                 w->show();
                         }
-                        colorBtn->setFixedWidth( 96 );
+                        colorBtn->setFixedWidth( 104 );
                         row2->addWidget( boldBtn );
                         row2->addWidget( italicBtn );
                         row2->addWidget( underBtn );
@@ -1730,28 +1787,31 @@ namespace glabels
                         alignCol->addLayout( vRow );
                         alignGrp->addLayout( alignCol );
 
-                        // Paragraph
+                        // Paragraph (2-row Line spacing / Wrap mode + auto-shrink check, s04 mockup)
                         auto* paraGrp = tab->addGroup( tr( "Paragraph" ), QStringLiteral( "align-left" ), 2 );
                         auto* paraCol = new QVBoxLayout();
-                        paraCol->setContentsMargins( 0, 4, 0, 0 );
-                        paraCol->setSpacing( 6 );
+                        paraCol->setContentsMargins( 0, 2, 0, 0 );
+                        paraCol->setSpacing( 3 );
 
-                        auto* pRow1 = new QHBoxLayout();
-                        pRow1->setSpacing( 6 );
+                        auto* pGrid = new QGridLayout();
+                        pGrid->setContentsMargins( 0, 0, 0, 0 );
+                        pGrid->setHorizontalSpacing( 6 );
+                        pGrid->setVerticalSpacing( 3 );
+
                         QWidget* lsSpin    = ctrl( Cid::TextLineSpacingSpin );
                         QWidget* wrapCombo = ctrl( Cid::TextWrapModeCombo );
                         lsSpin->setParent( paraGrp );
                         wrapCombo->setParent( paraGrp );
-                        lsSpin->setFixedWidth( 64 );
+                        lsSpin->setFixedWidth( 82 );
                         wrapCombo->setFixedWidth( 104 );
                         lsSpin->show();
                         wrapCombo->show();
-                        pRow1->addWidget( makeFieldLabel( tr( "Line spacing" ), paraGrp ) );
-                        pRow1->addWidget( lsSpin );
-                        pRow1->addSpacing( 4 );
-                        pRow1->addWidget( makeFieldLabel( tr( "Wrap" ), paraGrp ) );
-                        pRow1->addWidget( wrapCombo );
-                        paraCol->addLayout( pRow1 );
+
+                        pGrid->addWidget( makeFieldLabel( tr( "Line spacing" ), paraGrp ), 0, 0 );
+                        pGrid->addWidget( lsSpin, 0, 1 );
+                        pGrid->addWidget( makeFieldLabel( tr( "Wrap mode" ), paraGrp ), 1, 0 );
+                        pGrid->addWidget( wrapCombo, 1, 1 );
+                        paraCol->addLayout( pGrid );
 
                         QWidget* shrinkCheck = ctrl( Cid::TextAutoShrinkCheck );
                         shrinkCheck->setParent( paraGrp );
@@ -1781,15 +1841,21 @@ namespace glabels
                 {
                         ribbon::RibbonTab* tab = mRibbonBar->tab( ribbon::TabId::ContextBarcode );
 
-                        // Type
+                        // Type (Symbology caption + left-aligned combo-like button + flags, s05 mockup)
                         auto* typeGrp = tab->addGroup( tr( "Type" ), QStringLiteral( "barcode" ), 0 );
                         auto* typeCol = new QVBoxLayout();
-                        typeCol->setContentsMargins( 0, 4, 0, 0 );
-                        typeCol->setSpacing( 6 );
+                        typeCol->setContentsMargins( 0, 2, 0, 0 );
+                        typeCol->setSpacing( 4 );
+
+                        auto* symCap = new QLabel( tr( "Symbology" ), typeGrp );
+                        symCap->setProperty( "role", QStringLiteral( "ribbonCaption" ) );
+                        typeCol->addWidget( symCap );
 
                         QWidget* styleBtn = ctrl( Cid::BarcodeStyleButton );
                         styleBtn->setParent( typeGrp );
-                        styleBtn->setMinimumWidth( 168 );
+                        styleBtn->setMinimumWidth( 172 );
+                        styleBtn->setStyleSheet(
+                                QStringLiteral( "QPushButton { text-align: left; padding-left: 8px; padding-right: 22px; font-weight: 400; }" ) );
                         styleBtn->show();
                         typeCol->addWidget( styleBtn );
 
@@ -1806,15 +1872,17 @@ namespace glabels
                         typeCol->addLayout( flagsRow );
                         typeGrp->addLayout( typeCol );
 
-                        // Color
+                        // Color ("Bar color" caption + compact swatch/name button, s05 mockup)
                         auto* colorGrp = tab->addGroup( tr( "Color" ), QStringLiteral( "palette" ), 1 );
                         auto* colorCol = new QVBoxLayout();
-                        colorCol->setContentsMargins( 0, 4, 0, 0 );
+                        colorCol->setContentsMargins( 0, 2, 0, 0 );
                         colorCol->setSpacing( 4 );
-                        colorCol->addWidget( makeFieldLabel( tr( "Color" ), colorGrp ) );
+                        auto* barColCap = new QLabel( tr( "Bar color" ), colorGrp );
+                        barColCap->setProperty( "role", QStringLiteral( "ribbonCaption" ) );
+                        colorCol->addWidget( barColCap );
                         QWidget* bcColor = ctrl( Cid::BarcodeColorButton );
                         bcColor->setParent( colorGrp );
-                        bcColor->setFixedWidth( 96 );
+                        bcColor->setFixedWidth( 104 );
                         bcColor->show();
                         colorCol->addWidget( bcColor );
                         colorGrp->addLayout( colorCol );
@@ -1891,7 +1959,7 @@ namespace glabels
                         fillCol->addWidget( makeFieldLabel( tr( "Fill" ), fillGrp ) );
                         QWidget* fillBtn = ctrl( Cid::FillColorButton );
                         fillBtn->setParent( fillGrp );
-                        fillBtn->setFixedWidth( 96 );
+                        fillBtn->setFixedWidth( 104 );
                         fillBtn->show();
                         fillCol->addWidget( fillBtn );
                         fillGrp->addLayout( fillCol );
@@ -1974,6 +2042,7 @@ namespace glabels
                 // Initial dock of shared widgets so they belong to live ribbon layouts
                 attachSharedContextualWidgets( ribbon::TabId::ContextShape );
                 attachSharedContextualWidgets( ribbon::TabId::ContextText );
+                syncFieldDropButtons();
         }
 
 
@@ -2027,27 +2096,24 @@ namespace glabels
                         return;
                 }
                 using Cid = ObjectEditor::ControlId;
-                if ( mTextInsertFieldDropBtn )
+                const QString disabledTip = tr( "No merge fields or variables" );
+                const QString enabledTip  = tr( "Insert a merge field or variable" );
+
+                auto syncOne = [&]( ribbon::RibbonDropButton* dropBtn, Cid srcId )
                 {
-                        if ( auto* fb = mObjectEditor->control( Cid::TextInsertFieldButton ) )
+                        if ( !dropBtn )
                         {
-                                mTextInsertFieldDropBtn->setEnabled( fb->isEnabled() );
+                                return;
                         }
-                }
-                if ( mBarcodeInsertFieldDropBtn )
-                {
-                        if ( auto* fb = mObjectEditor->control( Cid::BarcodeInsertFieldButton ) )
-                        {
-                                mBarcodeInsertFieldDropBtn->setEnabled( fb->isEnabled() );
-                        }
-                }
-                if ( mImageUseFieldDropBtn )
-                {
-                        if ( auto* fb = mObjectEditor->control( Cid::ImageFieldButton ) )
-                        {
-                                mImageUseFieldDropBtn->setEnabled( fb->isEnabled() );
-                        }
-                }
+                        const QWidget* fb = mObjectEditor->control( srcId );
+                        const bool en = fb && fb->isEnabled();
+                        dropBtn->setEnabled( en );
+                        dropBtn->setToolTip( en ? enabledTip : disabledTip );
+                };
+
+                syncOne( mTextInsertFieldDropBtn,    Cid::TextInsertFieldButton );
+                syncOne( mBarcodeInsertFieldDropBtn, Cid::BarcodeInsertFieldButton );
+                syncOne( mImageUseFieldDropBtn,      Cid::ImageFieldButton );
         }
 
 

@@ -36,6 +36,8 @@
 namespace glabels::ribbon
 {
 
+        class RibbonDropButton;
+
         ///
         /// Right-hand 300px Content panel (SPEC 6.5).
         /// Hosts the transplanted content controls from ObjectEditor (textEdit, barcodeDataEdit,
@@ -81,6 +83,8 @@ namespace glabels::ribbon
                 void onThemeChanged();
 
         private:
+                void syncFieldButtons();
+
                 model::Model*   mModel{ nullptr };
                 SelectionKind   mSelectionKind{ SelectionKind::None };
 
@@ -91,6 +95,13 @@ namespace glabels::ribbon
                 QWidget*        mBarcodePage{ nullptr };
                 QWidget*        mImagePage{ nullptr };
                 QLineEdit*      mImageFileMirror{ nullptr };
+
+                QPushButton*      mTextFieldSource{ nullptr };
+                QPushButton*      mBarcodeFieldSource{ nullptr };
+                QPushButton*      mImageFieldSource{ nullptr };
+                RibbonDropButton* mTextFieldBtn{ nullptr };
+                RibbonDropButton* mBarcodeFieldBtn{ nullptr };
+                RibbonDropButton* mImageFieldBtn{ nullptr };
 
                 QWidget*        mFieldsSection{ nullptr };
                 QLabel*         mFieldsSourceLabel{ nullptr };

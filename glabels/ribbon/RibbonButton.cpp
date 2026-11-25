@@ -371,30 +371,65 @@ namespace glabels::ribbon
                 {
                 case Size::Large:
                 {
-                        const int iconSz = 30;
-                        const QRect iconRect( ( width() - iconSz ) / 2, 8, iconSz, iconSz );
-                        if ( !ic.isNull() )
+                        const QString lbl = displayLabel();
+                        const bool chev = hasChevron();
+                        const bool multiLine = lbl.contains( QLatin1Char( ' ' ) ) &&
+                                               QFontMetrics( p.font() ).horizontalAdvance( lbl ) > width() - 6;
+                        const int iconSz = chev ? ( multiLine ? 24 : 28 ) : 30;
+                        const int iconY  = chev ? ( multiLine ? 4 : 6 ) : 8;
+                        const QRect iconRect( ( width() - iconSz ) / 2, iconY, iconSz, iconSz );
+
+                        if ( mIconName == QStringLiteral( "shadow" ) )
+                        {
+                                // Drawn 2-square "shadow" glyph (SPEC 4.4 & s04 mockup)
+                                p.save();
+                                const QColor glyphColor = ( mVariant == Variant::Primary )
+                                                          ? pal.onGrad
+                                                          : ( enabled ? pal.accent : pal.ink3 );
+                                QColor backFill = glyphColor;
+                                backFill.setAlpha( 48 );
+                                QColor backStroke = glyphColor;
+                                backStroke.setAlpha( 140 );
+
+                                const qreal s = iconSz * 0.54;
+                                const qreal off = iconSz * 0.18;
+                                const QRectF frontR( iconRect.left() + iconSz * 0.14,
+                                                     iconRect.top() + iconSz * 0.14, s, s );
+                                const QRectF backR = frontR.translated( off, off );
+
+                                p.setPen( QPen( backStroke, 1.5 ) );
+                                p.setBrush( backFill );
+                                p.drawRoundedRect( backR, 3.0, 3.0 );
+
+                                p.setPen( QPen( glyphColor, 1.8 ) );
+                                p.setBrush( pal.ribbon );
+                                p.drawRoundedRect( frontR, 3.0, 3.0 );
+                                p.restore();
+                        }
+                        else if ( !ic.isNull() )
                         {
                                 ic.paint( &p, iconRect, Qt::AlignCenter,
                                           enabled ? QIcon::Normal : QIcon::Disabled,
                                           isChecked() ? QIcon::On : QIcon::Off );
                         }
 
-                        const QRect textRect( 3, 42, width() - 6, height() - 44 );
-                        p.drawText( textRect, Qt::AlignHCenter | Qt::AlignTop | Qt::TextWordWrap, displayLabel() );
+                        const int textY = chev ? ( multiLine ? 31 : 38 ) : 42;
+                        const int textH = chev ? ( height() - textY - 10 ) : ( height() - textY - 2 );
+                        const QRect textRect( 2, textY, width() - 4, textH );
+                        p.drawText( textRect, Qt::AlignHCenter | Qt::AlignTop | Qt::TextWordWrap, lbl );
 
-                        if ( hasChevron() )
+                        if ( chev )
                         {
-                                QPainterPath chev;
+                                QPainterPath cp;
                                 const qreal cx = width() / 2.0;
-                                const qreal cy = height() - 6.0;
-                                chev.moveTo( cx - 3.0, cy - 1.5 );
-                                chev.lineTo( cx, cy + 1.5 );
-                                chev.lineTo( cx + 3.0, cy - 1.5 );
+                                const qreal cy = height() - 5.5;
+                                cp.moveTo( cx - 3.0, cy - 1.5 );
+                                cp.lineTo( cx, cy + 1.5 );
+                                cp.lineTo( cx + 3.0, cy - 1.5 );
                                 p.setPen( QPen( mVariant == Variant::Primary ? pal.onGrad : pal.ink3, 1.5,
                                                 Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin ) );
                                 p.setBrush( Qt::NoBrush );
-                                p.drawPath( chev );
+                                p.drawPath( cp );
                         }
                         break;
                 }

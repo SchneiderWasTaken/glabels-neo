@@ -42,6 +42,7 @@
 #include <QMenu>
 #include <QScrollArea>
 #include <QStackedWidget>
+#include <QToolButton>
 
 #include <memory>
 
@@ -337,6 +338,7 @@ namespace glabels
                 QWidget*                              mSharedPosWidget{ nullptr };
                 QWidget*                              mSharedRectSizeWidget{ nullptr };
                 QWidget*                              mImageResetSubWidget{ nullptr };
+                QToolButton*                          mLockAspectButton{ nullptr };
                 QWidget*                              mSharedLineWidget{ nullptr };
                 QMap<ribbon::TabId, QHBoxLayout*>     mPosSizeHostLayouts;
                 QMap<ribbon::TabId, QHBoxLayout*>     mLineHostLayouts;

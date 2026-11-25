@@ -493,6 +493,7 @@ namespace glabels::ribbon
                 {
                         if ( QWidget* w = item->widget() )
                         {
+                                w->hide();   // deleteLater() only runs on return to the event loop
                                 w->deleteLater();
                         }
                         delete item;

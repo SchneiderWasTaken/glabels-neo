@@ -265,6 +265,7 @@ namespace glabels
                 mHeadingLabel = new QLabel(
                         tr( "Welcome to %1" ).arg( model::Branding::DISPLAY_NAME ), content );
                 mHeadingLabel->setAlignment( Qt::AlignCenter );
+                mHeadingLabel->setProperty( "role", QStringLiteral( "welcomeTitle" ) );
                 layout->addWidget( mHeadingLabel, 0, Qt::AlignHCenter );
 
                 mAttributionLabel = new QLabel(
@@ -346,7 +347,6 @@ namespace glabels
                 const auto& th  = theme::Theme::instance();
                 const auto& pal = th.palette();
 
-                mHeadingLabel->setFont( th.uiFont( 24, 700 ) );
                 QPalette hp = mHeadingLabel->palette();
                 hp.setColor( QPalette::WindowText, pal.ink );
                 mHeadingLabel->setPalette( hp );
@@ -369,6 +369,7 @@ namespace glabels
                 {
                         if ( QWidget* w = item->widget() )
                         {
+                                w->hide();   // deleteLater() only runs on return to the event loop
                                 w->deleteLater();
                         }
                         delete item;

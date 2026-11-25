@@ -244,6 +244,7 @@ namespace glabels::ribbon
                 emptyCaption->setWordWrap( true );
                 emptyCaption->setProperty( "role", QStringLiteral( "caption" ) );
                 emptyL->addWidget( emptyCaption );
+                emptyL->addStretch( 1 );   // caption at the top (word-wrapped labels centre otherwise)
                 mEditorStack->addWidget( emptyPage );
 
                 // Page 1: Text (populated in installControls)
@@ -268,6 +269,7 @@ namespace glabels::ribbon
                 shapeCaption->setWordWrap( true );
                 shapeCaption->setProperty( "role", QStringLiteral( "caption" ) );
                 shapeL->addWidget( shapeCaption );
+                shapeL->addStretch( 1 );   // caption at the top (word-wrapped labels centre otherwise)
                 mEditorStack->addWidget( shapePage );
 
                 // Page 5: Line
@@ -280,9 +282,25 @@ namespace glabels::ribbon
                 lineCaption->setWordWrap( true );
                 lineCaption->setProperty( "role", QStringLiteral( "caption" ) );
                 lineL->addWidget( lineCaption );
+                lineL->addStretch( 1 );   // caption at the top (word-wrapped labels centre otherwise)
                 mEditorStack->addWidget( linePage );
 
                 innerLayout->addWidget( mEditorStack );
+
+                // A stacked widget is as tall as its tallest page; size it to the current page so
+                // that short pages sit at the top and the Fields list follows directly (s03..s08).
+                auto fitStackToPage = [this]( int current )
+                {
+                        for ( int i = 0; i < mEditorStack->count(); ++i )
+                        {
+                                mEditorStack->widget( i )->setSizePolicy( QSizePolicy::Preferred,
+                                                                          i == current ? QSizePolicy::Preferred
+                                                                                       : QSizePolicy::Ignored );
+                        }
+                        mEditorStack->updateGeometry();
+                };
+                connect( mEditorStack, &QStackedWidget::currentChanged, this, fitStackToPage );
+                fitStackToPage( mEditorStack->currentIndex() );
 
                 // Fields section (hidden when merge has no keys)
                 mFieldsSection = new QWidget( inner );
@@ -502,6 +520,7 @@ namespace glabels::ribbon
                         {
                                 if ( QWidget* w = item->widget() )
                                 {
+                                        w->hide();   // deleteLater() only runs on return to the event loop
                                         w->deleteLater();
                                 }
                                 delete item;

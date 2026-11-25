@@ -34,8 +34,8 @@
 //
 namespace
 {
-        const QColor  paperColor( 242, 242, 242 );
-        const QColor  paperOutlineColor( 0, 0, 0 );
+        const QColor  paperColor( 255, 255, 255 );        // paper is always white (SPEC 4.1)
+        const QColor  paperOutlineColor( 203, 213, 225 ); // line2
         const double  paperOutlineWidthPixels = 1;
 
         const QColor  shadowColor( 0, 0, 0, 64 );

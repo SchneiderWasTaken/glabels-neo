@@ -138,7 +138,7 @@ Only five models can ever run, and the work is spread over them so no single bud
 
 | id | model | paid by | used for |
 |:--|:--|:--|:--|
-| `deepseek` | OpenRouter `deepseek/deepseek-v4.1-flash-1017` | per token (about $0.03 / $0.20 per million) | triage, fixes, council |
+| `deepseek` | OpenRouter `deepseek/deepseek-v4.1-flash-1017` | per token ($0.15 / $0.60 per million) | triage, fixes, council |
 | `glm` | OpenRouter `z-ai/glm-5.3-flash` | per token ($0.12 / $0.38 per million) | triage, fixes, council |
 | `claude-sonnet` | Claude Sonnet | Claude subscription | fixes |
 | `claude-haiku` | Claude Haiku | Claude subscription | triage, council |
@@ -149,7 +149,7 @@ Only five models can ever run, and the work is spread over them so no single bud
 - **Allowlist**: exact names only. Aliases (`~...-latest`), `:batch` variants, other OpenRouter models, other Claude models (Opus outside the `auto-fix` council),
   Gemini and anything else are refused before a request is made. `MODEL_POOL` can only narrow the pool, never add to it.
 - **Price ceiling**: before every OpenRouter call the live per-token prices are read from OpenRouter and the call is refused if
-  the model costs more than GLM 5.3 flash (or charges per request, search or image), or if the prices cannot be read.
+  the model costs more than DeepSeek V4.1 flash 1017, the dearest member (or charges per request, search or image), or if the prices cannot be read.
 - **Per-run budget**: a run is stopped as soon as the tokens it has streamed would cost more than its budget at the ceiling
   prices (triage $0.10, fix $0.50 per round, never more than $1 on a per-token model), even when the tool reports it as free.
 - opencode runs with every tool off (triage, council) or with only file read/edit inside the work copy (fixes): no shell, no

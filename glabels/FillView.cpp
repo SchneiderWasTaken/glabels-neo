@@ -32,7 +32,9 @@
 #include <QDebug>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QGroupBox>
 #include <QHeaderView>
+#include <QLayout>
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPrinter>
@@ -125,7 +127,21 @@ namespace glabels
         {
                 setupUi( this );
 
-                titleLabel->setText( QString( "<span style='font-size:18pt;'>%1</span>" ).arg( tr("Fill") ) );
+                titleLabel->setText( tr("Fill") );
+                titleLabel->setProperty( "role", QStringLiteral( "pageTitle" ) );
+
+                if ( auto* l = layout() )
+                {
+                        l->setContentsMargins( 24, 20, 24, 20 );
+                        l->setSpacing( 14 );
+                }
+                for ( auto* gb : findChildren<QGroupBox*>() )
+                {
+                        gb->setProperty( "role", QStringLiteral( "card" ) );
+                }
+                preview->setProperty( "role", QStringLiteral( "previewWell" ) );
+                productLabel->setProperty( "role", QStringLiteral( "caption" ) );
+                printDescriptionLabel->setProperty( "role", QStringLiteral( "caption" ) );
 
                 jobsTable->setModel( &mJobsModel );
                 jobsTable->horizontalHeader()->setStretchLastSection( true );
@@ -199,6 +215,32 @@ namespace glabels
                 mKioskSourcePath = path;
                 mKioskLockedFields = lockedFields;
                 mJobsModel.setLockedFields( lockedFields );
+        }
+
+
+        void FillView::setRibbonHosted( bool hosted )
+        {
+                mRibbonHosted = hosted;
+                const bool showInline = !mRibbonHosted;
+
+                addRowButton->setVisible( showInline );
+                removeRowButton->setVisible( showInline );
+                clearButton->setVisible( showInline );
+                importCsvButton->setVisible( showInline );
+                importExcelButton->setVisible( showInline );
+                exportCsvButton->setVisible( showInline );
+                exportExcelButton->setVisible( showInline );
+                printButton->setVisible( showInline );
+                zplButton->setVisible( showInline );
+                systemDialogButton->setVisible( showInline );
+
+                updateView();
+        }
+
+
+        bool FillView::isRibbonHosted() const
+        {
+                return mRibbonHosted;
         }
 
 
@@ -405,14 +447,20 @@ namespace glabels
                 int nItems = mRenderer.nItems();
                 int nPages = mRenderer.nPages();
 
+                QString desc;
                 if ( nPages <= 1 )
                 {
-                        printDescriptionLabel->setText( tr("Will print %1 item(s) on 1 page.").arg(nItems) );
+                        desc = tr("Will print %1 item(s) on 1 page.").arg(nItems);
                 }
                 else
                 {
-                        printDescriptionLabel->setText( tr("Will print %1 item(s) on %2 pages.").arg(nItems).arg(nPages) );
+                        desc = tr("Will print %1 item(s) on %2 pages.").arg(nItems).arg(nPages);
                 }
+                if ( mRibbonHosted )
+                {
+                        desc += QStringLiteral( " " ) + tr("Print and Send to Zebra are on the ribbon.");
+                }
+                printDescriptionLabel->setText( desc );
 
                 pageSpin->blockSignals( true );
                 pageSpin->setRange( 1, qMax( 1, nPages ) );
@@ -422,6 +470,7 @@ namespace glabels
                 bool canPrint = mJobsModel.checkedQuantity() > 0;
                 printButton->setEnabled( canPrint );
                 systemDialogButton->setEnabled( canPrint );
+                emit printAvailabilityChanged( canPrint );
 
                 mRenderer.setIPage( pageSpin->value() - 1 );
         }

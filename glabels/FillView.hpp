@@ -75,6 +75,15 @@ namespace glabels
                 // and make those columns read-only.  Empty path = disabled.
                 void setKioskSource( const QString& path, const QStringList& lockedFields );
 
+                /// When true (hosted inside MainWindow under Data > Fill), row/IO/output
+                /// actions live on the ribbon instead of inline toolbars.
+                /// Defaults to false so standalone glabels-fill kiosk keeps its inline controls.
+                void setRibbonHosted( bool hosted );
+                bool isRibbonHosted() const;
+
+        signals:
+                void printAvailabilityChanged( bool canPrint );
+
 
                 /////////////////////////////////
                 // Slots
@@ -154,6 +163,7 @@ namespace glabels
                 merge::Merge*       mSavedMerge{ nullptr };
                 bool                mBlocked{ false };
                 bool                mInstalled{ false };
+                bool                mRibbonHosted{ false };
         };
 
 

@@ -28,6 +28,8 @@
 
 #include <QDebug>
 #include <QFileDialog>
+#include <QGroupBox>
+#include <QLayout>
 #include <QMessageBox>
 #include <QPrinter>
 #include <QPrinterInfo>
@@ -45,7 +47,29 @@ namespace glabels
         {
                 setupUi( this );
 
-                titleLabel->setText( QString( "<span style='font-size:18pt;'>%1</span>" ).arg( tr("Print") ) );
+                titleLabel->setText( tr("Print") );
+                titleLabel->setProperty( "role", QStringLiteral( "pageTitle" ) );
+
+                if ( auto* l = layout() )
+                {
+                        l->setContentsMargins( 24, 20, 24, 20 );
+                        l->setSpacing( 16 );
+                }
+                for ( auto* gb : findChildren<QGroupBox*>() )
+                {
+                        gb->setProperty( "role", QStringLiteral( "card" ) );
+                }
+                preview->setProperty( "role", QStringLiteral( "previewWell" ) );
+                printDescriptionLabel->setProperty( "role", QStringLiteral( "caption" ) );
+
+                // Sentence case option labels (SPEC 0.4 & s13)
+                printOutlinesCheck->setText( tr("Print outlines") );
+                printCropMarksCheck->setText( tr("Print crop marks") );
+                printReverseCheck->setText( tr("Print in reverse (a mirror image)") );
+
+                // Print / System dialog live on the Print ribbon; keep wired
+                printButton->hide();
+                systemDialogButton->hide();
 
                 auto* printerMonitor = PrinterMonitor::instance();
                 loadDestinations( printerMonitor->availablePrinters() );
@@ -130,6 +154,7 @@ namespace glabels
                 printButton->setEnabled( canPrint );
                 printDescriptionLabel->setEnabled( canPrint );
                 systemDialogButton->setEnabled( canPrint );
+                emit printAvailabilityChanged( canPrint );
 
                 mRenderer.setIPage( pageSpin->value() - 1 ); // Update preview
         }

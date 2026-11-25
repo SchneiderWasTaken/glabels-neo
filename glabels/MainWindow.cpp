@@ -1243,6 +1243,12 @@ namespace glabels
                 connect( mFillSystemDialogRibbonBtn, &QAbstractButton::clicked, mFillView->systemDialogButton, &QAbstractButton::click );
                 mDataFillOutputGroup->addWidget( mFillSystemDialogRibbonBtn );
 
+                connect( mFillView, &FillView::printAvailabilityChanged, this, [this]( bool canPrint )
+                {
+                        if ( mFillPrintRibbonBtn )        mFillPrintRibbonBtn->setEnabled( canPrint );
+                        if ( mFillSystemDialogRibbonBtn ) mFillSystemDialogRibbonBtn->setEnabled( canPrint );
+                } );
+
                 updateDataTabGroups();
         }
 
@@ -1267,6 +1273,12 @@ namespace glabels
                 connect( mPrintSystemDialogRibbonBtn, &QAbstractButton::clicked,
                          mPrintView->systemDialogButton, &QAbstractButton::click );
                 outGrp->addWidget( mPrintSystemDialogRibbonBtn );
+
+                connect( mPrintView, &PrintView::printAvailabilityChanged, this, [this]( bool canPrint )
+                {
+                        if ( mPrintRibbonBtn )             mPrintRibbonBtn->setEnabled( canPrint );
+                        if ( mPrintSystemDialogRibbonBtn ) mPrintSystemDialogRibbonBtn->setEnabled( canPrint );
+                } );
 
                 // Printer
                 auto* prnGrp = tab->addGroup( tr( "Printer" ), QStringLiteral( "printer" ) );
@@ -2139,6 +2151,7 @@ namespace glabels
         QWidget* MainWindow::createFillPage()
         {
                 mFillView = new FillView();
+                mFillView->setRibbonHosted( true );
                 return mFillView;
         }
 

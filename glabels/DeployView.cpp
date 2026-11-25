@@ -34,7 +34,9 @@
 #include <QComboBox>
 #include <QCoreApplication>
 #include <QFileDialog>
+#include <QFileInfo>
 #include <QFormLayout>
+#include <QGroupBox>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QLineEdit>
@@ -60,92 +62,122 @@ namespace glabels
                 : QWidget( parent )
         {
                 auto* layout = new QVBoxLayout( this );
-                layout->setContentsMargins( 12, 12, 12, 12 );
-                layout->setSpacing( 9 );
+                layout->setContentsMargins( 24, 20, 24, 20 );
+                layout->setSpacing( 14 );
 
-                auto* title = new QLabel(
-                        QString( "<span style='font-size:18pt;'>%1</span>" ).arg( tr("Deploy") ) );
+                auto* title = new QLabel( tr("Deploy"), this );
+                title->setProperty( "role", QStringLiteral( "pageTitle" ) );
                 layout->addWidget( title );
 
                 auto* intro = new QLabel( tr(
                         "Build a standalone fill-and-print kiosk from the current project. "
-                        "The employee gets a simplified Fill table + preview; the label layout "
-                        "and locked fields are baked in.") );
+                        "The employee gets a simplified Fill table and preview; the label layout "
+                        "and locked fields are baked in."), this );
                 intro->setWordWrap( true );
+                intro->setProperty( "role", QStringLiteral( "caption" ) );
                 layout->addWidget( intro );
 
-                auto* form = new QFormLayout();
+                // Two side-by-side cards (SPEC 6.4 & mockup s14)
+                auto* cardsRow = new QHBoxLayout();
+                cardsRow->setSpacing( 16 );
 
-                mAppNameEdit = new QLineEdit( "glabels Fill", this );
+                // Left card: Kiosk settings
+                auto* settingsCard = new QGroupBox( tr("Kiosk settings"), this );
+                settingsCard->setProperty( "role", QStringLiteral( "card" ) );
+                auto* form = new QFormLayout( settingsCard );
+                form->setContentsMargins( 16, 16, 16, 16 );
+                form->setSpacing( 10 );
+
+                mAppNameEdit = new QLineEdit( QStringLiteral( "gLabels Neo Fill" ), settingsCard );
                 form->addRow( tr("Application name:"), mAppNameEdit );
 
-                mPinEdit = new QLineEdit( this );
-                mPinEdit->setEchoMode( QLineEdit::Password );
-                mPinEdit->setPlaceholderText( tr("(blank = no PIN)") );
-                form->addRow( tr("Admin PIN:"), mPinEdit );
-
-                mPrinterEdit = new QLineEdit( this );
-                mPrinterEdit->setPlaceholderText( tr("(system default)") );
-                auto* printerBrowse = new QPushButton( tr("Browse..."), this );
-                auto* printerRow = new QHBoxLayout();
-                printerRow->addWidget( mPrinterEdit );
-                printerRow->addWidget( printerBrowse );
-                form->addRow( tr("Printer:"), printerRow );
-
-                mSourcePathEdit = new QLineEdit( this );
-                mSourcePathEdit->setPlaceholderText( tr("(optional: Excel/CSV to pre-fill rows)") );
-                auto* sourceBrowse = new QPushButton( tr("Browse..."), this );
-                auto* sourceRow = new QHBoxLayout();
-                sourceRow->addWidget( mSourcePathEdit );
-                sourceRow->addWidget( sourceBrowse );
-                form->addRow( tr("Data source:"), sourceRow );
-
-                mLabelNameEdit = new QLineEdit( this );
+                mLabelNameEdit = new QLineEdit( settingsCard );
                 mLabelNameEdit->setPlaceholderText( tr("(e.g. \"Price Tag\")") );
                 form->addRow( tr("Embedded label name:"), mLabelNameEdit );
 
-                layout->addLayout( form );
-
-                // Locked fields
-                layout->addWidget( new QLabel( tr("Locked fields (pre-filled from source, read-only to employee):") ) );
-                mLockedFieldsList = new QListWidget( this );
-                mLockedFieldsList->setMaximumHeight( 120 );
-                layout->addWidget( mLockedFieldsList );
-
-                // Kiosk exe source
-                auto* fillExeForm = new QFormLayout();
-                mFillExeEdit = new QLineEdit( this );
+                mFillExeEdit = new QLineEdit( settingsCard );
                 mFillExeEdit->setPlaceholderText( tr("Path to kiosk base .exe") );
-                // Default: look for the SFX base next to this exe, then fall
-                // back to the dynamic glabels-fill.exe.
                 QString appDir = QCoreApplication::applicationDirPath();
                 QString sfxPath = appDir + "/glabels-fill-sfx.exe";
                 QString dynPath = appDir + "/glabels-fill.exe";
                 QString defaultFill = QFileInfo::exists( sfxPath ) ? sfxPath : dynPath;
                 mFillExeEdit->setText( defaultFill );
-                auto* fillBrowse = new QPushButton( tr("Browse..."), this );
+                auto* fillBrowse = new QPushButton( tr("Browse..."), settingsCard );
                 auto* fillRow = new QHBoxLayout();
+                fillRow->setSpacing( 6 );
                 fillRow->addWidget( mFillExeEdit );
                 fillRow->addWidget( fillBrowse );
-                fillExeForm->addRow( tr("Base kiosk executable:"), fillRow );
-                layout->addLayout( fillExeForm );
+                form->addRow( tr("Base kiosk executable:"), fillRow );
 
-                // Build button
-                auto* btnRow = new QHBoxLayout();
-                btnRow->addStretch();
+                mSourcePathEdit = new QLineEdit( settingsCard );
+                mSourcePathEdit->setPlaceholderText( tr("(optional: Excel/CSV to pre-fill rows)") );
+                auto* sourceBrowse = new QPushButton( tr("Browse..."), settingsCard );
+                auto* sourceRow = new QHBoxLayout();
+                sourceRow->setSpacing( 6 );
+                sourceRow->addWidget( mSourcePathEdit );
+                sourceRow->addWidget( sourceBrowse );
+                form->addRow( tr("Data source:"), sourceRow );
+
+                mPrinterEdit = new QLineEdit( settingsCard );
+                mPrinterEdit->setPlaceholderText( tr("(system default)") );
+                auto* printerBrowse = new QPushButton( tr("Browse..."), settingsCard );
+                auto* printerRow = new QHBoxLayout();
+                printerRow->setSpacing( 6 );
+                printerRow->addWidget( mPrinterEdit );
+                printerRow->addWidget( printerBrowse );
+                form->addRow( tr("Printer:"), printerRow );
+
+                mPinEdit = new QLineEdit( settingsCard );
+                mPinEdit->setEchoMode( QLineEdit::Password );
+                mPinEdit->setPlaceholderText( tr("(blank = no PIN)") );
+                form->addRow( tr("Admin PIN:"), mPinEdit );
+
+                cardsRow->addWidget( settingsCard, 3 );
+
+                // Right card: Locked fields
+                auto* lockedCard = new QGroupBox( tr("Locked fields"), this );
+                lockedCard->setProperty( "role", QStringLiteral( "card" ) );
+                auto* lockedLayout = new QVBoxLayout( lockedCard );
+                lockedLayout->setContentsMargins( 16, 16, 16, 16 );
+                lockedLayout->setSpacing( 8 );
+
+                auto* lockedCaption = new QLabel(
+                        tr("Pre-filled from data source; read-only to the employee."), lockedCard );
+                lockedCaption->setWordWrap( true );
+                lockedCaption->setProperty( "role", QStringLiteral( "caption" ) );
+                lockedLayout->addWidget( lockedCaption );
+
+                mLockedFieldsList = new QListWidget( lockedCard );
+                lockedLayout->addWidget( mLockedFieldsList, 1 );
+
+                cardsRow->addWidget( lockedCard, 2 );
+                layout->addLayout( cardsRow, 1 );
+
+                // Bottom status row (green status pill + detail text)
+                auto* statusRow = new QHBoxLayout();
+                statusRow->setSpacing( 10 );
+                mStatusPill = new QLabel( tr("Ready to build"), this );
+                mStatusPill->setProperty( "role", QStringLiteral( "statusPillOk" ) );
+                mStatusPill->setStyleSheet(
+                        QStringLiteral( "padding: 4px 10px; border-radius: 10px; font-weight: 600;" ) );
+                mStatusDetail = new QLabel(
+                        tr("Use Build kiosk... on the Deploy tab to produce a single-file executable."), this );
+                mStatusDetail->setProperty( "role", QStringLiteral( "caption" ) );
+                statusRow->addWidget( mStatusPill, 0 );
+                statusRow->addWidget( mStatusDetail, 1 );
+                layout->addLayout( statusRow );
+
+                // Hidden build button (triggered by the primary Build kiosk... button on the Deploy ribbon)
                 mBuildButton = new QPushButton( tr("Build kiosk..."), this );
-                mBuildButton->setIcon( QIcon::fromTheme( "glabels-fill" ) );
-                mBuildButton->setIconSize( QSize(32,32) );
-                mBuildButton->setStyleSheet( "padding:6px;" );
-                btnRow->addWidget( mBuildButton );
-                layout->addLayout( btnRow );
-
-                layout->addStretch();
+                mBuildButton->hide();
 
                 connect( sourceBrowse, &QPushButton::clicked, this, &DeployView::onBrowseSource );
                 connect( printerBrowse, &QPushButton::clicked, this, &DeployView::onBrowsePrinter );
                 connect( fillBrowse, &QPushButton::clicked, this, &DeployView::onBrowseFillExe );
+                connect( mFillExeEdit, &QLineEdit::textChanged, this, [this]() { updateStatusBanner(); } );
                 connect( mBuildButton, &QPushButton::clicked, this, &DeployView::onBuild );
+
+                updateStatusBanner();
         }
 
 
@@ -153,6 +185,36 @@ namespace glabels
         {
                 mModel = model;
                 refreshLockedFields();
+                updateStatusBanner();
+        }
+
+
+        void DeployView::updateStatusBanner()
+        {
+                if ( !mStatusPill || !mStatusDetail )
+                {
+                        return;
+                }
+                const bool hasBase = QFileInfo::exists( mFillExeEdit->text() );
+                if ( !mModel )
+                {
+                        mStatusPill->setText( tr("No project") );
+                        mStatusPill->setProperty( "role", QStringLiteral( "statusPillWarn" ) );
+                        mStatusDetail->setText( tr("Open or create a label project to build a kiosk.") );
+                }
+                else if ( !hasBase )
+                {
+                        mStatusPill->setText( tr("Base exe missing") );
+                        mStatusPill->setProperty( "role", QStringLiteral( "statusPillWarn" ) );
+                        mStatusDetail->setText( tr("Select glabels-fill.exe or glabels-fill-sfx.exe above.") );
+                }
+                else
+                {
+                        mStatusPill->setText( tr("Ready to build") );
+                        mStatusPill->setProperty( "role", QStringLiteral( "statusPillOk" ) );
+                        mStatusDetail->setText(
+                                tr("Use Build kiosk... on the Deploy tab to produce a single-file executable.") );
+                }
         }
 
 
@@ -300,6 +362,12 @@ namespace glabels
                         return;
                 }
 
+                if ( mStatusPill && mStatusDetail )
+                {
+                        mStatusPill->setText( tr("Built") );
+                        mStatusPill->setProperty( "role", QStringLiteral( "statusPillOk" ) );
+                        mStatusDetail->setText( tr("Kiosk written to %1").arg( outPath ) );
+                }
                 QMessageBox::information( this, tr("Deploy"),
                                           tr("Kiosk built successfully:\n%1").arg(outPath) );
         }

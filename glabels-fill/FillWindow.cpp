@@ -105,7 +105,14 @@ namespace glabels
         }
 
 
-        FillWindow::~FillWindow() = default;
+        ///
+        /// Destructor: hide first so FillView::hideEvent (which restores the model's merge)
+        /// runs while mModel is still alive, instead of during base-class teardown.
+        ///
+        FillWindow::~FillWindow()
+        {
+                hide();
+        }
 
 
         void FillWindow::loadCurrentLabel()

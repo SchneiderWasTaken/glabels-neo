@@ -559,4 +559,60 @@ namespace glabels::model
                 mInstance->endGroup();
         }
 
+
+        // --- snapping & guides (docs/ribbon-ui/SNAP.md) ---
+        bool Settings::snapObjects()
+        {
+                instance()->beginGroup( "View" );
+                bool value = mInstance->value( "snapObjects", true ).toBool();
+                mInstance->endGroup();
+                return value;
+        }
+
+
+        void Settings::setSnapObjects( bool enabled )
+        {
+                instance()->beginGroup( "View" );
+                mInstance->setValue( "snapObjects", enabled );
+                mInstance->endGroup();
+                emit mInstance->changed();
+        }
+
+
+        bool Settings::snapCenter()
+        {
+                instance()->beginGroup( "View" );
+                bool value = mInstance->value( "snapCenter", true ).toBool();
+                mInstance->endGroup();
+                return value;
+        }
+
+
+        void Settings::setSnapCenter( bool enabled )
+        {
+                instance()->beginGroup( "View" );
+                mInstance->setValue( "snapCenter", enabled );
+                mInstance->endGroup();
+                emit mInstance->changed();
+        }
+
+
+        bool Settings::snapSafeArea()
+        {
+                instance()->beginGroup( "View" );
+                bool value = mInstance->value( "snapSafeArea", true ).toBool();
+                mInstance->endGroup();
+                return value;
+        }
+
+
+        void Settings::setSnapSafeArea( bool enabled )
+        {
+                instance()->beginGroup( "View" );
+                mInstance->setValue( "snapSafeArea", enabled );
+                mInstance->endGroup();
+                emit mInstance->changed();
+        }
+        // --- end snapping & guides ---
+
 }

@@ -54,6 +54,7 @@
 	<file alias="lock-open.svg">../icons/neo/lock-open.svg</file>
 	<file alias="lock.svg">../icons/neo/lock.svg</file>
 	<file alias="log-out.svg">../icons/neo/log-out.svg</file>
+	<file alias="magnet.svg">../icons/neo/magnet.svg</file>
 	<file alias="minus.svg">../icons/neo/minus.svg</file>
 	<file alias="monitor.svg">../icons/neo/monitor.svg</file>
 	<file alias="moon.svg">../icons/neo/moon.svg</file>

@@ -51,7 +51,7 @@ namespace glabels
         /// Constructor
         ///
         ObjectEditor::ObjectEditor( QWidget *parent )
-                : mModel(nullptr), mObject(nullptr), mImageCwd("."), mBlocked(false)
+                : QWidget(parent), mModel(nullptr), mObject(nullptr), mImageCwd("."), mBlocked(false)
         {
                 setupUi( this );
 

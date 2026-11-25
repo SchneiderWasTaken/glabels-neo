@@ -61,7 +61,7 @@ namespace glabels
         Preview::Preview( QWidget *parent )
                 : QGraphicsView(parent), mModel(nullptr), mRenderer(nullptr)
         {
-                mScene = new QGraphicsScene();
+                mScene = new QGraphicsScene( this );   // owned by the view: deleted with it, pending scene events dropped
                 setScene( mScene );
 
                 setAttribute(Qt::WA_TranslucentBackground);

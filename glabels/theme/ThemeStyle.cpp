@@ -137,6 +137,11 @@ QPushButton:flat {
 QPushButton:flat:hover {
         background: @hover;
 }
+QPushButton:flat:pressed, QPushButton:flat:checked {
+        background: @pressed;
+        border-color: transparent;
+        color: @accent;
+}
 QCommandLinkButton {
         background: @panel;
         color: @ink;
@@ -290,14 +295,27 @@ QComboBox QAbstractItemView {
 }
 
 QAbstractSpinBox {
-        padding-right: 20px;
+        padding-left: 6px;
+        padding-right: 16px;
 }
 QAbstractSpinBox:focus {
-        padding-right: 19px;
+        padding-left: 5px;
+        padding-right: 15px;
+}
+QAbstractSpinBox[role="ribbonField"] {
+        padding-left: 5px;
+        padding-right: 12px;
+}
+QAbstractSpinBox[role="ribbonField"]:focus {
+        padding-left: 4px;
+        padding-right: 11px;
+}
+QAbstractSpinBox[role="ribbonField"]::up-button, QAbstractSpinBox[role="ribbonField"]::down-button {
+        width: 12px;
 }
 QAbstractSpinBox::up-button, QAbstractSpinBox::down-button {
         subcontrol-origin: border;
-        width: 18px;
+        width: 16px;
         border: none;
         background: transparent;
 }
@@ -844,7 +862,7 @@ QToolButton[role="ribbonSmall"], QToolButton[role="ribbonDrop"] {
 QToolButton[role="ribbonDrop"] {
         padding-right: 18px;
 }
-QToolButton[role="ribbonIcon"], QToolButton[role="ribbonToggle"] {
+QAbstractButton[role="ribbonIcon"], QAbstractButton[role="ribbonToggle"] {
         min-width: @mIconBtn;
         max-width: @mIconBtn;
         min-height: @mIconBtn;
@@ -854,7 +872,7 @@ QToolButton[role="ribbonIcon"], QToolButton[role="ribbonToggle"] {
         qproperty-iconSize: 16px 16px;
 }
 QToolButton[role="ribbonLarge"]:checked, QToolButton[role="ribbonSmall"]:checked,
-QToolButton[role="ribbonIcon"]:checked, QToolButton[role="ribbonToggle"]:checked {
+QAbstractButton[role="ribbonIcon"]:checked, QAbstractButton[role="ribbonToggle"]:checked {
         background: @pressed;
         color: @accent;
 }
@@ -961,6 +979,13 @@ QAbstractItemView[role="recentList"]::item {
         border: none;
         border-left: 1px solid @line;
 }
+*[role="contentPanel"] QScrollArea {
+        background: @panel;
+        border: none;
+}
+*[role="contentPanel"] QScrollArea > QWidget > QWidget {
+        background: @panel;
+}
 *[role="contentPanelHeader"] {
         background: @panel;
         border-bottom: 1px solid @line;
@@ -988,6 +1013,11 @@ QLabel[role="statusText"] {
 
 /* ============================================================================== pages */
 
+QLabel[role="welcomeTitle"] {
+        color: @ink;
+        font-size: 24px;
+        font-weight: 700;
+}
 QLabel[role="pageTitle"] {
         color: @ink;
         font-size: 20px;

@@ -70,6 +70,7 @@ Modifier: `primary="true"` on a `ribbonLarge` or `ribbonSmall` button gives the 
 |---|---|---|
 | `page` | `QWidget` / `QScrollArea` viewport | `bg` background |
 | `pageTitle` | `QLabel` | 20 px 700 `ink` |
+| `welcomeTitle` | `QLabel` | 24 px 700 `ink` (Welcome heading) |
 | `card` | `QFrame` or `QGroupBox` | `panel`, 1 px `line` border, radius 10 (every `QGroupBox` is already a card) |
 | `cardHeader` | `QWidget` / `QLabel` | 38 px, 13 px 600, 1 px `line` bottom border, `chrome` fill |
 | `caption` | `QLabel` | 12 px `ink3` |

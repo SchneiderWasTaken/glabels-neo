@@ -106,6 +106,7 @@ namespace glabels
                 ribbon::ContentPanel*    contentPanel() const;
                 ribbon::RibbonStatusBar* ribbonStatusBar() const;
                 QStackedWidget*          pageStack() const;
+                LabelEditor*             labelEditor() const;
                 QList<QAction*>          allWindowActions() const;
                 ribbon::SelectionKind    currentSelectionKind() const;
 
@@ -380,6 +381,9 @@ namespace glabels
                 QAction*  viewCollapseRibbonAction{ nullptr };
                 QAction*  viewGridAction{ nullptr };
                 QAction*  viewMarkupAction{ nullptr };
+                QAction*  viewSnapObjectsAction{ nullptr };
+                QAction*  viewSnapCenterAction{ nullptr };
+                QAction*  viewSnapSafeAreaAction{ nullptr };
                 QAction*  viewZoomInAction{ nullptr };
                 QAction*  viewZoomOutAction{ nullptr };
                 QAction*  viewZoom1To1Action{ nullptr };

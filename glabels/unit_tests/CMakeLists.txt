@@ -67,4 +67,14 @@ target_include_directories (TestRibbon PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..)
 target_link_libraries (TestRibbon glabels_lib glabels_resources Model Qt6::Test Qt6::Widgets)
 add_test (NAME Ribbon COMMAND TestRibbon)
 set_tests_properties (Ribbon PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+#=======================================
+# Test snapping engine, guides, View > Snap group, and LabelEditor mouse snapping
+#=======================================
+qt6_wrap_cpp (TestSnap_moc_sources TestSnap.hpp)
+add_executable (TestSnap TestSnap.cpp ${TestSnap_moc_sources})
+target_include_directories (TestSnap PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_link_libraries (TestSnap glabels_lib glabels_resources Model Qt6::Test Qt6::Widgets)
+add_test (NAME Snap COMMAND TestSnap)
+set_tests_properties (Snap PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 # --- end ribbon-ui: core ---

@@ -126,6 +126,17 @@ namespace glabels::model
                 static QString startupPath();
                 static void setStartupPath( const QString& path );
 
+                // --- snapping & guides (docs/ribbon-ui/SNAP.md) ---
+                static bool snapObjects();
+                static void setSnapObjects( bool enabled );
+
+                static bool snapCenter();
+                static void setSnapCenter( bool enabled );
+
+                static bool snapSafeArea();
+                static void setSnapSafeArea( bool enabled );
+                // --- end snapping & guides ---
+
 
         private:
                 static std::unique_ptr<Settings> mInstance;

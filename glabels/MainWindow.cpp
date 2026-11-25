@@ -298,6 +298,12 @@ namespace glabels
         }
 
 
+        LabelEditor* MainWindow::labelEditor() const
+        {
+                return mLabelEditor;
+        }
+
+
         QList<QAction*> MainWindow::allWindowActions() const
         {
                 return mAllWindowActions;
@@ -595,6 +601,45 @@ namespace glabels
                 viewMarkupAction->setStatusTip( tr("Change visibility of markup lines in current window") );
                 connect( viewMarkupAction, SIGNAL(toggled(bool)), this, SLOT(viewMarkup(bool)) );
                 registerAction( viewMarkupAction );
+
+                viewSnapObjectsAction = new QAction( tr("Objects"), this );
+                viewSnapObjectsAction->setCheckable( true );
+                viewSnapObjectsAction->setChecked( model::Settings::snapObjects() );
+                viewSnapObjectsAction->setStatusTip( tr("Snap to edges and centres of other objects") );
+                connect( viewSnapObjectsAction, &QAction::toggled, this, []( bool checked )
+                {
+                        if ( model::Settings::snapObjects() != checked )
+                        {
+                                model::Settings::setSnapObjects( checked );
+                        }
+                } );
+                registerAction( viewSnapObjectsAction );
+
+                viewSnapCenterAction = new QAction( tr("Centre"), this );
+                viewSnapCenterAction->setCheckable( true );
+                viewSnapCenterAction->setChecked( model::Settings::snapCenter() );
+                viewSnapCenterAction->setStatusTip( tr("Snap to the horizontal and vertical centre of the label") );
+                connect( viewSnapCenterAction, &QAction::toggled, this, []( bool checked )
+                {
+                        if ( model::Settings::snapCenter() != checked )
+                        {
+                                model::Settings::setSnapCenter( checked );
+                        }
+                } );
+                registerAction( viewSnapCenterAction );
+
+                viewSnapSafeAreaAction = new QAction( tr("Safe area"), this );
+                viewSnapSafeAreaAction->setCheckable( true );
+                viewSnapSafeAreaAction->setChecked( model::Settings::snapSafeArea() );
+                viewSnapSafeAreaAction->setStatusTip( tr("Snap to the inside edges of the label margin") );
+                connect( viewSnapSafeAreaAction, &QAction::toggled, this, []( bool checked )
+                {
+                        if ( model::Settings::snapSafeArea() != checked )
+                        {
+                                model::Settings::setSnapSafeArea( checked );
+                        }
+                } );
+                registerAction( viewSnapSafeAreaAction );
 
                 viewZoomInAction = new QAction( tr("Zoom &In"), this );
                 viewZoomInAction->setIcon( QIcon::fromTheme( "glabels-zoom-in" ) );
@@ -1389,6 +1434,26 @@ namespace glabels
                 mViewQatCheck          = bindCheck( viewFileToolBarAction );
                 mViewContentPanelCheck = bindCheck( viewContentPanelAction );
                 showGrp->addLayout( showCol );
+
+                // Snap (three checkable small buttons + bypass caption, docs/ribbon-ui/SNAP.md)
+                auto* snapGrp = tab->addGroup( tr( "Snap" ), QStringLiteral( "magnet" ) );
+                auto* snapCol = new QVBoxLayout();
+                snapCol->setContentsMargins( 2, 4, 2, 0 );
+                snapCol->setSpacing( 6 );
+
+                auto* snapRow = new QHBoxLayout();
+                snapRow->setContentsMargins( 0, 0, 0, 0 );
+                snapRow->setSpacing( 4 );
+                snapRow->addWidget( new Btn( viewSnapObjectsAction,  QStringLiteral( "magnet" ),        Btn::Size::Small, Btn::Variant::Standard, snapGrp ) );
+                snapRow->addWidget( new Btn( viewSnapCenterAction,   QStringLiteral( "crosshair" ),     Btn::Size::Small, Btn::Variant::Standard, snapGrp ) );
+                snapRow->addWidget( new Btn( viewSnapSafeAreaAction, QStringLiteral( "square-dashed" ), Btn::Size::Small, Btn::Variant::Standard, snapGrp ) );
+                snapCol->addLayout( snapRow );
+
+                auto* snapCap = new QLabel( tr( "Hold Alt to bypass" ), snapGrp );
+                snapCap->setProperty( "role", QStringLiteral( "ribbonCaption" ) );
+                snapCol->addWidget( snapCap );
+                snapCol->addStretch( 1 );
+                snapGrp->addLayout( snapCol );
 
                 // Zoom (four large buttons)
                 auto* zoomGrp = tab->addGroup( tr( "Zoom" ), QStringLiteral( "zoom-in" ) );
@@ -2675,6 +2740,9 @@ namespace glabels
                 viewCollapseRibbonAction->setEnabled( !isWelcomePage );
                 viewGridAction->setEnabled( isEditorPage );
                 viewMarkupAction->setEnabled( isEditorPage );
+                viewSnapObjectsAction->setEnabled( isEditorPage );
+                viewSnapCenterAction->setEnabled( isEditorPage );
+                viewSnapSafeAreaAction->setEnabled( isEditorPage );
                 viewZoomInAction->setEnabled( isEditorPage && ( !mLabelEditor || !mLabelEditor->isZoomMax() ) );
                 viewZoomOutAction->setEnabled( isEditorPage && ( !mLabelEditor || !mLabelEditor->isZoomMin() ) );
                 viewZoom1To1Action->setEnabled( isEditorPage );
@@ -3343,6 +3411,21 @@ namespace glabels
                 if ( mViewIconStyleGroup )
                 {
                         mViewIconStyleGroup->setCurrentId( model::Settings::iconStyle() );
+                }
+                if ( viewSnapObjectsAction )
+                {
+                        const QSignalBlocker b( viewSnapObjectsAction );
+                        viewSnapObjectsAction->setChecked( model::Settings::snapObjects() );
+                }
+                if ( viewSnapCenterAction )
+                {
+                        const QSignalBlocker b( viewSnapCenterAction );
+                        viewSnapCenterAction->setChecked( model::Settings::snapCenter() );
+                }
+                if ( viewSnapSafeAreaAction )
+                {
+                        const QSignalBlocker b( viewSnapSafeAreaAction );
+                        viewSnapSafeAreaAction->setChecked( model::Settings::snapSafeArea() );
                 }
                 manageActions();
                 updateLabelTabInfo();

@@ -24,9 +24,14 @@
 #include "AppearanceModel.hpp"
 #include "FillView.hpp"
 #include "MainWindow.hpp"
+#include "PrintView.hpp"
+#include "PropertiesView.hpp"
+#include "VariablesView.hpp"
 #include "ribbon/Backstage.hpp"
 #include "ribbon/ContentPanel.hpp"
 #include "ribbon/RibbonBar.hpp"
+#include "ribbon/RibbonButton.hpp"
+#include "ribbon/RibbonColorDecorator.hpp"
 #include "ribbon/RibbonGroup.hpp"
 #include "ribbon/RibbonTab.hpp"
 #include "ribbon/RibbonTypes.hpp"
@@ -254,21 +259,36 @@ void TestRibbon::mainWindowTabPageSyncAndSelection()
         win.ribbonBar()->setCurrentTab( TabId::Deploy, true );
         QCOMPARE( win.pageStack()->currentIndex(), static_cast<int>( PageId::Deploy ) );
 
-        // Data remembers last sub-page
+        // Data remembers last sub-page, and the active Data page toggle is ENABLED and CHECKED
         win.ribbonBar()->setCurrentTab( TabId::Data, true );
         QCOMPARE( win.pageStack()->currentIndex(), static_cast<int>( PageId::Merge ) );
 
-        // Trigger Variables action (Ctrl+4) and verify Data remembers it
-        for ( QAction* a : win.allWindowActions() )
+        auto findActionByShortcut = [&]( Qt::Key key ) -> QAction*
         {
-                if ( a->shortcut() == QKeySequence( Qt::CTRL | Qt::Key_4 ) )
+                for ( QAction* a : win.allWindowActions() )
                 {
-                        a->trigger();
-                        break;
+                        if ( a->shortcut() == QKeySequence( Qt::CTRL | key ) )
+                        {
+                                return a;
+                        }
                 }
-        }
+                return nullptr;
+        };
+        QAction* mergeAct = findActionByShortcut( Qt::Key_3 );
+        QAction* varsAct  = findActionByShortcut( Qt::Key_4 );
+        QAction* fillAct  = findActionByShortcut( Qt::Key_5 );
+        QVERIFY( mergeAct && varsAct && fillAct );
+        QVERIFY( mergeAct->isEnabled() );
+        QVERIFY( mergeAct->isChecked() );
+        QVERIFY( !varsAct->isChecked() );
+
+        // Trigger Variables action (Ctrl+4) and verify Data remembers it and marks it checked+enabled
+        varsAct->trigger();
         QCOMPARE( win.pageStack()->currentIndex(), static_cast<int>( PageId::Variables ) );
         QCOMPARE( win.ribbonBar()->currentTab(), TabId::Data );
+        QVERIFY( varsAct->isEnabled() );
+        QVERIFY( varsAct->isChecked() );
+        QVERIFY( !mergeAct->isChecked() );
 
         win.ribbonBar()->setCurrentTab( TabId::Home, true );
         QCOMPARE( win.pageStack()->currentIndex(), static_cast<int>( PageId::Editor ) );
@@ -330,6 +350,42 @@ void TestRibbon::fillViewRibbonHostedVsStandalone()
         QVERIFY( standalone.printButton->isHidden() );
         QVERIFY( standalone.zplButton->isHidden() );
         QVERIFY( standalone.systemDialogButton->isHidden() );
+
+        // Color decorator friendly names
+        QCOMPARE( friendlyColorName( QColor( 0, 0, 0 ) ), QStringLiteral( "Black" ) );
+        QCOMPARE( friendlyColorName( QColor( 255, 255, 255 ) ), QStringLiteral( "White" ) );
+        QCOMPARE( friendlyColorName( QColor( 0x4F, 0x46, 0xE5 ) ), QStringLiteral( "Indigo" ) );
+        QCOMPARE( friendlyColorName( QColor( 0, 0, 0, 0 ), QStringLiteral( "No fill" ) ), QStringLiteral( "No fill" ) );
+
+        // Page visual-review invariants: sentence case, Variables intro caption, workWell preview cards
+        PropertiesView propsView;
+        QCOMPARE( propsView.similarProductsGroupBox->title(), QStringLiteral( "Similar products" ) );
+        QCOMPARE( propsView.parametersGroupBox->title(), QStringLiteral( "Adjustable parameters" ) );
+        QVERIFY( !propsView.findChildren<QFrame*>().isEmpty() );
+
+        VariablesView varsView;
+        bool foundVarsIntro = false;
+        for ( QLabel* lbl : varsView.findChildren<QLabel*>() )
+        {
+                if ( lbl->text().contains( QStringLiteral( "${name}" ) ) )
+                {
+                        foundVarsIntro = true;
+                        break;
+                }
+        }
+        QVERIFY( foundVarsIntro );
+
+        PrintView printView;
+        bool foundPrintWorkWell = false;
+        for ( QFrame* f : printView.findChildren<QFrame*>() )
+        {
+                if ( f->property( "role" ).toString() == QStringLiteral( "workWell" ) )
+                {
+                        foundPrintWorkWell = true;
+                        break;
+                }
+        }
+        QVERIFY( foundPrintWorkWell );
 }
 
 

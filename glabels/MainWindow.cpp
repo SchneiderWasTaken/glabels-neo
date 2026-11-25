@@ -23,6 +23,7 @@
 #include "MainWindow.hpp"
 
 #include "AppearanceModel.hpp"
+#include "theme/ThemeScheme.hpp"
 #include "ColorButton.hpp"
 #include "DeployView.hpp"
 #include "File.hpp"
@@ -67,6 +68,7 @@
 #include "model/Settings.hpp"
 
 #include <QApplication>
+#include <QComboBox>
 #include <QClipboard>
 #include <QDebug>
 #include <QFileInfo>
@@ -1423,6 +1425,37 @@ namespace glabels
                 sameCap->setProperty( "role", QStringLiteral( "ribbonCaption" ) );
                 appCol->addWidget( sameCap );
                 appGrp->addLayout( appCol );
+
+                // Theme (colour scheme picker, same setting as Preferences; THEMES.md)
+                auto* themeGrp = tab->addGroup( tr( "Theme" ), QStringLiteral( "palette" ) );
+                auto* themeCol = new QVBoxLayout();
+                themeCol->setContentsMargins( 2, 4, 2, 0 );
+                themeCol->setSpacing( 5 );
+                auto* thCap = new QLabel( tr( "Theme" ), themeGrp );
+                thCap->setProperty( "role", QStringLiteral( "ribbonCaption" ) );
+                themeCol->addWidget( thCap );
+                auto* themeCombo = new QComboBox( themeGrp );
+                themeCombo->setObjectName( QStringLiteral( "viewThemeCombo" ) );
+                themeCombo->setAccessibleName( tr( "Theme" ) );
+                themeCombo->setProperty( "role", QStringLiteral( "ribbonField" ) );
+                themeCombo->setFixedWidth( 150 );
+                auto refreshTheme = [themeCombo]()
+                {
+                        theme::ThemeSchemes::fillCombo( themeCombo, model::Settings::themeScheme(),
+                                                        theme::Theme::instance().mode() );
+                };
+                refreshTheme();
+                connect( themeCombo, &QComboBox::currentIndexChanged, this, [themeCombo]( int index )
+                {
+                        const QString id = themeCombo->itemData( index ).toString();
+                        if ( !id.isEmpty() && id != model::Settings::themeScheme() )
+                        {
+                                model::Settings::setThemeScheme( id );
+                        }
+                } );
+                connect( &theme::Theme::instance(), &theme::Theme::changed, themeCombo, refreshTheme );
+                themeCol->addWidget( themeCombo );
+                themeGrp->addLayout( themeCol );
 
                 // Icons (Flat / Vector segmented)
                 auto* iconGrp = tab->addGroup( tr( "Icons" ), QStringLiteral( "image" ) );

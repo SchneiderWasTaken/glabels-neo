@@ -45,6 +45,9 @@ namespace glabels
                 /////////////////////////////////
                 // Slots
                 /////////////////////////////////
+        private:
+                void addThemePicker();
+
         private slots:
                 void onUnitsRadiosChanged();
                 void onGridOriginRadiosChanged();

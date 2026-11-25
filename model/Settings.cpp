@@ -492,7 +492,7 @@ namespace glabels::model
         QString Settings::themeScheme()
         {
                 mInstance->beginGroup( "Appearance" );
-                QString value = mInstance->value( "themeScheme", "neo" ).toString();
+                QString value = mInstance->value( "themeScheme", "graphite" ).toString();
                 mInstance->endGroup();
                 return value;
         }

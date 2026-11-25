@@ -54,6 +54,7 @@
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QScrollBar>
+#include <QSettings>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QToolTip>
@@ -252,6 +253,9 @@ void TestThemePopups::initTestCase()
         QStandardPaths::setTestModeEnabled( true );
         QCoreApplication::setOrganizationName( "glabels-neo-tests" );
         QCoreApplication::setApplicationName( "TestThemePopups" );
+
+        // Start from no saved settings (this scope belongs to the test only), so defaults are tested.
+        QSettings().clear();
 
         // Measure the final geometry, not an animation frame.
         QApplication::setEffectEnabled( Qt::UI_AnimateCombo, false );

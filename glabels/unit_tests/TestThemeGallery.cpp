@@ -58,6 +58,7 @@
 #include <QMessageBox>
 #include <QPainter>
 #include <QPushButton>
+#include <QSettings>
 #include <QStandardPaths>
 #include <QTemporaryDir>
 #include <QTextStream>
@@ -186,9 +187,9 @@ namespace
                         "    <Object-image x=\"178pt\" y=\"10pt\" w=\"50pt\" h=\"50pt\" a0=\"1\" a1=\"0\" a2=\"0\" a3=\"1\" a4=\"0\" a5=\"0\""
                         " src=\"%1\" shadow=\"false\" lock_aspect_ratio=\"true\"/>\n"
                         "    <Object-box x=\"14pt\" y=\"48pt\" w=\"40pt\" h=\"30pt\" a0=\"1\" a1=\"0\" a2=\"0\" a3=\"1\" a4=\"0\" a5=\"0\""
-                        " line_width=\"1pt\" line_color=\"0x4f46e5ff\" fill_color=\"0xede9feff\" shadow=\"false\" lock_aspect_ratio=\"false\"/>\n"
+                        " line_width=\"1pt\" line_color=\"0x3f3f46ff\" fill_color=\"0xe4e4e7ff\" shadow=\"false\" lock_aspect_ratio=\"false\"/>\n"
                         "    <Object-ellipse x=\"64pt\" y=\"48pt\" w=\"30pt\" h=\"30pt\" a0=\"1\" a1=\"0\" a2=\"0\" a3=\"1\" a4=\"0\" a5=\"0\""
-                        " line_width=\"1pt\" line_color=\"0x4f46e5ff\" fill_color=\"0xede9feff\" shadow=\"false\" lock_aspect_ratio=\"false\"/>\n"
+                        " line_width=\"1pt\" line_color=\"0x3f3f46ff\" fill_color=\"0xe4e4e7ff\" shadow=\"false\" lock_aspect_ratio=\"false\"/>\n"
                         "    <Object-line x=\"14pt\" y=\"88pt\" dx=\"214pt\" dy=\"0pt\" a0=\"1\" a1=\"0\" a2=\"0\" a3=\"1\" a4=\"0\" a5=\"0\""
                         " line_width=\"1pt\" line_color=\"0xcbd5e1ff\" shadow=\"false\"/>\n"
                         "    <Object-barcode x=\"14pt\" y=\"98pt\" w=\"214pt\" h=\"50pt\" a0=\"1\" a1=\"0\" a2=\"0\" a3=\"1\" a4=\"0\" a5=\"0\""
@@ -248,6 +249,9 @@ void TestThemeGallery::initTestCase()
         QCoreApplication::setOrganizationName( "glabels-neo-tests" );
         QCoreApplication::setApplicationName( "TestThemeGallery" );
 
+        // Start from no saved settings (this scope belongs to the test only), so defaults are tested.
+        QSettings().clear();
+
         model::Settings::init();
         model::Db::init();
         merge::Factory::init();
@@ -255,6 +259,10 @@ void TestThemeGallery::initTestCase()
         AppearanceModel::init();
 
         qInstallMessageHandler( collectWarnings );
+
+        // A user with no saved choice gets the default scheme, Graphite (round 4).
+        QCOMPARE( model::Settings::themeScheme(), QString( "graphite" ) );
+        QCOMPARE( theme::Theme::instance().scheme(), QString( "graphite" ) );
 
         // model::Model::canPaste() expects clipboard data; the offscreen platform starts empty.
         QApplication::clipboard()->setText( QStringLiteral( "gallery" ) );
@@ -367,8 +375,8 @@ void TestThemeGallery::switchesWithoutRestart()
         dialog.show();
         QVERIFY( QTest::qWaitForWindowExposed( &dialog ) );
 
-        const QColor lightPanel = theme::Theme::lightPalette().panel;
-        const QColor darkPanel  = theme::Theme::darkPalette().panel;
+        const QColor lightPanel = theme::Theme::paletteFor( theme::Mode::Light ).panel;
+        const QColor darkPanel  = theme::Theme::paletteFor( theme::Mode::Dark ).panel;
 
         QCOMPARE( dialog.grab().toImage().pixelColor( 3, 3 ), lightPanel );
 
@@ -603,6 +611,14 @@ void TestThemeGallery::themeSchemes()
                         QVERIFY2( styleWarnings().isEmpty(), qPrintable( scheme.id + ": " + styleWarnings().join( "\n" ) ) );
                 }
         }
+
+        // A corrupt saved id falls back to Graphite; an explicit "neo" keeps Neo.
+        model::Settings::setThemeScheme( "corrupt\x7f" );
+        settle();
+        QCOMPARE( theme::Theme::instance().scheme(), QString( "graphite" ) );
+        model::Settings::setThemeScheme( "neo" );
+        settle();
+        QCOMPARE( theme::Theme::instance().scheme(), QString( "neo" ) );
 
         // The picker drives the setting, live: choose Signal in Preferences.
         {

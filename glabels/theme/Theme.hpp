@@ -127,7 +127,7 @@ namespace glabels::theme
                 /// Select the mode (does not apply it; call applyToApplication())
                 void            setMode( Mode mode );
 
-                /// Select the colour scheme by id (ThemeScheme.hpp); unknown ids select Neo.
+                /// Select the colour scheme by id (ThemeScheme.hpp); unknown ids select the default.
                 /// Does not apply it; call applyToApplication().
                 void            setScheme( const QString& id );
 
@@ -137,7 +137,7 @@ namespace glabels::theme
                 /// QPalette built from the tokens, for the Fusion base style
                 QPalette        qtPalette() const;
 
-                /// Token tables of the Neo scheme (the default)
+                /// Token tables of the Neo scheme (SPEC.md 4.1; the default scheme is Graphite)
                 static Palette  lightPalette();
                 static Palette  darkPalette();
 

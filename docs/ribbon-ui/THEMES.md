@@ -7,8 +7,8 @@ still choose the variant on top of the scheme.
 
 | Id | Name | Description (as shown in the picker) | Gradient |
 |---|---|---|---|
-| `neo` | Neo (default) | Violet-blue gradient and an indigo accent; the original look | yes |
-| `graphite` | Graphite | Neutral greys and a steel-blue accent, like a professional tool | no |
+| `graphite` | Graphite (**default**) | Neutral greys and a steel-blue accent, like a professional tool | no |
+| `neo` | Neo | Violet-blue gradient and an indigo accent; the original gLabels Neo look | yes |
 | `paper` | Paper | Warm stone surfaces, ink-black text and a forest-green accent | no |
 | `harbor` | Harbor | Cool navy surfaces and a teal accent | no |
 | `signal` | Signal | High contrast with a burnt-orange accent | no |
@@ -29,16 +29,25 @@ keep the exact UI and follow one brief:
   Paper is warm and print-like, Harbor is cool and nautical, Signal is high contrast with a
   family resemblance to the LabelOS web app, System imitates Windows 11 Fluent.
 
-Neo is unchanged and stays the default.
+**Default: Graphite** (owner decision, round 4). Neo is unchanged and stays in the picker.
+
+- A user with **no saved choice** (setting `Appearance/themeScheme` missing) gets Graphite.
+- An **unknown, empty or corrupt** saved id also resolves to Graphite: the default is the
+  only safe answer for a value we cannot interpret, and it is what a new user sees.
+- A user who **explicitly saved `neo`** keeps Neo.
+
+These three cases are asserted by `TestTheme::schemeRegistry` and
+`TestThemeGallery::initTestCase` / `themeSchemes`.
 
 ## How it works
 
-- `glabels/theme/ThemeScheme.{hpp,cpp}`: the registry (`ThemeSchemes::all()`, `find()`
-  with fallback to Neo for unknown ids, `fillCombo()` for pickers with swatch icons).
+- `glabels/theme/ThemeScheme.{hpp,cpp}`: the registry (`ThemeSchemes::all()`, default first,
+  `find()` with fallback to the default for unknown ids, `fillCombo()` for pickers with
+  swatch icons).
 - `Theme::setScheme( id )` / `Theme::scheme()`: `palette()` and `paletteFor()` return the
   current scheme's tokens; `applyToApplication()` re-applies palette and stylesheet.
 - Stored in the settings next to the colour scheme: group `Appearance`, key `themeScheme`
-  (`model::Settings::themeScheme()` / `setThemeScheme()`), default `neo`.
+  (`model::Settings::themeScheme()` / `setThemeScheme()`), default `graphite`.
 - `AppearanceModel` applies it live, through the same path as Light / Dark / System: a
   settings change re-applies the theme, no restart.
 - Pickers, both bound to the same setting and kept in sync through it:

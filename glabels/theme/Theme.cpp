@@ -58,7 +58,7 @@ namespace glabels::theme
         /// Constructor
         ///
         Theme::Theme()
-                : mMode( Mode::Light ), mSchemeId( QStringLiteral( "neo" ) )
+                : mMode( Mode::Light ), mSchemeId( ThemeSchemes::defaultId() )
         {
         }
 

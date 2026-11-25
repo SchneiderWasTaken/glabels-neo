@@ -42,19 +42,19 @@ namespace
                 // ctx ctxLine ok okTint warn grad onGrad
                 QList<ThemeScheme> list;
 
-                list.append( { QStringLiteral( "neo" ),
-                               QT_TRANSLATE_NOOP( "ThemeScheme", "Neo" ),
-                               QT_TRANSLATE_NOOP( "ThemeScheme", "Violet-blue gradient and an indigo accent; the original look" ),
-                               glabels::theme::Theme::lightPalette(),
-                               glabels::theme::Theme::darkPalette(),
-                               true } );
-
                 list.append( { QStringLiteral( "graphite" ),
                                QT_TRANSLATE_NOOP( "ThemeScheme", "Graphite" ),
                                QT_TRANSLATE_NOOP( "ThemeScheme", "Neutral greys and a steel-blue accent, like a professional tool" ),
                                ThemeSchemes::solidPalette( "#F4F4F5 #EAEAEC #FFFFFF #DCDCDF #FFFFFF #E2E2E5 #B8B8BE #18181B #3F3F46 #5B5B64 #2F6DB5 #E4ECF6 #EDEDEF #DCE6F3 #E4ECF6 #2F6DB5 #15803D #E8F5EC #A15C07 #2F6DB5 #FFFFFF" ),
                                ThemeSchemes::solidPalette( "#121214 #1A1A1D #202024 #0C0C0E #18181B #2C2C31 #494950 #F4F4F5 #D0D0D5 #9A9AA3 #6EA2E0 #26303D #2A2A2F #2E3A4B #26303D #6EA2E0 #4ADE80 #123221 #E0A93B #5B93D6 #0C0C0E" ),
                                false } );
+
+                list.append( { QStringLiteral( "neo" ),
+                               QT_TRANSLATE_NOOP( "ThemeScheme", "Neo" ),
+                               QT_TRANSLATE_NOOP( "ThemeScheme", "Violet-blue gradient and an indigo accent; the original gLabels Neo look" ),
+                               glabels::theme::Theme::lightPalette(),
+                               glabels::theme::Theme::darkPalette(),
+                               true } );
 
                 list.append( { QStringLiteral( "paper" ),
                                QT_TRANSLATE_NOOP( "ThemeScheme", "Paper" ),
@@ -106,7 +106,9 @@ namespace glabels::theme
 
         QString ThemeSchemes::defaultId()
         {
-                return QStringLiteral( "neo" );
+                // Graphite since round 4 (owner decision).  A missing setting, and an unknown or
+                // corrupt saved id, both resolve to it; a saved "neo" keeps Neo.
+                return QStringLiteral( "graphite" );
         }
 
 
@@ -135,6 +137,13 @@ namespace glabels::theme
                 for ( const auto& scheme : all() )
                 {
                         if ( scheme.id == id )
+                        {
+                                return scheme;
+                        }
+                }
+                for ( const auto& scheme : all() )
+                {
+                        if ( scheme.id == defaultId() )
                         {
                                 return scheme;
                         }

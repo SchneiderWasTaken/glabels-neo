@@ -62,13 +62,13 @@ namespace glabels::theme
         class ThemeSchemes
         {
         public:
-                /// The id of the default scheme
+                /// The id of the default scheme (Graphite)
                 static QString defaultId();
 
                 /// Every scheme, the default first
                 static const QList<ThemeScheme>& all();
 
-                /// A scheme by id; unknown ids give the default (Neo)
+                /// A scheme by id; unknown or corrupt ids give the default (Graphite)
                 static const ThemeScheme& find( const QString& id );
 
                 /// Is this a known id?

@@ -827,10 +827,11 @@ void TestTheme::schemeRegistry()
                 QVERIFY( !scheme.displayDescription().isEmpty() );
                 QVERIFY( !scheme.displayDescription().endsWith( '.' ) );
         }
-        QCOMPARE( ids, QStringList( { "neo", "graphite", "paper", "harbor", "signal", "system" } ) );
-        QCOMPARE( ThemeSchemes::defaultId(), QString( "neo" ) );
+        QCOMPARE( ids, QStringList( { "graphite", "neo", "paper", "harbor", "signal", "system" } ) );
+        QCOMPARE( ThemeSchemes::defaultId(), QString( "graphite" ) );
+        QCOMPARE( all.first().id, ThemeSchemes::defaultId() );
 
-        // Neo is the default and unchanged
+        // Neo stays available and unchanged
         const ThemeScheme& neo = ThemeSchemes::find( "neo" );
         QVERIFY( neo.gradient );
         QCOMPARE( tokensOf( neo.light ), tokensOf( Theme::lightPalette() ) );
@@ -838,10 +839,14 @@ void TestTheme::schemeRegistry()
         QCOMPARE( neo.light.gradA, QColor( "#7C3AED" ) );
         QCOMPARE( neo.light.gradC, QColor( "#2563EB" ) );
 
-        // Unknown ids fall back to Neo
-        QCOMPARE( ThemeSchemes::find( "no-such-scheme" ).id, QString( "neo" ) );
+        // Unknown, empty or corrupt ids fall back to the default (Graphite); "neo" keeps Neo
+        QCOMPARE( ThemeSchemes::find( "no-such-scheme" ).id, QString( "graphite" ) );
+        QCOMPARE( ThemeSchemes::find( QString() ).id, QString( "graphite" ) );
+        QCOMPARE( ThemeSchemes::find( "NEO\x01" ).id, QString( "graphite" ) );
         QVERIFY( !ThemeSchemes::contains( "no-such-scheme" ) );
         Theme::instance().setScheme( "no-such-scheme" );
+        QCOMPARE( Theme::instance().scheme(), QString( "graphite" ) );
+        Theme::instance().setScheme( "neo" );
         QCOMPARE( Theme::instance().scheme(), QString( "neo" ) );
 
         // The selected scheme drives palette() and paletteFor()

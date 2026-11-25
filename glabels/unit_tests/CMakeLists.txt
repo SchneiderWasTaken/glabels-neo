@@ -39,6 +39,14 @@ target_compile_definitions (TestThemeGallery PRIVATE GLABELS_SOURCE_DIR="${CMAKE
 target_link_libraries (TestThemeGallery glabels_lib glabels_resources Model Qt6::Test Qt6::Widgets Qt6::Svg)
 add_test (NAME ThemeGallery COMMAND TestThemeGallery)
 set_tests_properties (ThemeGallery PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+# Popup audit (docs/ribbon-ui/POPUP-AUDIT.md): rows shown and corner pixels of every popup kind
+qt6_wrap_cpp (TestThemePopups_moc_sources TestThemePopups.hpp)
+add_executable (TestThemePopups TestThemePopups.cpp ${TestThemePopups_moc_sources})
+target_include_directories (TestThemePopups PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_link_libraries (TestThemePopups glabels_lib glabels_resources Model Qt6::Test Qt6::Widgets Qt6::Svg)
+add_test (NAME ThemePopups COMMAND TestThemePopups)
+set_tests_properties (ThemePopups PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 # --- end ribbon-ui: theme ---
 
 # --- ribbon-ui: core ---

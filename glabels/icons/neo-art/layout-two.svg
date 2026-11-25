@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="100" viewBox="0 0 160 100" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <!-- gLabels Neo original artwork: products needing two layouts (second layout highlighted). Colours are palette sentinels (see ThemeIcons::illustration). -->
+  <rect x="8" y="8" width="64" height="84" rx="3" fill="#0A0B0C" stroke="#010203" stroke-width="1.5"/>
+  <rect x="88" y="8" width="64" height="84" rx="3" fill="#0A0B0C" stroke="#010203" stroke-width="1.5"/>
+  <circle cx="30" cy="31" r="15" stroke="#040506" stroke-width="1.25"/>
+  <circle cx="50" cy="69" r="15" stroke="#070809" stroke-width="1.5"/>
+  <rect x="126" y="15" width="20" height="8" rx="1.5" stroke="#040506" stroke-width="1.25"/>
+  <rect x="96" y="67" width="20" height="8" rx="1.5" stroke="#070809" stroke-width="1.5"/>
+  <rect x="126" y="26" width="20" height="8" rx="1.5" stroke="#040506" stroke-width="1.25"/>
+  <rect x="96" y="78" width="20" height="8" rx="1.5" stroke="#070809" stroke-width="1.5"/>
+</svg>

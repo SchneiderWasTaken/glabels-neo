@@ -22,6 +22,10 @@
 #include "TemplateDesigner.hpp"
 
 #include "SelectProductDialog.hpp"
+#include "TemplateDesignerSidebar.hpp"
+#include "TemplateDesignerSteps.hpp"
+#include "theme/Theme.hpp"
+#include "theme/ThemeIcons.hpp"
 #include "model/Db.hpp"
 #include "model/Distance.hpp"
 #include "model/FrameCd.hpp"
@@ -35,7 +39,10 @@
 #include "model/PageRenderer.hpp"
 #include "model/Settings.hpp"
 
+#include <QCommandLinkButton>
 #include <QDebug>
+#include <QFrame>
+#include <QLabel>
 #include <QMessageBox>
 #include <QPrintDialog>
 #include <QPrinter>
@@ -53,24 +60,28 @@ namespace
 {
         using namespace glabels;
 
-        enum PageId
+        // Page ids: glabels::designer::PageId (TemplateDesignerSteps.hpp), shared with the step list.
+        using namespace glabels::designer;
+
+
+        ///
+        /// Show an illustration (glabels/icons/neo-art) in a label, in the current palette, and
+        /// follow theme changes.  Replaces the legacy bitmaps; the numbers in the artwork match the
+        /// numbered fields of the page.
+        ///
+        void bindIllustration( QLabel* label, const QString& name, const QSize& size )
         {
-                IntroPageId,
-                NamePageId,
-                PageSizePageId,
-                ShapePageId,
-                RectPageId,
-                RoundPageId,
-                EllipsePageId,
-                CdPageId,
-                PathPageId,
-                ContinuousPageId,
-                NLayoutsPageId,
-                OneLayoutPageId,
-                TwoLayoutPageId,
-                ApplyPageId,
-                ThermalPageId
-        };
+                if ( !label )
+                {
+                        return;
+                }
+                auto apply = [label, name, size]()
+                {
+                        label->setPixmap( glabels::theme::ThemeIcons::illustration( name, size, label->devicePixelRatioF() ) );
+                };
+                apply();
+                QObject::connect( &glabels::theme::Theme::instance(), &glabels::theme::Theme::changed, label, apply );
+        }
 
 
         const QString defaultPageSize[] =
@@ -122,8 +133,9 @@ namespace glabels
                 : QWizard(parent)
         {
                 setWindowTitle( tr("Product Template Designer") );
-                setPixmap( QWizard::LogoPixmap, QIcon::fromTheme( "glabels" ).pixmap( 48 ) );
-                setWizardStyle( QWizard::ModernStyle );
+                // Mac style (available on every platform): no banner header, the page title and
+                // subtitle sit in the content column next to the side bar (mockups d03, d04).
+                setWizardStyle( QWizard::MacStyle );
                 setOption( QWizard::IndependentPages, false );
                 setOption( QWizard::NoBackButtonOnStartPage, true );
 
@@ -142,6 +154,115 @@ namespace glabels
                 setPage( TwoLayoutPageId,  new TemplateDesignerTwoLayoutPage() );
                 setPage( ApplyPageId,      new TemplateDesignerApplyPage() );
                 setPage( ThermalPageId,    new TemplateDesignerThermalPage() );
+
+                // Standard wizard buttons, in the order of the mockups: Cancel, Back, Next / Save.
+                setButtonLayout( { QWizard::Stretch, QWizard::CancelButton, QWizard::BackButton,
+                                   QWizard::NextButton, QWizard::FinishButton } );
+                setButtonText( QWizard::BackButton, tr( "&Back" ) );
+                setButtonText( QWizard::NextButton, tr( "&Next" ) );
+
+                // Side bar: the steps in play, from the wizard's own history (Back included)
+                auto* sidebar = new TemplateDesignerSidebar( this );
+                setSideWidget( sidebar );
+                connect( this, &QWizard::currentIdChanged, sidebar, [this, sidebar]( int id )
+                {
+                        sidebar->setSteps( designer::stepList( visitedIds(), id, mIsThermalPath ) );
+                } );
+                sidebar->setSteps( designer::stepList( {}, IntroPageId, false ) );
+
+                // Page title (20/700) and the page surface (panel).  QWizard derives its title font
+                // from the point size, which is unset for the theme's pixel-sized font, so the
+                // title would come out at 2 pt; the stylesheet roles fix the look on every page.
+                auto styleHeader = [this, sidebar]()
+                {
+                        QWizardPage* current = currentPage();
+                        if ( !current )
+                        {
+                                return;
+                        }
+                        if ( QWidget* frame = current->parentWidget() )
+                        {
+                                if ( frame != this && frame->property( "role" ).toString() != QLatin1String( "wizardPage" ) )
+                                {
+                                        if ( auto* f = qobject_cast<QFrame*>( frame ) )
+                                        {
+                                                f->setFrameShape( QFrame::NoFrame );
+                                        }
+                                        frame->setProperty( "role", QStringLiteral( "wizardPage" ) );
+                                        frame->style()->unpolish( frame );
+                                        frame->style()->polish( frame );
+                                }
+                        }
+                        for ( QLabel* label : findChildren<QLabel*>() )
+                        {
+                                if ( sidebar->isAncestorOf( label ) || current->isAncestorOf( label ) )
+                                {
+                                        continue;
+                                }
+                                bool inPage = false;
+                                for ( int id : pageIds() )
+                                {
+                                        if ( page( id )->isAncestorOf( label ) )
+                                        {
+                                                inPage = true;
+                                                break;
+                                        }
+                                }
+                                if ( inPage || label->text().isEmpty() || label->text() != current->title() )
+                                {
+                                        continue;
+                                }
+                                if ( label->property( "role" ).toString() != QLatin1String( "wizardTitle" ) )
+                                {
+                                        label->setProperty( "role", QStringLiteral( "wizardTitle" ) );
+                                        label->style()->unpolish( label );
+                                        label->style()->polish( label );
+                                }
+                                label->setFont( theme::Theme::instance().uiFont( 20, 700 ) );
+                        }
+                };
+                connect( this, &QWizard::currentIdChanged, this, styleHeader );
+                connect( &theme::Theme::instance(), &theme::Theme::changed, this, styleHeader );
+
+                // Intro: three command cards with Neo icons and the wording of mockup d03
+                if ( QWizardPage* intro = page( IntroPageId ) )
+                {
+                        intro->setTitle( tr( "Product Template Designer" ) );
+                        intro->setSubTitle( QString() );
+                        if ( auto* text = intro->findChild<QLabel*>( QStringLiteral( "label" ) ) )
+                        {
+                                text->setText( tr( "This dialog helps you create a custom product template. Let's get started:" ) );
+                                text->setProperty( "role", QStringLiteral( "dialogBody" ) );
+                        }
+                        const struct { const char* object; const char* icon; } cards[] = {
+                                { "copyButton",    "file" },
+                                { "newButton",     "file-plus" },
+                                { "thermalButton", "sticky-note" },
+                        };
+                        for ( const auto& card : cards )
+                        {
+                                if ( auto* button = intro->findChild<QCommandLinkButton*>( QString::fromLatin1( card.object ) ) )
+                                {
+                                        button->setIcon( theme::ThemeIcons::chipIcon( QString::fromLatin1( card.icon ) ) );
+                                        button->setIconSize( QSize( 40, 40 ) );
+                                        button->setMinimumHeight( 72 );
+                                }
+                        }
+                        if ( auto* thermal = intro->findChild<QCommandLinkButton*>( QStringLiteral( "thermalButton" ) ) )
+                        {
+                                thermal->setDescription( tr( "Rectangle or circle, with roll width and dimensions" ) );
+                        }
+                }
+
+                // Size and layout pages: themed illustrations instead of the legacy bitmaps
+                const QSize sizeArt( 280, 200 );
+                bindIllustration( page( RectPageId )->findChild<QLabel*>( QStringLiteral( "label" ) ),    QStringLiteral( "size-rect" ),    sizeArt );
+                bindIllustration( page( RoundPageId )->findChild<QLabel*>( QStringLiteral( "label" ) ),   QStringLiteral( "size-round" ),   sizeArt );
+                bindIllustration( page( EllipsePageId )->findChild<QLabel*>( QStringLiteral( "label" ) ), QStringLiteral( "size-ellipse" ), sizeArt );
+                bindIllustration( page( CdPageId )->findChild<QLabel*>( QStringLiteral( "label" ) ),      QStringLiteral( "size-cd" ),      sizeArt );
+                const QSize layoutArt( 160, 100 );
+                bindIllustration( page( NLayoutsPageId )->findChild<QLabel*>( QStringLiteral( "label_2" ) ), QStringLiteral( "layout-one" ), layoutArt );
+                bindIllustration( page( NLayoutsPageId )->findChild<QLabel*>( QStringLiteral( "label_3" ) ), QStringLiteral( "layout-two" ), layoutArt );
         }
 
 
@@ -690,7 +811,6 @@ namespace glabels
         {
                 setTitle( tr("Welcome") );
                 setSubTitle( tr("Welcome to the gLabels Product Template Designer.") );
-                setPixmap( QWizard::WatermarkPixmap, QPixmap( ":images/TemplateDesigner/wizard-banner.png" ) );
 
                 QWidget* widget = new QWidget;
                 setupUi( widget );

@@ -52,6 +52,9 @@ namespace glabels
                 /////////////////////////////////
                 void setModel( model::Model* model );
 
+        signals:
+                void printAvailabilityChanged( bool canPrint );
+
 
                 /////////////////////////////////
                 // Slots

@@ -21,94 +21,14 @@
 
 #include "AppearanceModel.hpp"
 
+#include "theme/Theme.hpp"
+
 #include <QApplication>
 #include <QDebug>
 #include <QPalette>
 #include <QSettings>
 #include <QStyleFactory>
 #include <QStyleHints>
-
-
-namespace
-{
-	//
-	// Fusion light palette
-	//
-	QPalette fusionLightPalette()
-	{
-		QPalette p;
-
-		p.setColor( QPalette::Window,          QColor( 250, 249, 248 ) );
-		p.setColor( QPalette::WindowText,      QColor(   0,   0,   0 ) );
-		p.setColor( QPalette::Base,            QColor( 250, 249, 248 ) );
-		p.setColor( QPalette::AlternateBase,   QColor( 234, 233, 232 ) );
-		p.setColor( QPalette::ToolTipBase,     QColor( 255, 255, 220 ) );
-		p.setColor( QPalette::ToolTipText,     QColor(   0,   0,   0 ) );
-		p.setColor( QPalette::PlaceholderText, QColor( 100, 100, 100 ) );
-		p.setColor( QPalette::Text,            QColor(   0,   0,   0 ) );
-		p.setColor( QPalette::Button,          QColor( 250, 249, 248 ) );
-		p.setColor( QPalette::ButtonText,      QColor(   0,   0,   0 ) );
-		p.setColor( QPalette::BrightText,      QColor( 255, 255, 255 ) );
-		p.setColor( QPalette::Light,           QColor( 255, 255, 255 ) );
-		p.setColor( QPalette::Midlight,        QColor( 255, 255, 255 ) );
-		p.setColor( QPalette::Dark,            QColor( 219, 218, 218 ) );
-		p.setColor( QPalette::Mid,             QColor( 255, 255, 255 ) );
-		p.setColor( QPalette::Shadow,          QColor(  12,  12,  12 ) );
-		p.setColor( QPalette::Highlight,       QColor(  53, 132, 228 ) );
-		p.setColor( QPalette::HighlightedText, QColor( 255, 255, 255 ) );
-		p.setColor( QPalette::Link,            QColor(   0,   0, 255 ) );
-		p.setColor( QPalette::LinkVisited,     QColor( 255,   0, 255 ) );
-
-		p.setColor( QPalette::Disabled, QPalette::WindowText,      QColor( 125, 124, 124 ) );
-		p.setColor( QPalette::Disabled, QPalette::Text,            QColor( 125, 124, 124 ) );
-		p.setColor( QPalette::Disabled, QPalette::ButtonText,      QColor( 125, 124, 124 ) );
-		p.setColor( QPalette::Disabled, QPalette::HighlightedText, QColor(   0,   0,   0 ) );
-
-		p.setColor( QPalette::Inactive, QPalette::WindowText,      QColor( 146, 149, 149 ) );
-
-		return p;
-	}
-
-
-	//
-	// Fusion dark palette
-	//
-	QPalette fusionDarkPalette()
-	{
-		QPalette p;
-
-		p.setColor( QPalette::Window,          QColor(  50,  50,  50 ) );
-		p.setColor( QPalette::WindowText,      QColor( 240, 240, 240 ) );
-		p.setColor( QPalette::Base,            QColor(  36,  36,  36 ) );
-		p.setColor( QPalette::AlternateBase,   QColor(  43,  43,  43 ) );
-		p.setColor( QPalette::ToolTipBase,     QColor( 255, 255, 220 ) );
-		p.setColor( QPalette::ToolTipText,     QColor(   0,   0,   0 ) );
-		p.setColor( QPalette::PlaceholderText, QColor( 240, 240, 240 ) );
-		p.setColor( QPalette::Text,            QColor( 240, 240, 240 ) );
-		p.setColor( QPalette::Button,          QColor(  50,  50,  50 ) );
-		p.setColor( QPalette::ButtonText,      QColor( 240, 240, 240 ) );
-		p.setColor( QPalette::BrightText,      QColor(  75,  75,  75 ) );
-		p.setColor( QPalette::Light,           QColor(  75,  75,  75 ) );
-		p.setColor( QPalette::Midlight,        QColor(  42,  42,  42 ) );
-		p.setColor( QPalette::Dark,            QColor(  33,  33,  33 ) );
-		p.setColor( QPalette::Mid,             QColor(  38,  38,  38 ) );
-		p.setColor( QPalette::Shadow,          QColor(  25,  25,  25 ) );
-		p.setColor( QPalette::Highlight,       QColor(  48, 140, 198 ) );
-		p.setColor( QPalette::HighlightedText, QColor( 240, 240, 240 ) );
-		p.setColor( QPalette::Link,            QColor(  48, 140, 198 ) );
-		p.setColor( QPalette::LinkVisited,     QColor( 255,   0, 255 ) );
-
-		p.setColor( QPalette::Disabled, QPalette::WindowText, QColor( 130, 130, 130 ) );
-		p.setColor( QPalette::Disabled, QPalette::Base,       QColor(  50,  50,  50 ) );
-		p.setColor( QPalette::Disabled, QPalette::Text,       QColor( 130, 130, 130 ) );
-		p.setColor( QPalette::Disabled, QPalette::ButtonText, QColor( 130, 130, 130 ) );
-		p.setColor( QPalette::Disabled, QPalette::Dark,       QColor( 190, 190, 190 ) );
-		p.setColor( QPalette::Disabled, QPalette::Shadow,     QColor(  37,  37,  37 ) );
-		p.setColor( QPalette::Disabled, QPalette::Highlight,  QColor( 145, 145, 145 ) );
-
-		return p;
-	}
-}
 
 
 namespace glabels
@@ -120,6 +40,7 @@ namespace glabels
         std::unique_ptr<AppearanceModel> AppearanceModel::mInstance;
         model::Settings::ColorScheme AppearanceModel::mColorScheme = model::Settings::LIGHT_COLOR_SCHEME;
         model::Settings::IconStyle AppearanceModel::mIconStyle = model::Settings::FLAT_ICON_STYLE;
+        QString AppearanceModel::mThemeScheme;
 
 
         //
@@ -145,6 +66,12 @@ namespace glabels
 
                 connect( model::Settings::instance(), SIGNAL(changed()),
                          this, SLOT(onSettingsChanged()) );
+
+#if QT_VERSION >= QT_VERSION_CHECK(6,5,0)
+                // While System is selected, follow the system scheme without a restart.
+                connect( QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged,
+                         this, &AppearanceModel::onSystemColorSchemeChanged );
+#endif
         }
 
 
@@ -180,8 +107,7 @@ namespace glabels
                 case model::Settings::LIGHT_COLOR_SCHEME: return STYLE_LIGHT;
                 case model::Settings::DARK_COLOR_SCHEME:  return STYLE_DARK;
                 case model::Settings::SYSTEM_COLOR_SCHEME:
-	                qWarning() << "System color scheme not yet supported.";
-                        return STYLE_LIGHT;
+                        return theme::Theme::instance().mode() == theme::Mode::Dark ? STYLE_DARK : STYLE_LIGHT;
                 default:
                         qWarning() << "Unknown color scheme: " << mColorScheme;
                         return STYLE_LIGHT;
@@ -194,8 +120,12 @@ namespace glabels
         //
         bool AppearanceModel::supportsSystemColorScheme()
         {
-	        // FIXME: Currently do not support a system color scheme.
-	        return false;
+#if QT_VERSION >= QT_VERSION_CHECK(6,8,0)
+                // QStyleHints reports the system scheme and can drop an override (6.8).
+                return true;
+#else
+                return false;
+#endif
         }
 
 
@@ -225,31 +155,9 @@ namespace glabels
                 mColorScheme = model::Settings::LIGHT_COLOR_SCHEME;
                 mIconStyle = iconStyle;
 
-                switch ( iconStyle )
-                {
-                case model::Settings::FLAT_ICON_STYLE:   QIcon::setThemeName( "glabels-flat" ); break;
-                case model::Settings::VECTOR_ICON_STYLE: QIcon::setThemeName( "glabels-vector" ); break;
-                default:
-                        qWarning() << "Unknown icon style: " << iconStyle;
-                        break;
-                }
+                setIconTheme( theme::Mode::Light, iconStyle );
 
-                auto styleName = QApplication::style()->name();
-                if ( styleName.compare( "fusion", Qt::CaseInsensitive ) == 0 )
-                {
-	                QApplication::setPalette( fusionLightPalette() );
-                }
-#if QT_VERSION >= QT_VERSION_CHECK(6,8,0)
-                else
-                {
-	                QGuiApplication::styleHints()->setColorScheme( Qt::ColorScheme::Light );
-                }
-#endif
-
-                repolishStyle();
-                redrawAll();
-
-                if ( mInstance ) emit mInstance->changed();
+                applyTheme( theme::Mode::Light, true );
         }
 
 
@@ -261,31 +169,9 @@ namespace glabels
                 mColorScheme = model::Settings::DARK_COLOR_SCHEME;
                 mIconStyle = iconStyle;
 
-                switch ( iconStyle )
-                {
-                case model::Settings::FLAT_ICON_STYLE:   QIcon::setThemeName( "glabels-flat-dark" ); break;
-                case model::Settings::VECTOR_ICON_STYLE: QIcon::setThemeName( "glabels-vector-dark" ); break;
-                default:
-                        qWarning() << "Unknown icon style: " << iconStyle;
-                        break;
-                }
+                setIconTheme( theme::Mode::Dark, iconStyle );
 
-                auto styleName = QApplication::style()->name();
-                if ( styleName.compare( "fusion", Qt::CaseInsensitive ) == 0 )
-                {
-	                QApplication::setPalette( fusionDarkPalette() );
-                }
-#if QT_VERSION >= QT_VERSION_CHECK(6,8,0)
-                else
-                {
-	                QGuiApplication::styleHints()->setColorScheme( Qt::ColorScheme::Dark );
-                }
-#endif
-
-                repolishStyle();
-                redrawAll();
-
-                if ( mInstance ) emit mInstance->changed();
+                applyTheme( theme::Mode::Dark, true );
         }
 
 
@@ -294,31 +180,74 @@ namespace glabels
         //
         void AppearanceModel::setSystemColorScheme( model::Settings::IconStyle iconStyle )
         {
-	        qWarning() << "System color scheme not yet supported.";
+                if ( !supportsSystemColorScheme() )
+                {
+                        setLightColorScheme( iconStyle );
+                        return;
+                }
+
+                mColorScheme = model::Settings::SYSTEM_COLOR_SCHEME;
+                mIconStyle = iconStyle;
+
+#if QT_VERSION >= QT_VERSION_CHECK(6,8,0)
+                // Drop any Light/Dark override so that colorScheme() reports the system again.
+                QGuiApplication::styleHints()->unsetColorScheme();
+#endif
+                auto mode = theme::Theme::resolveMode( model::Settings::SYSTEM_COLOR_SCHEME,
+                                                       theme::Theme::systemPrefersDark() );
+
+                setIconTheme( mode, iconStyle );
+                applyTheme( mode, false );
         }
 
 
         //
-        // Re-polish style?
+        // Set icon theme for a resolved mode
         //
-        void AppearanceModel::repolishStyle()
+        void AppearanceModel::setIconTheme( theme::Mode mode, model::Settings::IconStyle iconStyle )
         {
-                auto style = QApplication::style();
-                if ( style )
+                bool dark = ( mode == theme::Mode::Dark );
+                switch ( iconStyle )
                 {
-                        style->unpolish( qApp );
-                        style->polish( qApp );
+                case model::Settings::FLAT_ICON_STYLE:
+                        QIcon::setThemeName( dark ? "glabels-flat-dark" : "glabels-flat" );
+                        break;
+                case model::Settings::VECTOR_ICON_STYLE:
+                        QIcon::setThemeName( dark ? "glabels-vector-dark" : "glabels-vector" );
+                        break;
+                default:
+                        qWarning() << "Unknown icon style: " << iconStyle;
+                        break;
                 }
         }
 
 
         //
-        // Trigger redraw of all windows
+        // Apply the theme for a resolved mode
         //
-        void AppearanceModel::redrawAll()
+        void AppearanceModel::applyTheme( theme::Mode mode, bool overrideScheme )
         {
-                auto* currentStyle = QApplication::style();
-                QApplication::setStyle( QStyleFactory::create( currentStyle->name() ) );
+#if QT_VERSION >= QT_VERSION_CHECK(6,8,0)
+                // Native (non-Fusion) styles take their colours from the scheme hint.
+                auto styleName = QApplication::style()->name();
+                if ( overrideScheme &&
+                     !styleName.isEmpty() &&
+                     styleName.compare( "fusion", Qt::CaseInsensitive ) != 0 )
+                {
+                        QGuiApplication::styleHints()->setColorScheme( mode == theme::Mode::Dark ? Qt::ColorScheme::Dark
+                                                                                                  : Qt::ColorScheme::Light );
+                }
+#else
+                Q_UNUSED( overrideScheme )
+#endif
+
+                auto& th = theme::Theme::instance();
+                mThemeScheme = model::Settings::themeScheme();
+                th.setScheme( mThemeScheme );
+                th.setMode( mode );
+                th.applyToApplication();      // palette, font, stylesheet (re-polishes every widget)
+
+                if ( mInstance ) emit mInstance->changed();
         }
 
 
@@ -330,9 +259,29 @@ namespace glabels
 
                 auto newScheme = model::Settings::colorScheme();
                 auto newIconStyle = model::Settings::iconStyle();
-                if ( (newScheme != mColorScheme) || (newIconStyle != mIconStyle) )
+                if ( (newScheme != mColorScheme) || (newIconStyle != mIconStyle) ||
+                     (model::Settings::themeScheme() != mThemeScheme) )
                 {
                         setColorScheme( newScheme, newIconStyle );
+                }
+        }
+
+
+        //
+        // Handle the system colour scheme changing (only matters while System is selected)
+        //
+        void AppearanceModel::onSystemColorSchemeChanged()
+        {
+                if ( mColorScheme != model::Settings::SYSTEM_COLOR_SCHEME )
+                {
+                        return;
+                }
+
+                auto mode = theme::Theme::resolveMode( model::Settings::SYSTEM_COLOR_SCHEME,
+                                                       theme::Theme::systemPrefersDark() );
+                if ( mode != theme::Theme::instance().mode() )
+                {
+                        setSystemColorScheme( mIconStyle );
                 }
         }
 

@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="280" height="200" viewBox="0 0 280 200" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <!-- gLabels Neo original artwork: round label size, dimensions 1 to 3. Colours are palette sentinels (see ThemeIcons::illustration). -->
+  <circle cx="140" cy="100" r="86" stroke="#040506" stroke-width="1" stroke-dasharray="2 3"/>
+  <circle cx="140" cy="100" r="72" fill="#0A0B0C" stroke="#010203" stroke-width="1.75"/>
+  <circle cx="140" cy="100" r="62" stroke="#070809" stroke-width="1" stroke-dasharray="4 3"/>
+  <path d="M134 100 H146 M140 94 V106" stroke="#010203" stroke-width="1.25"/>
+  <path d="M140 100 L195.2 53.7" stroke="#010203" stroke-width="1.25"/>
+  <path d="M193.4 58.4 L195.2 53.7 L190.2 54.6" stroke="#010203" stroke-width="1.25"/>
+  <text x="170" y="54" fill="#010203" stroke="none" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="600">1</text>
+  <path d="M219.5 155.6 L204.7 145.3" stroke="#010203" stroke-width="1.25"/>
+  <path d="M209.7 145.7 L204.7 145.3 L206.8 149.8" stroke="#010203" stroke-width="1.25"/>
+  <text x="224.7" y="159.3" fill="#010203" stroke="none" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="600">2</text>
+  <path d="M74.9 154.6 L88.7 143.1" stroke="#010203" stroke-width="1.25"/>
+  <path d="M87 147.8 L88.7 143.1 L83.8 143.9" stroke="#010203" stroke-width="1.25"/>
+  <text x="70.7" y="161.1" fill="#010203" stroke="none" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="600">3</text>
+</svg>

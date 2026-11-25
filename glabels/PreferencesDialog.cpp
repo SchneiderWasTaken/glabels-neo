@@ -25,8 +25,15 @@
 #include "UpdateUi.hpp"
 
 #include "model/Settings.hpp"
+#include "theme/Theme.hpp"
+#include "theme/ThemeScheme.hpp"
 
+#include <QComboBox>
 #include <QFileDialog>
+#include <QGroupBox>
+#include <QLabel>
+#include <QSignalBlocker>
+#include <QVBoxLayout>
 #include <QStandardPaths>
 
 
@@ -152,10 +159,57 @@ namespace glabels
                 }
 
 
+                addThemePicker();
+
                 tabWidget->addTab( new UpdatePreferencesPage( tabWidget ), tr("Updates") );
 
                 connect( model::Settings::instance(), SIGNAL(changed()),
                          this, SLOT(onSettingsChanged()) );
+        }
+
+
+        ///
+        /// Theme picker (Appearance tab): the colour scheme, applied live (docs/ribbon-ui/THEMES.md)
+        ///
+        void PreferencesDialog::addThemePicker()
+        {
+                auto* group = new QGroupBox( tr( "Theme" ) );
+                group->setObjectName( QStringLiteral( "appearanceThemeGroup" ) );
+                auto* layout = new QVBoxLayout( group );
+
+                auto* combo = new QComboBox( group );
+                combo->setObjectName( QStringLiteral( "appearanceThemeCombo" ) );
+                combo->setAccessibleName( tr( "Theme" ) );
+                auto* description = new QLabel( group );
+                description->setProperty( "role", QStringLiteral( "caption" ) );
+                description->setWordWrap( true );
+                layout->addWidget( combo );
+                layout->addWidget( description );
+
+                auto refresh = [combo, description]()
+                {
+                        theme::ThemeSchemes::fillCombo( combo, model::Settings::themeScheme(),
+                                                        theme::Theme::instance().mode() );
+                        description->setText( theme::ThemeSchemes::find( model::Settings::themeScheme() ).displayDescription() );
+                };
+                refresh();
+
+                connect( combo, &QComboBox::currentIndexChanged, this, [combo]( int index )
+                {
+                        const QString id = combo->itemData( index ).toString();
+                        if ( !id.isEmpty() && id != model::Settings::themeScheme() )
+                        {
+                                model::Settings::setThemeScheme( id );   // applied live by AppearanceModel
+                        }
+                } );
+                // Follows the View tab and re-draws the swatches for Light / Dark.
+                connect( &theme::Theme::instance(), &theme::Theme::changed, combo, refresh );
+
+                // Below the Icon style card, above the spacer of the Appearance tab.
+                if ( auto* tabLayout = qobject_cast<QVBoxLayout*>( groupBox_5->parentWidget()->layout() ) )
+                {
+                        tabLayout->insertWidget( tabLayout->indexOf( groupBox_5 ) + 1, group );
+                }
         }
 
 

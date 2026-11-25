@@ -33,6 +33,7 @@
 
 
 class QCheckBox;
+class QLabel;
 class QLineEdit;
 class QListWidget;
 class QPushButton;
@@ -58,6 +59,7 @@ namespace glabels
                 explicit DeployView( QWidget* parent = nullptr );
 
                 void setModel( model::Model* model );
+                QPushButton* buildButton() const { return mBuildButton; }
 
         private slots:
                 void onBrowseSource();
@@ -68,6 +70,7 @@ namespace glabels
         private:
                 QStringList collectFieldNames() const;
                 void refreshLockedFields();
+                void updateStatusBanner();
 
 
                 model::Model*   mModel{ nullptr };
@@ -79,6 +82,8 @@ namespace glabels
                 QLineEdit*      mLabelNameEdit{ nullptr };
                 QListWidget*    mLockedFieldsList{ nullptr };
                 QPushButton*    mBuildButton{ nullptr };
+                QLabel*         mStatusPill{ nullptr };
+                QLabel*         mStatusDetail{ nullptr };
         };
 
 

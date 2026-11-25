@@ -23,8 +23,15 @@
 
 #include "EditVariableDialog.hpp"
 
+#include <QColor>
 #include <QDebug>
+#include <QGridLayout>
+#include <QGroupBox>
+#include <QLabel>
+#include <QPainter>
+#include <QPixmap>
 #include <QTableWidgetItem>
+#include <QVBoxLayout>
 
 
 namespace
@@ -52,7 +59,37 @@ namespace glabels
         {
                 setupUi( this );
 
-                titleLabel->setText( QString( "<span style='font-size:18pt;'>%1</span>" ).arg( tr("Variables") ) );
+                titleLabel->setText( tr("Variables") );
+                titleLabel->setProperty( "role", QStringLiteral( "pageTitle" ) );
+
+                auto* intro = new QLabel(
+                        tr( "Variables are available as ${name} fields in text, barcodes and images." ), this );
+                intro->setWordWrap( true );
+                intro->setProperty( "role", QStringLiteral( "caption" ) );
+
+                if ( auto* gl = qobject_cast<QGridLayout*>( layout() ) )
+                {
+                        gl->setContentsMargins( 24, 20, 24, 20 );
+                        gl->setVerticalSpacing( 10 );
+                        gl->removeWidget( table );
+                        gl->removeItem( horizontalLayout );
+                        gl->addWidget( intro, 1, 0 );
+                        gl->addWidget( table, 2, 0 );
+                        gl->addLayout( horizontalLayout, 3, 0 );
+                        gl->setRowStretch( 2, 1 );
+                }
+                for ( auto* gb : findChildren<QGroupBox*>() )
+                {
+                        gb->setProperty( "role", QStringLiteral( "card" ) );
+                }
+
+                // Add/Edit/Delete live on Data > Variables ribbon; keep wired
+                addButton->hide();
+                editButton->hide();
+                deleteButton->hide();
+
+                connect( table, &QTableWidget::itemDoubleClicked,
+                         this, [this]( QTableWidgetItem* ) { onEditButtonClicked(); } );
 
                 table->setColumnCount( N_COLS );
 
@@ -135,6 +172,10 @@ namespace glabels
         ///
         void VariablesView::onEditButtonClicked()
         {
+                if ( table->selectedItems().isEmpty() || !mModel )
+                {
+                        return;
+                }
                 int iRow = table->selectedItems()[0]->row();
                 QString name = table->item( iRow, I_COL_NAME )->text();
 
@@ -160,6 +201,10 @@ namespace glabels
         ///
         void VariablesView::onDeleteButtonClicked()
         {
+                if ( table->selectedItems().isEmpty() || !mModel )
+                {
+                        return;
+                }
                 int iRow = table->selectedItems()[0]->row();
 
                 QString name = table->item( iRow, I_COL_NAME )->text();
@@ -210,6 +255,21 @@ namespace glabels
 
                         auto* valueItem = new QTableWidgetItem( v.initialValue() );
                         valueItem->setFlags( valueItem->flags() ^ Qt::ItemIsEditable );
+                        if ( v.type() == model::Variable::Type::COLOR )
+                        {
+                                QColor c( v.initialValue() );
+                                if ( c.isValid() )
+                                {
+                                        QPixmap sw( 14, 14 );
+                                        sw.fill( Qt::transparent );
+                                        QPainter sp( &sw );
+                                        sp.setRenderHint( QPainter::Antialiasing, true );
+                                        sp.setBrush( c );
+                                        sp.setPen( QColor( 0, 0, 0, 80 ) );
+                                        sp.drawRoundedRect( QRectF( 0.5, 0.5, 13, 13 ), 3.0, 3.0 );
+                                        valueItem->setIcon( QIcon( sw ) );
+                                }
+                        }
                         table->setItem( iRow, I_COL_VALUE, valueItem );
 
                         auto* incrementItem = new QTableWidgetItem( model::Variable::incrementToI18nString(v.increment()) );

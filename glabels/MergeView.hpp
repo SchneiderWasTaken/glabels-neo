@@ -77,6 +77,7 @@ namespace glabels
                 /////////////////////////////////
         private:
                 static QString printableTextForView( QString text );
+                void updateRecordsSummary();
 
 
                 /////////////////////////////////
@@ -94,6 +95,7 @@ namespace glabels
                 QString mCwd;
 
                 int  mOldFormatComboIndex;
+                QLabel* mRecordsSummaryLabel{ nullptr };
 
         };
 

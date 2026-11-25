@@ -1,0 +1,255 @@
+<!doctype html><html><head><meta charset='utf-8'><link rel='stylesheet' href='https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'><style>html,body{margin:0}</style></head><body><!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Neo Ribbon app shell</title>
+
+</head>
+<body>
+
+
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap">
+<style>
+body{margin:0}
+.app{width:1440px;height:900px;display:flex;flex-direction:column;overflow:hidden;font:13px/1.3 Inter,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--ink);position:relative}
+.app *{box-sizing:border-box}
+.light{--bg:#F8FAFC;--chrome:#F1F5F9;--rib:#FFFFFF;--work:#E2E8F0;--panel:#FFFFFF;--line:#E2E8F0;--line2:#CBD5E1;--ink:#0F172A;--ink2:#475569;--ink3:#64748B;--acc:#4F46E5;--tint:#EDE9FE;--grad:linear-gradient(135deg,#7C3AED,#4F46E5 50%,#2563EB);--ongrad:#FFFFFF;--ctx:#EDE9FE;--ctxline:#7C3AED;--hover:#F1F5F9;--press:#E0E7FF;--ok:#047857;--okt:#ECFDF5;--warn:#B45309;--sel:#4F46E5}
+.dark{--bg:#090D1A;--chrome:#0F172A;--rib:#151E32;--work:#090D1A;--panel:#0F172A;--line:#1E293B;--line2:#334155;--ink:#F8FAFC;--ink2:#CBD5E1;--ink3:#94A3B8;--acc:#818CF8;--tint:#1E293B;--grad:linear-gradient(135deg,#A78BFA,#818CF8 50%,#60A5FA);--ongrad:#090D1A;--ctx:#2A2447;--ctxline:#A78BFA;--hover:#1E293B;--press:#2B3556;--ok:#34D399;--okt:#064E3B;--warn:#FBBF24;--sel:#818CF8}
+.ic{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.os{height:32px;display:flex;align-items:center;gap:8px;padding:0 0 0 12px;background:var(--chrome);font-size:12px;color:var(--ink2);border-bottom:1px solid var(--line)}
+.os b{color:var(--ink);font-weight:500}
+.wc{width:46px;height:32px;display:flex;align-items:center;justify-content:center;color:var(--ink2)}
+.wc .ic{width:14px;height:14px}
+.ib{width:28px;height:28px;display:flex;align-items:center;justify-content:center;border:0;border-radius:6px;background:none;color:var(--ink2);padding:0;flex:none}
+.ib:hover{background:var(--hover)}
+.ib.on{background:var(--press);color:var(--acc)}
+.ib.dis{opacity:.4}
+.tabs{height:42px;display:flex;align-items:flex-end;padding:0 10px;background:var(--chrome);gap:2px}
+.qat{display:flex;gap:1px;align-items:center;align-self:center;padding-right:10px;margin-right:6px;border-right:1px solid var(--line2)}
+.tab{height:34px;padding:0 16px;display:flex;align-items:center;gap:6px;font-size:13px;color:var(--ink2);border:1px solid transparent;border-bottom:0;border-radius:8px 8px 0 0}
+.tab.on{background:var(--rib);color:var(--ink);border-color:var(--line);font-weight:600;height:36px;position:relative}
+.tab.on::after{content:"";position:absolute;left:12px;right:12px;bottom:0;height:3px;border-radius:2px 2px 0 0;background:var(--acc)}
+.tab.ctx{background:var(--ctx);border-top:2px solid var(--ctxline);margin-left:14px;color:var(--ink)}
+.tab.ctx.on{border-color:var(--line);border-top-color:var(--ctxline)}
+.tab.file{background:var(--grad);color:var(--ongrad);height:28px;border-radius:8px;padding:0 20px;font-weight:600;margin:0 12px 4px 4px}
+.ribbon{height:118px;display:flex;background:var(--rib);border-top:1px solid var(--line);border-bottom:1px solid var(--line);padding:6px 8px 0;flex:none}
+.grp{display:flex;flex-direction:column;padding:0 8px;border-right:1px solid var(--line)}
+.grp:last-child{border-right:0}
+.gbody{flex:1;display:flex;gap:2px;align-items:flex-start}
+.gn{height:22px;text-align:center;font-size:12px;color:var(--ink3);white-space:nowrap}
+.col{display:flex;flex-direction:column;gap:1px}
+.lb{width:58px;height:78px;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;gap:5px;padding-top:8px;border:0;border-radius:8px;background:none;color:var(--ink);font:inherit;font-size:12px;line-height:1.15;text-align:center;flex:none}
+.lb .ic{width:30px;height:30px;color:var(--acc);stroke-width:1.6}
+.lb:hover,.sb:hover{background:var(--hover)}
+.lb.on{background:var(--press)}
+.lb.pri{background:var(--grad);color:var(--ongrad)}
+.lb.pri .ic{color:var(--ongrad)}
+.sb{height:26px;display:flex;align-items:center;gap:8px;padding:0 10px 0 8px;border:0;border-radius:6px;background:none;color:var(--ink);font:inherit;font-size:12px;white-space:nowrap}
+.sb .ic{color:var(--ink2)}
+.sb .chk .ic{color:var(--ongrad)}
+.igrid{display:grid;grid-template-columns:repeat(3,28px);gap:2px}
+.igrid2{display:grid;grid-template-columns:repeat(2,28px);gap:2px}
+.igrid4{display:grid;grid-template-columns:repeat(4,28px);gap:2px}
+.fld{height:26px;border:1px solid var(--line2);border-radius:6px;background:var(--bg);display:flex;align-items:center;justify-content:space-between;gap:6px;padding:0 8px;font-size:12px;color:var(--ink);white-space:nowrap}
+.cap{font-size:12px;color:var(--ink3)}
+.chk{width:16px;height:16px;border-radius:4px;background:var(--acc);color:var(--ongrad);display:flex;align-items:center;justify-content:center;flex:none}
+.chk.off{background:var(--bg);border:1px solid var(--line2)}
+.chk .ic{width:12px;height:12px;stroke-width:3}
+.opt{display:flex;gap:6px;align-items:center;font-size:12px}
+.sw{width:14px;height:14px;border-radius:3px;border:1px solid var(--line2);flex:none}
+.code{font-family:'JetBrains Mono',Consolas,monospace;font-size:12px;color:var(--acc);background:var(--tint);border-radius:6px;padding:2px 7px}
+.row{display:flex;align-items:center;gap:8px}
+.vt{display:flex;flex-direction:column;gap:6px;padding-top:2px}
+.xy{display:grid;grid-template-columns:auto 82px auto 82px;gap:6px 8px;align-items:center}
+.mid{flex:1;display:flex;min-height:0}
+.center{flex:1;display:flex;flex-direction:column;min-width:0;background:var(--work)}
+.rowx{display:flex;height:22px}
+.corner{width:22px;background:var(--rib);border-right:1px solid var(--line);border-bottom:1px solid var(--line)}
+.rx{flex:1;position:relative;background:var(--rib);border-bottom:1px solid var(--line);overflow:hidden}
+.rxs{position:absolute;left:50%;margin-left:-400px;width:800px;height:100%;display:flex;background:linear-gradient(90deg,var(--ink3) 1px,transparent 1px) 0 100%/10px 5px repeat-x,linear-gradient(90deg,var(--ink3) 1px,transparent 1px) 0 100%/100px 11px repeat-x}
+.rxs span,.rys span{font-size:10px;color:var(--ink3);width:100px;height:100px;padding:2px 0 0 4px;flex:none}
+.rowy{flex:1;display:flex;min-height:0}
+.ry{width:22px;position:relative;background:var(--rib);border-right:1px solid var(--line);overflow:hidden}
+.rys{position:absolute;top:50%;margin-top:-200px;width:100%;height:400px;display:flex;flex-direction:column;background:linear-gradient(0deg,var(--ink3) 1px,transparent 1px) 100% 0/5px 10px repeat-y,linear-gradient(0deg,var(--ink3) 1px,transparent 1px) 100% 0/11px 100px repeat-y}
+.rys span{height:100px;width:22px;padding:2px 0 0 2px}
+.canvas{flex:1;display:flex;align-items:center;justify-content:center}
+.paper{position:relative;width:800px;height:400px;box-shadow:0 1px 3px rgba(15,23,42,.25),0 8px 24px rgba(15,23,42,.12)}
+.side{width:300px;background:var(--panel);border-left:1px solid var(--line);display:flex;flex-direction:column;flex:none}
+.sh{height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;font-weight:600;font-size:13px;border-bottom:1px solid var(--line);flex:none}
+.sp{padding:12px 16px;display:flex;flex-direction:column;gap:8px}
+.ta{border:1px solid var(--line2);border-radius:6px;background:var(--bg);padding:8px 10px;font-size:13px;min-height:84px;line-height:1.4}
+.frow{display:flex;align-items:center;gap:10px;padding:8px 16px;border-bottom:1px solid var(--line)}
+.val{margin-left:auto;font-size:12px;color:var(--ink2)}
+.status{height:28px;display:flex;align-items:center;gap:18px;padding:0 14px;background:var(--chrome);border-top:1px solid var(--line);font-size:12px;color:var(--ink2);flex:none}
+.slider{width:120px;height:4px;border-radius:2px;background:var(--line2);position:relative}
+.slider i{position:absolute;left:0;top:0;height:4px;width:62%;border-radius:2px;background:var(--acc)}
+.slider b{position:absolute;left:62%;top:-5px;width:14px;height:14px;margin-left:-7px;border-radius:7px;background:var(--rib);border:2px solid var(--acc)}
+.page{flex:1;display:flex;min-width:0;background:var(--bg);overflow:hidden}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;overflow:hidden}
+.card>.ch{height:38px;display:flex;align-items:center;padding:0 14px;font-weight:600;border-bottom:1px solid var(--line);flex:none}
+.card>.cb{padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.kv{display:grid;grid-template-columns:100px 1fr;gap:6px 10px;font-size:13px}
+.kv span:nth-child(odd){color:var(--ink3)}
+.lab{font-size:12px;color:var(--ink2);margin-bottom:4px}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th{height:34px;text-align:left;padding:0 12px;font-weight:600;font-size:12px;color:var(--ink3);background:var(--chrome);border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl td{height:34px;padding:0 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+.tbl tr.s td{background:var(--press)}
+.tbl .num{text-align:right}
+.ptitle{font-size:20px;font-weight:700;letter-spacing:-.01em}
+.rad{width:16px;height:16px;border-radius:8px;border:1.5px solid var(--line2);flex:none;display:flex;align-items:center;justify-content:center;background:var(--bg)}
+.rad.on{border-color:var(--acc)}
+.rad.on::after{content:"";width:8px;height:8px;border-radius:4px;background:var(--acc)}
+.btn{height:30px;padding:0 14px;border:1px solid var(--line2);border-radius:6px;background:var(--rib);color:var(--ink);font:inherit;font-size:12px;font-weight:500;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn.pri{background:var(--acc);border-color:var(--acc);color:var(--ongrad);font-weight:600}
+.pill{display:inline-flex;align-items:center;gap:6px;height:22px;padding:0 8px;border-radius:11px;font-size:12px;font-weight:500;background:var(--okt);color:var(--ok)}
+.bs{position:absolute;left:0;top:32px;right:0;bottom:0;background:var(--bg);display:flex;z-index:5}
+.bsn{width:240px;background:var(--chrome);border-right:1px solid var(--line);padding:12px 8px;display:flex;flex-direction:column;gap:2px}
+.bsn div{height:38px;display:flex;align-items:center;gap:12px;padding:0 14px;border-radius:8px;color:var(--ink);font-size:14px}
+.bsn div.on{background:var(--press);color:var(--acc);font-weight:600}
+.bsn hr{border:0;border-top:1px solid var(--line2);margin:6px 8px}
+.cmdlink{display:flex;gap:16px;align-items:center;padding:16px 20px;border:1px solid var(--line);border-radius:12px;background:var(--panel);width:560px}
+.cmdlink .ci{width:44px;height:44px;border-radius:10px;background:var(--tint);color:var(--acc);display:flex;align-items:center;justify-content:center}
+.cmdlink .ci .ic{width:22px;height:22px}
+</style>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+<symbol id="i-new" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z M14 3v5h5 M12 12v6 M9 15h6"></path></symbol>
+<symbol id="i-open" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></symbol>
+<symbol id="i-save" viewBox="0 0 24 24"><path d="M5 3h11l4 4v12a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z M7 3v5h8V3 M7 21v-7h10v7"></path></symbol>
+<symbol id="i-saveas" viewBox="0 0 24 24"><path d="M5 3h11l4 4v6 M5 3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h7 M7 3v5h8V3 M16 21l1-4 5-5 2 2-5 5z"></path></symbol>
+<symbol id="i-undo" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5 M4 9h10a6 6 0 0 1 0 12h-3"></path></symbol>
+<symbol id="i-redo" viewBox="0 0 24 24"><path d="M15 14l5-5-5-5 M20 9H10a6 6 0 0 0 0 12h3"></path></symbol>
+<symbol id="i-cut" viewBox="0 0 24 24"><path d="M6 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M6 21a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M20 4 8.1 15.9 M14.5 14.5 20 20 M8.1 8.1 12 12"></path></symbol>
+<symbol id="i-copy" viewBox="0 0 24 24"><path d="M9 9h10a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2v-9a2 2 0 0 1 2-2z M5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1"></path></symbol>
+<symbol id="i-paste" viewBox="0 0 24 24"><path d="M9 3h6v3H9z M15 4.5h2a2 2 0 0 1 2 2V19a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6.5a2 2 0 0 1 2-2h2"></path></symbol>
+<symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16 M10 11v6 M14 11v6 M6 7l1 13h10l1-13 M9 7V4h6v3"></path></symbol>
+<symbol id="i-selall" viewBox="0 0 24 24"><path d="M4 4h16v16H4z M8 8h8v8H8z"></path></symbol>
+<symbol id="i-unsel" viewBox="0 0 24 24"><path d="M4 4h3 M10 4h4 M17 4h3v3 M20 10v4 M20 17v3h-3 M14 20h-4 M7 20H4v-3 M4 14v-4 M4 7V4"></path></symbol>
+<symbol id="i-pointer" viewBox="0 0 24 24"><path d="M5 3l14 7-6 2-2 6z"></path></symbol>
+<symbol id="i-text" viewBox="0 0 24 24"><path d="M5 6V4h14v2 M12 4v16 M9 20h6"></path></symbol>
+<symbol id="i-box" viewBox="0 0 24 24"><path d="M4 5h16v14H4z"></path></symbol>
+<symbol id="i-line" viewBox="0 0 24 24"><path d="M5 19 19 5"></path></symbol>
+<symbol id="i-ellipse" viewBox="0 0 24 24"><path d="M12 5c4.4 0 8 3.1 8 7s-3.6 7-8 7-8-3.1-8-7 3.6-7 8-7z"></path></symbol>
+<symbol id="i-image" viewBox="0 0 24 24"><path d="M4 5h16v14H4z M9 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z M20 16l-5-5-8 8"></path></symbol>
+<symbol id="i-barcode" viewBox="0 0 24 24"><path d="M4 5v14 M7 5v14 M11 5v14 M14 5v14 M17 5v14 M20 5v14"></path></symbol>
+<symbol id="i-zin" viewBox="0 0 24 24"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M20 20l-4-4 M11 8v6 M8 11h6"></path></symbol>
+<symbol id="i-zout" viewBox="0 0 24 24"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M20 20l-4-4 M8 11h6"></path></symbol>
+<symbol id="i-fit" viewBox="0 0 24 24"><path d="M4 9V4h5 M20 9V4h-5 M4 15v5h5 M20 15v5h-5"></path></symbol>
+<symbol id="i-one" viewBox="0 0 24 24"><path d="M4 4h16v16H4z M10 9l2-1v8"></path></symbol>
+<symbol id="i-aleft" viewBox="0 0 24 24"><path d="M4 4v16 M8 7h12 M8 13h7"></path></symbol>
+<symbol id="i-acenter" viewBox="0 0 24 24"><path d="M12 4v16 M6 7h12 M8 13h8"></path></symbol>
+<symbol id="i-aright" viewBox="0 0 24 24"><path d="M20 4v16 M4 7h12 M9 13h7"></path></symbol>
+<symbol id="i-atop" viewBox="0 0 24 24"><path d="M4 4h16 M7 8v12 M13 8v7"></path></symbol>
+<symbol id="i-amid" viewBox="0 0 24 24"><path d="M4 12h16 M7 6v12 M13 8v8"></path></symbol>
+<symbol id="i-abot" viewBox="0 0 24 24"><path d="M4 20h16 M7 4v12 M13 9v7"></path></symbol>
+<symbol id="i-chor" viewBox="0 0 24 24"><path d="M3 4v16 M21 4v16 M8 8h8v8H8z"></path></symbol>
+<symbol id="i-cver" viewBox="0 0 24 24"><path d="M4 3h16 M4 21h16 M8 8h8v8H8z"></path></symbol>
+<symbol id="i-cboth" viewBox="0 0 24 24"><path d="M3 3h18v18H3z M9 9h6v6H9z M12 3v3 M12 18v3 M3 12h3 M18 12h3"></path></symbol>
+<symbol id="i-rotl" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 3-6.7L3 8 M3 3v5h5"></path></symbol>
+<symbol id="i-rotr" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8 M21 3v5h-5"></path></symbol>
+<symbol id="i-fliph" viewBox="0 0 24 24"><path d="M12 3v18 M8 7 3 17h5z M16 7l5 10h-5z"></path></symbol>
+<symbol id="i-flipv" viewBox="0 0 24 24"><path d="M3 12h18 M7 8h10l-5-5z M7 16h10l-5 5z"></path></symbol>
+<symbol id="i-raise" viewBox="0 0 24 24"><path d="M12 3l9 5-9 5-9-5z M3 13l9 5 9-5"></path></symbol>
+<symbol id="i-lower" viewBox="0 0 24 24"><path d="M12 21l-9-5 9-5 9 5z M3 11l9 5 9-5"></path></symbol>
+<symbol id="i-lock" viewBox="0 0 24 24"><path d="M6 11h12v9H6z M8 11V8a4 4 0 0 1 8 0v3"></path></symbol>
+<symbol id="i-db" viewBox="0 0 24 24"><path d="M4 6c0-1.7 3.6-3 8-3s8 1.3 8 3-3.6 3-8 3-8-1.3-8-3z M4 6v6c0 1.7 3.6 3 8 3s8-1.3 8-3V6 M4 12v6c0 1.7 3.6 3 8 3s8-1.3 8-3v-6"></path></symbol>
+<symbol id="i-braces" viewBox="0 0 24 24"><path d="M8 3H7a2 2 0 0 0-2 2v4a2 2 0 0 1-2 2 2 2 0 0 1 2 2v4a2 2 0 0 0 2 2h1 M16 3h1a2 2 0 0 1 2 2v4a2 2 0 0 0 2 2 2 2 0 0 0-2 2v4a2 2 0 0 1-2 2h-1"></path></symbol>
+<symbol id="i-table" viewBox="0 0 24 24"><path d="M4 5h16v14H4z M4 10h16 M4 15h16 M10 5v14"></path></symbol>
+<symbol id="i-print" viewBox="0 0 24 24"><path d="M7 9V3h10v6 M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2 M7 14h10v7H7z"></path></symbol>
+<symbol id="i-deploy" viewBox="0 0 24 24"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z M4 7.5l8 4.5 8-4.5 M12 12v9"></path></symbol>
+<symbol id="i-gear" viewBox="0 0 24 24"><path d="M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z M19.4 13a7.5 7.5 0 0 0 0-2l2-1.5-2-3.5-2.3 1a7.5 7.5 0 0 0-1.7-1L15 3.5h-4L10.6 6a7.5 7.5 0 0 0-1.7 1l-2.3-1-2 3.5 2 1.5a7.5 7.5 0 0 0 0 2l-2 1.5 2 3.5 2.3-1a7.5 7.5 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.5 7.5 0 0 0 1.7-1l2.3 1 2-3.5z"></path></symbol>
+<symbol id="i-help" viewBox="0 0 24 24"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7 M12 17h.01"></path></symbol>
+<symbol id="i-book" viewBox="0 0 24 24"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z M4 19V5 M8 7h7"></path></symbol>
+<symbol id="i-bug" viewBox="0 0 24 24"><path d="M9 7a3 3 0 0 1 6 0 M7 10h10v5a5 5 0 0 1-10 0z M12 10v10 M3 10l4 2 M21 10l-4 2 M3 18l4-2 M21 18l-4-2"></path></symbol>
+<symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7L20 8 M20 3v5h-5"></path></symbol>
+<symbol id="i-info" viewBox="0 0 24 24"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z M12 11v6 M12 7.5h.01"></path></symbol>
+<symbol id="i-grid" viewBox="0 0 24 24"><path d="M4 4h16v16H4z M4 12h16 M12 4v16"></path></symbol>
+<symbol id="i-markup" viewBox="0 0 24 24"><path d="M4 8h16v8H4z M4 8v-3 M20 8V5 M4 16v3 M20 16v3"></path></symbol>
+<symbol id="i-bold" viewBox="0 0 24 24"><path d="M7 4h6a4 4 0 0 1 0 8H7z M7 12h7a4 4 0 0 1 0 8H7z"></path></symbol>
+<symbol id="i-italic" viewBox="0 0 24 24"><path d="M10 4h8 M6 20h8 M15 4 9 20"></path></symbol>
+<symbol id="i-uline" viewBox="0 0 24 24"><path d="M7 4v7a5 5 0 0 0 10 0V4 M5 21h14"></path></symbol>
+<symbol id="i-tl" viewBox="0 0 24 24"><path d="M4 6h16 M4 10h10 M4 14h16 M4 18h10"></path></symbol>
+<symbol id="i-tc" viewBox="0 0 24 24"><path d="M4 6h16 M7 10h10 M4 14h16 M7 18h10"></path></symbol>
+<symbol id="i-tr" viewBox="0 0 24 24"><path d="M4 6h16 M10 10h10 M4 14h16 M10 18h10"></path></symbol>
+<symbol id="i-folder" viewBox="0 0 24 24"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></symbol>
+<symbol id="i-search" viewBox="0 0 24 24"><path d="M11 18a7 7 0 1 0 0-14 7 7 0 0 0 0 14z M20 20l-4-4"></path></symbol>
+<symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14 M5 12h14"></path></symbol>
+<symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"></path></symbol>
+<symbol id="i-pen" viewBox="0 0 24 24"><path d="M4 20l4-1 11-11-3-3L5 16z"></path></symbol>
+<symbol id="i-import" viewBox="0 0 24 24"><path d="M12 3v12 M7 10l5 5 5-5 M4 19h16"></path></symbol>
+<symbol id="i-export" viewBox="0 0 24 24"><path d="M12 15V3 M7 8l5-5 5 5 M4 19h16"></path></symbol>
+<symbol id="i-send" viewBox="0 0 24 24"><path d="M3 11l18-8-8 18-2-8z"></path></symbol>
+<symbol id="i-label" viewBox="0 0 24 24"><path d="M5 6h14a2 2 0 0 1 2 2v6l-5 5H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2z M16 19v-3a1 1 0 0 1 1-1h4"></path></symbol>
+<symbol id="i-shadow" viewBox="0 0 24 24"><path d="M5 5h11v11H5z M9 20h11V9"></path></symbol>
+<symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 2-.8 2-1.8 0-1.5-1.5-1.7-1.5-3 0-1 .8-1.7 2-1.7H17a4 4 0 0 0 4-4C21 7 17 3 12 3z M7.5 11h.01 M10 7h.01 M14.5 7.5h.01"></path></symbol>
+<symbol id="i-chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"></path></symbol>
+<symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12l5 5L20 7"></path></symbol>
+<symbol id="i-grip" viewBox="0 0 24 24"><path d="M9 6h.01 M15 6h.01 M9 12h.01 M15 12h.01 M9 18h.01 M15 18h.01"></path></symbol>
+<symbol id="i-file" viewBox="0 0 24 24"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z M14 3v5h5"></path></symbol>
+<symbol id="i-home" viewBox="0 0 24 24"><path d="M4 11l8-7 8 7 M6 10v10h12V10"></path></symbol>
+<symbol id="i-min" viewBox="0 0 24 24"><path d="M5 12h14"></path></symbol>
+<symbol id="i-max" viewBox="0 0 24 24"><path d="M5 5h14v14H5z"></path></symbol>
+<symbol id="i-close" viewBox="0 0 24 24"><path d="M6 6l12 12 M18 6 6 18"></path></symbol>
+</defs></svg>
+<div class="light" style="width:1440px;height:900px">
+<div class="app">
+  <div class="os"><img src="../../../brand/mark.svg" alt="" style="width:16px;height:16px"><span style="flex:1"><b>Harbor &amp; Pine product label</b> - gLabels Neo</span><span class="wc"><svg class="ic"><use href="#i-min"></use></svg></span><span class="wc"><svg class="ic"><use href="#i-max"></use></svg></span><span class="wc"><svg class="ic"><use href="#i-close"></use></svg></span></div>
+  <div class="tabs">
+    <div class="qat"><button class="ib" aria-label="New"><svg class="ic"><use href="#i-new"></use></svg></button><button class="ib" aria-label="Open"><svg class="ic"><use href="#i-open"></use></svg></button><button class="ib" aria-label="Save"><svg class="ic"><use href="#i-save"></use></svg></button><button class="ib" aria-label="Undo"><svg class="ic"><use href="#i-undo"></use></svg></button><button class="ib" aria-label="Redo"><svg class="ic"><use href="#i-redo"></use></svg></button></div>
+    <div class="tab file">File</div>
+    
+      <div class="tab">Home</div><div class="tab on">Label</div><div class="tab">Data</div><div class="tab">Print</div><div class="tab">Deploy</div><div class="tab">View</div>
+    
+    <div class="tab">Help</div>
+    
+  </div>
+  
+  <div class="ribbon">
+    
+    
+      <div class="grp"><div class="gbody"><button class="lb"><svg class="ic"><use href="#i-label"></use></svg>Change product</button></div><div class="gn">Product</div></div>
+      <div class="grp" style="width:300px"><div class="gbody"><div class="vt"><div class="cap">Selected product</div><div style="font-weight:600;font-size:13px">Harbor Labels 22810</div><div class="cap">Shipping labels · 80 x 40 mm · 10 per sheet</div></div></div><div class="gn">Current</div></div>
+      <div class="grp" style="width:230px"><div class="gbody"><div class="vt"><div class="cap">Label length</div><div class="fld" style="width:150px">40.0 mm</div><div class="cap">Adjustable parameter</div></div></div><div class="gn">Parameters</div></div>
+      <div class="grp" style="width:210px"><div class="gbody"><div class="vt"><div class="cap">Orientation</div><div class="fld" style="width:180px">Horizontal<svg class="ic" style="width:14px;height:14px"><use href="#i-chev"></use></svg></div></div></div><div class="gn">Orientation</div></div>
+    
+    
+    
+    
+    
+    
+    
+  </div>
+  <div class="page">
+    
+    
+    <div style="flex:1;display:flex;gap:16px;padding:20px 24px;min-width:0">
+      <div style="width:460px;display:flex;flex-direction:column;gap:12px">
+        <div class="ptitle">Label</div>
+        <div class="card"><div class="ch">Product</div><div class="cb"><div class="kv"><span>Vendor:</span><span>Harbor Labels</span><span>Part #:</span><span>22810</span><span>Description:</span><span>Shipping labels</span><span>Page size:</span><span>US Letter (8.5 x 11 in)</span><span>Label size:</span><span>80 x 40 mm</span><span>Layout:</span><span>2 across, 5 down (10 per sheet)</span></div><div><button class="btn"><svg class="ic"><use href="#i-label"></use></svg>Change product</button></div></div></div>
+        <div class="card"><div class="ch">Adjustable parameters</div><div class="cb"><div class="row"><span style="width:100px;color:var(--ink3)">Label length:</span><div class="fld" style="width:120px">40.0 mm</div></div></div></div>
+        <div class="card"><div class="ch">Orientation</div><div class="cb"><div class="fld" style="width:240px">Horizontal orientation<svg class="ic" style="width:14px;height:14px"><use href="#i-chev"></use></svg></div></div></div>
+        <div class="card"><div class="ch">Similar products</div><div class="cb" style="gap:6px"><span>Harbor Labels 22811 · 80 x 40 mm · 10 per sheet</span><span>Harbor Labels 22815 · 80 x 38 mm · 10 per sheet</span><span>Pine Street 40x80 · 80 x 40 mm · 10 per sheet</span></div></div>
+      </div>
+      <div class="card" style="flex:1"><div class="ch">Preview</div><div class="cb" style="flex:1;align-items:center;justify-content:center;background:var(--work)">
+        <svg width="360" height="466" viewBox="0 0 360 466"><defs><pattern id="lp" width="160" height="80" x="20" y="33" patternUnits="userSpaceOnUse"><rect x="3" y="3" width="154" height="74" rx="8" fill="#fff" stroke="#CBD5E1"></rect></pattern></defs><rect width="360" height="466" fill="#fff" stroke="#94A3B8"></rect><rect x="20" y="33" width="320" height="400" fill="url(#lp)"></rect><rect x="23" y="36" width="154" height="74" rx="8" fill="#EDE9FE" stroke="#4F46E5" stroke-width="2"></rect><text x="100" y="78" text-anchor="middle" font-size="13" font-family="Inter,sans-serif" fill="#4F46E5" font-weight="600">80 x 40 mm</text></svg>
+      </div></div>
+    </div>
+    
+    
+    
+    
+    
+    
+  </div>
+  
+  
+  <div class="status"><span>Product label · 80 x 40 mm · 10 per sheet</span><span style="margin-left:auto">Nothing selected</span><span>x 12.4 mm  y 8.0 mm</span><span class="ib" style="width:20px;height:20px"><svg class="ic" style="width:14px;height:14px"><use href="#i-zout"></use></svg></span><div class="slider"><i></i><b></b></div><span class="ib" style="width:20px;height:20px"><svg class="ic" style="width:14px;height:14px"><use href="#i-zin"></use></svg></span><span style="width:40px;text-align:right">250%</span></div>
+  
+</div>
+</div>
+
+
+</body>
+</html>
+</body></html>

@@ -22,6 +22,7 @@
 #include "SimplePreview.hpp"
 
 #include "RollTemplatePath.hpp"
+#include "theme/Theme.hpp"
 
 #include <QDebug>
 #include <QGraphicsPathItem>
@@ -34,8 +35,8 @@
 //
 namespace
 {
-        const QColor  paperColor( 242, 242, 242 );
-        const QColor  paperOutlineColor( 0, 0, 0 );
+        const QColor  paperColor( 255, 255, 255 );        // paper is always white (SPEC 4.1)
+        const QColor  paperOutlineColor( 203, 213, 225 ); // line2
         const double  paperOutlineWidthPixels = 1;
 
         const QColor  shadowColor( 0, 0, 0, 64 );
@@ -43,14 +44,19 @@ namespace
         const double  shadowRadiusPixels = 12;
 
         const QColor  labelColor( 255, 255, 255 );
-        const QColor  labelOutlineColor( 128, 128, 255 );
         const double  labelOutlineWidthPixels = 2;
 
-        const QColor  arrowColor( 192, 192, 255, 128 );
         const double  arrowScale = 0.35;
-
-        const QColor  upColor( 192, 192, 255, 128 );
         const double  upScale = 0.15;
+
+        // Theme colours (the lavender of the original only suited the Neo scheme)
+        QColor labelOutlineColor() { return glabels::theme::Theme::instance().palette().accent; }
+        QColor arrowColor()
+        {
+                QColor c = glabels::theme::Theme::instance().palette().accent;
+                c.setAlphaF( 0.3 );
+                return c;
+        }
         const QString upFontFamily( "Sans" );
 }
 
@@ -64,7 +70,7 @@ namespace glabels
         SimplePreview::SimplePreview( QWidget *parent )
                 : QGraphicsView(parent)
         {
-                mScene = new QGraphicsScene();
+                mScene = new QGraphicsScene( this );   // owned by the view: deleted with it, pending scene events dropped
                 setScene( mScene );
 
                 setAttribute(Qt::WA_TranslucentBackground);
@@ -72,6 +78,8 @@ namespace glabels
 
                 setFrameStyle( QFrame::NoFrame );
                 setRenderHints( QPainter::Antialiasing );
+
+                connect( &theme::Theme::instance(), &theme::Theme::changed, this, [this]() { update(); } );
         }
 
 
@@ -205,7 +213,7 @@ namespace glabels
                                        const QPainterPath& path )
         {
                 QBrush brush( labelColor );
-                QPen pen( labelOutlineColor );
+                QPen pen( labelOutlineColor() );
                 pen.setCosmetic( true );
                 pen.setWidthF( labelOutlineWidthPixels );
 
@@ -230,12 +238,12 @@ namespace glabels
 
                 model::Distance minWH = min( w, h );
 
-                QPen pen( arrowColor );
+                QPen pen( arrowColor() );
                 pen.setWidthF( 0.25*minWH.pt()*arrowScale );
                 pen.setCapStyle( Qt::FlatCap );
                 pen.setJoinStyle( Qt::MiterJoin );
 
-                QBrush brush( upColor );
+                QBrush brush( arrowColor() );
 
                 model::Point origin = frame->getOrigins().constFirst();
                 model::Distance x0 = origin.x();

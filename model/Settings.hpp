@@ -119,8 +119,23 @@ namespace glabels::model
                 static IconStyle iconStyle();
                 static void setIconStyle( IconStyle style );
 
+                /// Colour scheme of the theme ("neo", "graphite", ...; see glabels/theme/ThemeScheme)
+                static QString themeScheme();
+                static void setThemeScheme( const QString& id );
+
                 static QString startupPath();
                 static void setStartupPath( const QString& path );
+
+                // --- snapping & guides (docs/ribbon-ui/SNAP.md) ---
+                static bool snapObjects();
+                static void setSnapObjects( bool enabled );
+
+                static bool snapCenter();
+                static void setSnapCenter( bool enabled );
+
+                static bool snapSafeArea();
+                static void setSnapSafeArea( bool enabled );
+                // --- end snapping & guides ---
 
 
         private:

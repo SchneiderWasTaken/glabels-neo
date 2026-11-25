@@ -32,7 +32,12 @@
 #include <QDebug>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QFrame>
+#include <QGroupBox>
+#include <QHBoxLayout>
 #include <QHeaderView>
+#include <QLayout>
+#include <QVBoxLayout>
 #include <QLineEdit>
 #include <QMessageBox>
 #include <QPrinter>
@@ -125,7 +130,104 @@ namespace glabels
         {
                 setupUi( this );
 
-                titleLabel->setText( QString( "<span style='font-size:18pt;'>%1</span>" ).arg( tr("Fill") ) );
+                titleLabel->setText( tr("Fill") );
+                titleLabel->setProperty( "role", QStringLiteral( "pageTitle" ) );
+                productLabel->setProperty( "role", QStringLiteral( "caption" ) );
+                productLabel->setWordWrap( false );
+                printDescriptionLabel->setProperty( "role", QStringLiteral( "caption" ) );
+                printDescriptionLabel->setAlignment( Qt::AlignLeft | Qt::AlignVCenter );
+                addRowButton->setText( tr("Add row") );
+
+                // Compact icons on destination combo & standalone print button
+                destinationCombo->setIconSize( QSize( 16, 16 ) );
+                destinationCombo->setMinimumWidth( 220 );
+                printButton->setIconSize( QSize( 16, 16 ) );
+                printButton->setStyleSheet( QString() );
+
+                // Rebuild FillView layout to match s12 mockup (works cleanly in both ribbon-hosted
+                // and standalone kiosk modes, keeping every .ui widget and connection intact).
+                line->hide();
+                rootLayout->removeItem( leftLayout );
+                rootLayout->removeWidget( line );
+                rootLayout->removeItem( previewLayout );
+                rootLayout->setContentsMargins( 24, 18, 24, 18 );
+                rootLayout->setSpacing( 0 );
+
+                leftLayout->removeWidget( titleLabel );
+                leftLayout->removeWidget( productLabel );
+                leftLayout->removeItem( toolbarLayout );
+                leftLayout->removeItem( viewModeLayout );
+                leftLayout->removeWidget( jobsTable );
+                leftLayout->removeItem( destinationLayout );
+                leftLayout->removeItem( startLayout );
+                leftLayout->removeWidget( printButton );
+                leftLayout->removeWidget( zplButton );
+                leftLayout->removeWidget( printDescriptionLabel );
+                leftLayout->removeWidget( systemDialogButton );
+                previewLayout->removeWidget( preview );
+                previewLayout->removeItem( pageNavLayout );
+
+                auto* mainCol = new QVBoxLayout();
+                mainCol->setContentsMargins( 0, 0, 0, 0 );
+                mainCol->setSpacing( 12 );
+
+                // Header row: "Fill" + product summary on left, "Preview:" + combo on right (s12)
+                auto* headerRow = new QHBoxLayout();
+                headerRow->setSpacing( 12 );
+                headerRow->addWidget( titleLabel, 0, Qt::AlignVCenter );
+                headerRow->addWidget( productLabel, 0, Qt::AlignVCenter );
+                headerRow->addStretch( 1 );
+                headerRow->addWidget( viewModeLabel, 0, Qt::AlignVCenter );
+                headerRow->addWidget( viewModeCombo, 0, Qt::AlignVCenter );
+                mainCol->addLayout( headerRow );
+
+                // Inline toolbar row (only visible in standalone glabels-fill kiosk mode)
+                mainCol->addLayout( toolbarLayout );
+
+                // Middle row: jobs table on left, Sheet preview card on workWell on right (s12)
+                auto* middleRow = new QHBoxLayout();
+                middleRow->setSpacing( 16 );
+                middleRow->addWidget( jobsTable, 1 );
+
+                auto* previewCard = new QGroupBox( tr("Sheet preview"), this );
+                previewCard->setProperty( "role", QStringLiteral( "card" ) );
+                previewCard->setFixedWidth( 360 );
+                auto* cardLayout = new QVBoxLayout( previewCard );
+                cardLayout->setContentsMargins( 0, 0, 0, 0 );
+                cardLayout->setSpacing( 0 );
+
+                auto* well = new QFrame( previewCard );
+                well->setProperty( "role", QStringLiteral( "workWell" ) );
+                well->setAttribute( Qt::WA_StyledBackground, true );
+                auto* wellLayout = new QVBoxLayout( well );
+                wellLayout->setContentsMargins( 16, 16, 16, 12 );
+                wellLayout->setSpacing( 8 );
+                preview->setParent( well );
+                preview->setMinimumSize( 280, 320 );
+                preview->setProperty( "role", QStringLiteral( "workWell" ) );
+                wellLayout->addWidget( preview, 1 );
+                pageNavLayout->setContentsMargins( 0, 0, 0, 4 );
+                wellLayout->addLayout( pageNavLayout );
+                cardLayout->addWidget( well, 1 );
+                middleRow->addWidget( previewCard, 0 );
+                mainCol->addLayout( middleRow, 1 );
+
+                // Bottom row: Destination + Start at position + hint (+ standalone print buttons)
+                auto* footerRow = new QHBoxLayout();
+                footerRow->setSpacing( 10 );
+                footerRow->addWidget( destinationLabel, 0, Qt::AlignVCenter );
+                footerRow->addWidget( destinationCombo, 0, Qt::AlignVCenter );
+                footerRow->addSpacing( 6 );
+                footerRow->addWidget( startPositionLabel, 0, Qt::AlignVCenter );
+                footerRow->addWidget( startPositionSpin, 0, Qt::AlignVCenter );
+                footerRow->addSpacing( 8 );
+                footerRow->addWidget( printDescriptionLabel, 1, Qt::AlignVCenter );
+                footerRow->addWidget( printButton, 0, Qt::AlignVCenter );
+                footerRow->addWidget( zplButton, 0, Qt::AlignVCenter );
+                footerRow->addWidget( systemDialogButton, 0, Qt::AlignVCenter );
+                mainCol->addLayout( footerRow );
+
+                rootLayout->addLayout( mainCol, 1 );
 
                 jobsTable->setModel( &mJobsModel );
                 jobsTable->horizontalHeader()->setStretchLastSection( true );
@@ -199,6 +301,32 @@ namespace glabels
                 mKioskSourcePath = path;
                 mKioskLockedFields = lockedFields;
                 mJobsModel.setLockedFields( lockedFields );
+        }
+
+
+        void FillView::setRibbonHosted( bool hosted )
+        {
+                mRibbonHosted = hosted;
+                const bool showInline = !mRibbonHosted;
+
+                addRowButton->setVisible( showInline );
+                removeRowButton->setVisible( showInline );
+                clearButton->setVisible( showInline );
+                importCsvButton->setVisible( showInline );
+                importExcelButton->setVisible( showInline );
+                exportCsvButton->setVisible( showInline );
+                exportExcelButton->setVisible( showInline );
+                printButton->setVisible( showInline );
+                zplButton->setVisible( showInline );
+                systemDialogButton->setVisible( showInline );
+
+                updateView();
+        }
+
+
+        bool FillView::isRibbonHosted() const
+        {
+                return mRibbonHosted;
         }
 
 
@@ -323,7 +451,7 @@ namespace glabels
 
                 startPositionSpin->setRange( 1, mModel->frame()->nLabels() );
 
-                productLabel->setText( tr("Product: %1  (%2 per sheet)")
+                productLabel->setText( tr("%1 · %2 per sheet")
                                        .arg( mModel->tmplate().name() )
                                        .arg( mModel->frame()->nLabels() ) );
 
@@ -405,14 +533,20 @@ namespace glabels
                 int nItems = mRenderer.nItems();
                 int nPages = mRenderer.nPages();
 
+                QString desc;
                 if ( nPages <= 1 )
                 {
-                        printDescriptionLabel->setText( tr("Will print %1 item(s) on 1 page.").arg(nItems) );
+                        desc = tr("Will print %1 item(s) on 1 page.").arg(nItems);
                 }
                 else
                 {
-                        printDescriptionLabel->setText( tr("Will print %1 item(s) on %2 pages.").arg(nItems).arg(nPages) );
+                        desc = tr("Will print %1 item(s) on %2 pages.").arg(nItems).arg(nPages);
                 }
+                if ( mRibbonHosted )
+                {
+                        desc += QStringLiteral( " " ) + tr("Print and Send to Zebra are on the ribbon.");
+                }
+                printDescriptionLabel->setText( desc );
 
                 pageSpin->blockSignals( true );
                 pageSpin->setRange( 1, qMax( 1, nPages ) );
@@ -422,6 +556,7 @@ namespace glabels
                 bool canPrint = mJobsModel.checkedQuantity() > 0;
                 printButton->setEnabled( canPrint );
                 systemDialogButton->setEnabled( canPrint );
+                emit printAvailabilityChanged( canPrint );
 
                 mRenderer.setIPage( pageSpin->value() - 1 );
         }

@@ -23,13 +23,18 @@
 
 #include "SelectProductDialog.hpp"
 #include "UndoRedoModel.hpp"
+#include "theme/Theme.hpp"
 
 #include "model/Db.hpp"
 #include "model/FrameContinuous.hpp"
 #include "model/Settings.hpp"
 
 #include <QDebug>
+#include <QFrame>
+#include <QGroupBox>
+#include <QLayout>
 #include <QStyledItemDelegate>
+#include <QVBoxLayout>
 
 
 namespace glabels
@@ -43,7 +48,61 @@ namespace glabels
         {
                 setupUi( this );
 
-                titleLabel->setText( QString( "<span style='font-size:18pt;'>%1</span>" ).arg( tr("Properties") ) );
+                titleLabel->setText( tr("Label") );
+                titleLabel->setProperty( "role", QStringLiteral( "pageTitle" ) );
+
+                if ( auto* l = layout() )
+                {
+                        l->setContentsMargins( 24, 20, 24, 20 );
+                        l->setSpacing( 16 );
+                }
+                verticalLayout->setContentsMargins( 0, 0, 0, 0 );
+                verticalLayout->setSpacing( 12 );
+                line->hide();
+
+                // Sentence case group titles & 460px left column width (SPEC 6.4 & s09 mockup)
+                parametersGroupBox->setTitle( tr("Adjustable parameters") );
+                similarProductsGroupBox->setTitle( tr("Similar products") );
+                for ( QWidget* w : QList<QWidget*>{ productGroupBox, parametersGroupBox, orientationGroupBox,
+                                                    similarProductsGroupBox, similarProductsNullBox } )
+                {
+                        w->setFixedWidth( 460 );
+                }
+
+                // Neo tag icon on Change product button & compact orientation combo icon
+                auto applyChangeIcon = [this]()
+                {
+                        changeProductButton->setIcon( theme::Theme::instance().icon( QStringLiteral( "tag" ) ) );
+                        changeProductButton->setIconSize( QSize( 16, 16 ) );
+                };
+                applyChangeIcon();
+                connect( &theme::Theme::instance(), &theme::Theme::changed,
+                         this, [applyChangeIcon]() { applyChangeIcon(); } );
+                orientationCombo->setIconSize( QSize( 16, 16 ) );
+
+                // Wrap SimplePreview inside a Preview card with a work-colored backdrop (s09)
+                horizontalLayout->removeWidget( preview );
+                auto* previewCard = new QGroupBox( tr("Preview"), this );
+                previewCard->setProperty( "role", QStringLiteral( "card" ) );
+                auto* cardLayout = new QVBoxLayout( previewCard );
+                cardLayout->setContentsMargins( 0, 0, 0, 0 );
+                cardLayout->setSpacing( 0 );
+
+                auto* well = new QFrame( previewCard );
+                well->setProperty( "role", QStringLiteral( "workWell" ) );
+                well->setAttribute( Qt::WA_StyledBackground, true );
+                auto* wellLayout = new QVBoxLayout( well );
+                wellLayout->setContentsMargins( 20, 20, 20, 20 );
+                preview->setParent( well );
+                preview->setProperty( "role", QStringLiteral( "workWell" ) );
+                wellLayout->addWidget( preview, 1 );
+                cardLayout->addWidget( well, 1 );
+                horizontalLayout->addWidget( previewCard, 1 );
+
+                for ( auto* gb : findChildren<QGroupBox*>() )
+                {
+                        gb->setProperty( "role", QStringLiteral( "card" ) );
+                }
 
                 similarBrowser->setAttribute(Qt::WA_TranslucentBackground);
                 similarBrowser->viewport()->setAutoFillBackground(false);

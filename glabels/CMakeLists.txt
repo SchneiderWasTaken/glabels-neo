@@ -42,6 +42,7 @@ set (glabels_sources
   RollTemplatePath.cpp
   SelectProductDialog.cpp
   SimplePreview.cpp
+  SnapEngine.cpp
   StartupView.cpp
   TemplateDesigner.cpp
   TemplatePicker.cpp
@@ -92,6 +93,41 @@ set (glabels_qobject_headers
   ZplRenderer.hpp
 )
 
+# --- ribbon-ui: core ---
+list (APPEND glabels_sources
+  ribbon/Backstage.cpp
+  ribbon/ContentPanel.cpp
+  ribbon/EditorRulers.cpp
+  ribbon/QuickAccessBar.cpp
+  ribbon/RibbonBar.cpp
+  ribbon/RibbonButton.cpp
+  ribbon/RibbonColorDecorator.cpp
+  ribbon/RibbonDropButton.cpp
+  ribbon/RibbonField.cpp
+  ribbon/RibbonGroup.cpp
+  ribbon/RibbonStatusBar.cpp
+  ribbon/RibbonTab.cpp
+  ribbon/RibbonToggleGroup.cpp
+  ribbon/RibbonTypes.cpp
+  ribbon/ShadowPopover.cpp
+)
+list (APPEND glabels_qobject_headers
+  ribbon/Backstage.hpp
+  ribbon/ContentPanel.hpp
+  ribbon/EditorRulers.hpp
+  ribbon/QuickAccessBar.hpp
+  ribbon/RibbonBar.hpp
+  ribbon/RibbonButton.hpp
+  ribbon/RibbonDropButton.hpp
+  ribbon/RibbonField.hpp
+  ribbon/RibbonGroup.hpp
+  ribbon/RibbonStatusBar.hpp
+  ribbon/RibbonTab.hpp
+  ribbon/RibbonToggleGroup.hpp
+  ribbon/ShadowPopover.hpp
+)
+# --- end ribbon-ui: core ---
+
 set (glabels_forms
   ui/AboutDialog.ui
   ui/EditVariableDialog.ui
@@ -126,6 +162,12 @@ set (glabels_resource_files
   icons.qrc
   images.qrc
 )
+
+# --- ribbon-ui: core (resources) ---
+list (APPEND glabels_resource_files
+  ribbon/ribbon.qrc
+)
+# --- end ribbon-ui: core (resources) ---
 
 qt6_wrap_cpp (glabels_moc_sources ${glabels_qobject_headers})
 qt6_wrap_ui (glabels_forms_headers ${glabels_forms})
@@ -332,3 +374,25 @@ endif (WIN32)
 if (Qt6Test_FOUND)
   add_subdirectory (unit_tests)
 endif ()
+
+# --- ribbon-ui: theme ---
+# Theme tokens, generated stylesheet, tinted neo icons (docs/ribbon-ui/SPEC.md 4 and 8).
+qt6_wrap_cpp (glabels_theme_moc_sources
+  theme/Decorator.hpp
+  theme/Theme.hpp
+  TemplateDesignerSidebar.hpp
+)
+qt6_add_resources (glabels_theme_qrc_sources theme/theme.qrc)
+target_sources (glabels_lib PRIVATE
+  theme/Decorator.cpp
+  theme/Theme.cpp
+  theme/ThemeIcons.cpp
+  theme/ThemeScheme.cpp
+  theme/ThemeStyle.cpp
+  TemplateDesignerSidebar.cpp
+  TemplateDesignerSteps.cpp
+  ${glabels_theme_moc_sources}
+)
+target_sources (glabels_resources PRIVATE ${glabels_theme_qrc_sources})
+target_link_libraries (glabels_lib PUBLIC Qt6::Svg)
+# --- end ribbon-ui: theme ---

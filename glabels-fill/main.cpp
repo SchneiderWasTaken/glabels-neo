@@ -22,6 +22,7 @@
 //  main.cpp -- glabels-fill kiosk entry point.
 //
 
+#include "AppearanceModel.hpp"
 #include "FillConfig.hpp"
 #include "FillWindow.hpp"
 
@@ -44,6 +45,9 @@ int main( int argc, char** argv )
         glabels::model::Settings::init();
         glabels::merge::Factory::init();
         glabels::barcode::Backends::init();
+
+        // gLabels Neo look (Fusion base, theme palette and stylesheet), as in the designer.
+        glabels::AppearanceModel::init();
 
         glabels::FillConfig cfg;
         glabels::FillConfigIO::readFromExe( QCoreApplication::applicationFilePath(), cfg );

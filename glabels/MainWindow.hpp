@@ -34,9 +34,11 @@
 #include <QCloseEvent>
 #include <QComboBox>
 #include <QDoubleSpinBox>
+#include <QHBoxLayout>
 #include <QLabel>
 #include <QList>
 #include <QMainWindow>
+#include <QMap>
 #include <QMenu>
 #include <QScrollArea>
 #include <QStackedWidget>
@@ -65,6 +67,7 @@ namespace glabels
                 class EditorRulerFrame;
                 class RibbonBar;
                 class RibbonButton;
+                class RibbonDropButton;
                 class RibbonGroup;
                 class RibbonStatusBar;
                 class RibbonToggleGroup;
@@ -233,6 +236,8 @@ namespace glabels
 
                 void switchToPage( ribbon::PageId page, bool syncRibbon = true );
                 void updateContextualTabState( bool activateIfSingle );
+                void attachSharedContextualWidgets( ribbon::TabId ctxTab );
+                void syncFieldDropButtons();
                 void updateDataTabGroups();
                 void updateLabelTabInfo();
                 void updatePrintTabInfo();
@@ -326,6 +331,17 @@ namespace glabels
                 QCheckBox*                 mViewContentPanelCheck{ nullptr };
                 ribbon::RibbonToggleGroup* mViewColorSchemeGroup{ nullptr };
                 ribbon::RibbonToggleGroup* mViewIconStyleGroup{ nullptr };
+
+                // WP4 shared transplanted ObjectEditor widgets & contextual tab hosts
+                QWidget*                              mSharedPosWidget{ nullptr };
+                QWidget*                              mSharedRectSizeWidget{ nullptr };
+                QWidget*                              mImageResetSubWidget{ nullptr };
+                QWidget*                              mSharedLineWidget{ nullptr };
+                QMap<ribbon::TabId, QHBoxLayout*>     mPosSizeHostLayouts;
+                QMap<ribbon::TabId, QHBoxLayout*>     mLineHostLayouts;
+                ribbon::RibbonDropButton*             mTextInsertFieldDropBtn{ nullptr };
+                ribbon::RibbonDropButton*             mBarcodeInsertFieldDropBtn{ nullptr };
+                ribbon::RibbonDropButton*             mImageUseFieldDropBtn{ nullptr };
 
                 QActionGroup*              mInsertToolGroup{ nullptr };
 

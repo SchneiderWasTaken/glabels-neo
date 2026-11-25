@@ -22,6 +22,7 @@
 #include "ObjectEditor.hpp"
 
 #include "UndoRedoModel.hpp"
+#include "theme/Theme.hpp"
 
 #include "model/Model.hpp"
 #include "model/ModelObject.hpp"
@@ -73,6 +74,43 @@ namespace glabels
                 textInsertFieldButton->setText( tr("Insert substitution field") );
                 barcodeInsertFieldButton->setText( tr("Insert substitution field") );
                 imageFieldButton->setText( tr("Use substitution field") );
+                textAutoShrinkCheck->setText( tr("Shrink text to fit when printing") );
+
+                // Compact Neo ribbon sizing on transplanted controls
+                const int fh = theme::Metrics::field;
+                for ( QWidget* w : QList<QWidget*>{
+                              textFontFamilyCombo, textFontSizeSpin, textColorButton,
+                              textLineSpacingSpin, textWrapModeCombo,
+                              barcodeStyleButton, barcodeColorButton,
+                              imageFilenameLineEdit, imageBrowseButton,
+                              lineWidthSpin, lineColorButton, fillColorButton,
+                              posXSpin, posYSpin, sizeWSpin, sizeHSpin,
+                              sizeLineLengthSpin, sizeLineAngleSpin,
+                              shadowXSpin, shadowYSpin, shadowColorButton, shadowOpacitySpin } )
+                {
+                        if ( w )
+                        {
+                                w->setFixedHeight( fh );
+                        }
+                }
+
+                for ( QToolButton* tb : QList<QToolButton*>{
+                              textFontBoldToggle, textFontItalicToggle, textFontUnderlineToggle,
+                              textHAlignLeftToggle, textHAlignCenterToggle, textHAlignRightToggle,
+                              textVAlignTopToggle, textVAlignMiddleToggle, textVAlignBottomToggle } )
+                {
+                        if ( tb )
+                        {
+                                tb->setFixedSize( 28, fh );
+                                tb->setIconSize( QSize( 16, 16 ) );
+                                tb->setAutoRaise( true );
+                                tb->setProperty( "role", QStringLiteral( "ribbonToggle" ) );
+                        }
+                }
+
+                applyNeoIcons();
+                connect( &theme::Theme::instance(), &theme::Theme::changed,
+                         this, [this]() { applyNeoIcons(); } );
 
                 setEnabled( false );
                 hidePages();
@@ -86,6 +124,10 @@ namespace glabels
 
         void ObjectEditor::setModel( model::Model* model, UndoRedoModel* undoRedoModel )
         {
+                if ( mModel )
+                {
+                        disconnect( mModel, nullptr, this, nullptr );
+                }
                 mModel = model;
                 mUndoRedoModel = undoRedoModel;
 
@@ -104,6 +146,113 @@ namespace glabels
                 onLabelSizeChanged();
                 onSelectionChanged();
                 onFieldsAvailableChanged();
+        }
+
+
+        QWidget* ObjectEditor::control( ControlId id ) const
+        {
+                switch ( id )
+                {
+                case ControlId::TextFontFamilyCombo:      return textFontFamilyCombo;
+                case ControlId::TextFontSizeSpin:         return textFontSizeSpin;
+                case ControlId::TextFontBoldToggle:       return textFontBoldToggle;
+                case ControlId::TextFontItalicToggle:     return textFontItalicToggle;
+                case ControlId::TextFontUnderlineToggle:  return textFontUnderlineToggle;
+                case ControlId::TextColorButton:          return textColorButton;
+                case ControlId::TextHAlignLeftToggle:     return textHAlignLeftToggle;
+                case ControlId::TextHAlignCenterToggle:   return textHAlignCenterToggle;
+                case ControlId::TextHAlignRightToggle:    return textHAlignRightToggle;
+                case ControlId::TextVAlignTopToggle:      return textVAlignTopToggle;
+                case ControlId::TextVAlignMiddleToggle:   return textVAlignMiddleToggle;
+                case ControlId::TextVAlignBottomToggle:   return textVAlignBottomToggle;
+                case ControlId::TextLineSpacingSpin:      return textLineSpacingSpin;
+                case ControlId::TextWrapModeCombo:        return textWrapModeCombo;
+                case ControlId::TextAutoShrinkCheck:      return textAutoShrinkCheck;
+                case ControlId::TextEdit:                 return textEdit;
+                case ControlId::TextInsertFieldButton:    return textInsertFieldButton;
+                case ControlId::BarcodeStyleButton:       return barcodeStyleButton;
+                case ControlId::BarcodeShowTextCheck:     return barcodeShowTextCheck;
+                case ControlId::BarcodeChecksumCheck:     return barcodeChecksumCheck;
+                case ControlId::BarcodeColorButton:       return barcodeColorButton;
+                case ControlId::BarcodeDataEdit:          return barcodeDataEdit;
+                case ControlId::BarcodeInsertFieldButton: return barcodeInsertFieldButton;
+                case ControlId::ImageFilenameLineEdit:    return imageFilenameLineEdit;
+                case ControlId::ImageBrowseButton:        return imageBrowseButton;
+                case ControlId::ImageFieldButton:         return imageFieldButton;
+                case ControlId::LineWidthSpin:            return lineWidthSpin;
+                case ControlId::LineColorButton:          return lineColorButton;
+                case ControlId::FillColorButton:          return fillColorButton;
+                case ControlId::PosXSpin:                 return posXSpin;
+                case ControlId::PosYSpin:                 return posYSpin;
+                case ControlId::SizeWSpin:                return sizeWSpin;
+                case ControlId::SizeHSpin:                return sizeHSpin;
+                case ControlId::SizeAspectCheck:          return sizeAspectCheck;
+                case ControlId::SizeOriginalSizeLabel:    return sizeOriginalSizeLabel;
+                case ControlId::SizeResetImageButton:     return sizeResetImageButton;
+                case ControlId::SizeLineLengthSpin:       return sizeLineLengthSpin;
+                case ControlId::SizeLineAngleSpin:        return sizeLineAngleSpin;
+                case ControlId::ShadowEnableCheck:        return shadowEnableCheck;
+                case ControlId::ShadowXSpin:              return shadowXSpin;
+                case ControlId::ShadowYSpin:              return shadowYSpin;
+                case ControlId::ShadowColorButton:        return shadowColorButton;
+                case ControlId::ShadowOpacitySpin:        return shadowOpacitySpin;
+                }
+                return nullptr;
+        }
+
+
+        void ObjectEditor::setTransplanted( bool transplanted )
+        {
+                mTransplanted = transplanted;
+                if ( mTransplanted )
+                {
+                        setEnabled( true );
+                }
+        }
+
+
+        void ObjectEditor::insertTextField( const QString& key )
+        {
+                onTextInsertFieldKeySelected( key );
+        }
+
+
+        void ObjectEditor::insertBarcodeField( const QString& key )
+        {
+                onBarcodeInsertFieldKeySelected( key );
+        }
+
+
+        void ObjectEditor::setImageField( const QString& key )
+        {
+                onImageKeySelected( key );
+        }
+
+
+        void ObjectEditor::applyNeoIcons()
+        {
+                auto setIconIfAvailable = []( QToolButton* btn, const QString& name )
+                {
+                        if ( !btn )
+                        {
+                                return;
+                        }
+                        QIcon icon = theme::Theme::instance().icon( name );
+                        if ( !icon.isNull() )
+                        {
+                                btn->setIcon( icon );
+                        }
+                };
+
+                setIconIfAvailable( textFontBoldToggle,      QStringLiteral( "bold" ) );
+                setIconIfAvailable( textFontItalicToggle,    QStringLiteral( "italic" ) );
+                setIconIfAvailable( textFontUnderlineToggle, QStringLiteral( "underline" ) );
+                setIconIfAvailable( textHAlignLeftToggle,    QStringLiteral( "align-left" ) );
+                setIconIfAvailable( textHAlignCenterToggle,  QStringLiteral( "align-center" ) );
+                setIconIfAvailable( textHAlignRightToggle,   QStringLiteral( "align-right" ) );
+                setIconIfAvailable( textVAlignTopToggle,     QStringLiteral( "align-start-horizontal" ) );
+                setIconIfAvailable( textVAlignMiddleToggle,  QStringLiteral( "align-center-horizontal" ) );
+                setIconIfAvailable( textVAlignBottomToggle,  QStringLiteral( "align-end-horizontal" ) );
         }
 
 
@@ -357,7 +506,10 @@ namespace glabels
                                 disconnect( mObject, nullptr, this, nullptr );
                         }
 
-                        hidePages();
+                        if ( !mTransplanted )
+                        {
+                                hidePages();
+                        }
 
                         if ( mModel->isSelectionAtomic() )
                         {
@@ -365,17 +517,20 @@ namespace glabels
 
                                 if ( dynamic_cast<model::ModelBoxObject*>(mObject) )
                                 {
-                                        titleImageLabel->setPixmap( QIcon::fromTheme( "glabels-box" ).pixmap( 24 ) );
-                                        titleLabel->setText( tr("Box object properties") );
+                                        if ( !mTransplanted )
+                                        {
+                                                titleImageLabel->setPixmap( QIcon::fromTheme( "glabels-box" ).pixmap( 24 ) );
+                                                titleLabel->setText( tr("Box object properties") );
 
-                                        notebook->addTab( lineFillPage, tr("line/fill") );
-                                        notebook->addTab( posSizePage, tr("position/size") );
-                                        notebook->addTab( shadowPage, tr("shadow") );
+                                                notebook->addTab( lineFillPage, tr("line/fill") );
+                                                notebook->addTab( posSizePage, tr("position/size") );
+                                                notebook->addTab( shadowPage, tr("shadow") );
 
-                                        fillFrame->setVisible( true );
-                                        sizeRectFrame->setVisible( true );
-                                        sizeOriginalSizeGroup->setVisible( false );
-                                        sizeLineFrame->setVisible( false );
+                                                fillFrame->setVisible( true );
+                                                sizeRectFrame->setVisible( true );
+                                                sizeOriginalSizeGroup->setVisible( false );
+                                                sizeLineFrame->setVisible( false );
+                                        }
 
                                         loadLineFillPage();
                                         loadPositionPage();
@@ -386,17 +541,20 @@ namespace glabels
                                 }
                                 else if ( dynamic_cast<model::ModelEllipseObject*>(mObject) )
                                 {
-                                        titleImageLabel->setPixmap( QIcon::fromTheme( "glabels-ellipse" ).pixmap( 24 ) );
-                                        titleLabel->setText( tr("Ellipse object properties") );
+                                        if ( !mTransplanted )
+                                        {
+                                                titleImageLabel->setPixmap( QIcon::fromTheme( "glabels-ellipse" ).pixmap( 24 ) );
+                                                titleLabel->setText( tr("Ellipse object properties") );
 
-                                        notebook->addTab( lineFillPage, tr("line/fill") );
-                                        notebook->addTab( posSizePage, tr("position/size") );
-                                        notebook->addTab( shadowPage, tr("shadow") );
+                                                notebook->addTab( lineFillPage, tr("line/fill") );
+                                                notebook->addTab( posSizePage, tr("position/size") );
+                                                notebook->addTab( shadowPage, tr("shadow") );
 
-                                        fillFrame->setVisible( true );
-                                        sizeRectFrame->setVisible( true );
-                                        sizeOriginalSizeGroup->setVisible( false );
-                                        sizeLineFrame->setVisible( false );
+                                                fillFrame->setVisible( true );
+                                                sizeRectFrame->setVisible( true );
+                                                sizeOriginalSizeGroup->setVisible( false );
+                                                sizeLineFrame->setVisible( false );
+                                        }
 
                                         loadLineFillPage();
                                         loadPositionPage();
@@ -407,16 +565,19 @@ namespace glabels
                                 }
                                 else if ( dynamic_cast<model::ModelImageObject*>(mObject) )
                                 {
-                                        titleImageLabel->setPixmap( QIcon::fromTheme( "glabels-image" ).pixmap( 24 ) );
-                                        titleLabel->setText( tr("Image object properties") );
+                                        if ( !mTransplanted )
+                                        {
+                                                titleImageLabel->setPixmap( QIcon::fromTheme( "glabels-image" ).pixmap( 24 ) );
+                                                titleLabel->setText( tr("Image object properties") );
 
-                                        notebook->addTab( imagePage, tr("image") );
-                                        notebook->addTab( posSizePage, tr("position/size") );
-                                        notebook->addTab( shadowPage, tr("shadow") );
+                                                notebook->addTab( imagePage, tr("image") );
+                                                notebook->addTab( posSizePage, tr("position/size") );
+                                                notebook->addTab( shadowPage, tr("shadow") );
 
-                                        sizeRectFrame->setVisible( true );
-                                        sizeOriginalSizeGroup->setVisible( true );
-                                        sizeLineFrame->setVisible( false );
+                                                sizeRectFrame->setVisible( true );
+                                                sizeOriginalSizeGroup->setVisible( true );
+                                                sizeLineFrame->setVisible( false );
+                                        }
 
                                         loadImagePage();
                                         loadPositionPage();
@@ -427,17 +588,20 @@ namespace glabels
                                 }
                                 else if ( dynamic_cast<model::ModelLineObject*>(mObject) )
                                 {
-                                        titleImageLabel->setPixmap( QIcon::fromTheme( "glabels-line" ).pixmap( 24 ) );
-                                        titleLabel->setText( tr("Line object properties") );
+                                        if ( !mTransplanted )
+                                        {
+                                                titleImageLabel->setPixmap( QIcon::fromTheme( "glabels-line" ).pixmap( 24 ) );
+                                                titleLabel->setText( tr("Line object properties") );
 
-                                        notebook->addTab( lineFillPage, tr("line/fill") );
-                                        notebook->addTab( posSizePage, tr("position/size") );
-                                        notebook->addTab( shadowPage, tr("shadow") );
+                                                notebook->addTab( lineFillPage, tr("line/fill") );
+                                                notebook->addTab( posSizePage, tr("position/size") );
+                                                notebook->addTab( shadowPage, tr("shadow") );
 
-                                        fillFrame->setVisible( false );
-                                        sizeRectFrame->setVisible( false );
-                                        sizeOriginalSizeGroup->setVisible( false );
-                                        sizeLineFrame->setVisible( true );
+                                                fillFrame->setVisible( false );
+                                                sizeRectFrame->setVisible( false );
+                                                sizeOriginalSizeGroup->setVisible( false );
+                                                sizeLineFrame->setVisible( true );
+                                        }
 
                                         loadLineFillPage();
                                         loadPositionPage();
@@ -448,16 +612,19 @@ namespace glabels
                                 }
                                 else if ( dynamic_cast<model::ModelTextObject*>(mObject) )
                                 {
-                                        titleImageLabel->setPixmap( QIcon::fromTheme( "glabels-text" ).pixmap( 24 ) );
-                                        titleLabel->setText( tr("Text object properties") );
+                                        if ( !mTransplanted )
+                                        {
+                                                titleImageLabel->setPixmap( QIcon::fromTheme( "glabels-text" ).pixmap( 24 ) );
+                                                titleLabel->setText( tr("Text object properties") );
 
-                                        notebook->addTab( textPage, tr("text") );
-                                        notebook->addTab( posSizePage, tr("position/size") );
-                                        notebook->addTab( shadowPage, tr("shadow") );
+                                                notebook->addTab( textPage, tr("text") );
+                                                notebook->addTab( posSizePage, tr("position/size") );
+                                                notebook->addTab( shadowPage, tr("shadow") );
 
-                                        sizeRectFrame->setVisible( true );
-                                        sizeOriginalSizeGroup->setVisible( false );
-                                        sizeLineFrame->setVisible( false );
+                                                sizeRectFrame->setVisible( true );
+                                                sizeOriginalSizeGroup->setVisible( false );
+                                                sizeLineFrame->setVisible( false );
+                                        }
 
                                         loadTextPage();
                                         loadPositionPage();
@@ -468,15 +635,18 @@ namespace glabels
                                 }
                                 else if ( dynamic_cast<model::ModelBarcodeObject*>(mObject) )
                                 {
-                                        titleImageLabel->setPixmap( QIcon::fromTheme( "glabels-barcode" ).pixmap( 24 ) );
-                                        titleLabel->setText( tr("Barcode object properties") );
+                                        if ( !mTransplanted )
+                                        {
+                                                titleImageLabel->setPixmap( QIcon::fromTheme( "glabels-barcode" ).pixmap( 24 ) );
+                                                titleLabel->setText( tr("Barcode object properties") );
 
-                                        notebook->addTab( barcodePage, tr("barcode") );
-                                        notebook->addTab( posSizePage, tr("position/size") );
+                                                notebook->addTab( barcodePage, tr("barcode") );
+                                                notebook->addTab( posSizePage, tr("position/size") );
 
-                                        sizeRectFrame->setVisible( true );
-                                        sizeOriginalSizeGroup->setVisible( false );
-                                        sizeLineFrame->setVisible( false );
+                                                sizeRectFrame->setVisible( true );
+                                                sizeOriginalSizeGroup->setVisible( false );
+                                                sizeLineFrame->setVisible( false );
+                                        }
 
                                         loadBarcodePage();
                                         loadPositionPage();
@@ -497,9 +667,12 @@ namespace glabels
                         {
                                 mObject = nullptr;
 
-                                titleImageLabel->setPixmap( QIcon::fromTheme( "glabels-object-properties" ).pixmap( 24 ) );
-                                titleLabel->setText( tr("Object properties") );
-                                setEnabled( false );
+                                if ( !mTransplanted )
+                                {
+                                        titleImageLabel->setPixmap( QIcon::fromTheme( "glabels-object-properties" ).pixmap( 24 ) );
+                                        titleLabel->setText( tr("Object properties") );
+                                        setEnabled( false );
+                                }
                         }
                 }
         }
@@ -553,7 +726,7 @@ namespace glabels
 
         void ObjectEditor::onLineControlsChanged()
         {
-                if ( !mBlocked )
+                if ( !mBlocked && mObject )
                 {
                         mBlocked = true;
 
@@ -569,7 +742,7 @@ namespace glabels
 
         void ObjectEditor::onFillControlsChanged()
         {
-                if ( !mBlocked )
+                if ( !mBlocked && mObject )
                 {
                         mBlocked = true;
 
@@ -584,6 +757,10 @@ namespace glabels
 
         void ObjectEditor::onImageFileButtonClicked()
         {
+                if ( !mObject )
+                {
+                        return;
+                }
                 // Either use saved CWD from a previous open or the current file, if it exists
                 QString cwd = mImageCwd;
                 if ( !mObject->filenameNode().isField() )
@@ -638,7 +815,7 @@ namespace glabels
 
         void ObjectEditor::onPositionControlsChanged()
         {
-                if ( !mBlocked )
+                if ( !mBlocked && mObject )
                 {
                         mBlocked = true;
 
@@ -656,7 +833,7 @@ namespace glabels
 
         void ObjectEditor::onRectSizeControlsChanged()
         {
-                if ( !mBlocked )
+                if ( !mBlocked && mObject )
                 {
                         mBlocked = true;
 
@@ -692,7 +869,7 @@ namespace glabels
 
         void ObjectEditor::onLineSizeControlsChanged()
         {
-                if ( !mBlocked )
+                if ( !mBlocked && mObject )
                 {
                         mBlocked = true;
 
@@ -711,7 +888,7 @@ namespace glabels
 
         void ObjectEditor::onTextControlsChanged()
         {
-                if ( !mBlocked )
+                if ( !mBlocked && mObject )
                 {
                         mBlocked = true;
 
@@ -751,7 +928,7 @@ namespace glabels
 
         void ObjectEditor::onBarcodeControlsChanged()
         {
-                if ( !mBlocked )
+                if ( !mBlocked && mObject )
                 {
                         mBlocked = true;
 
@@ -791,6 +968,10 @@ namespace glabels
 
         void ObjectEditor::onResetImageSize()
         {
+                if ( !mObject )
+                {
+                        return;
+                }
                 mUndoRedoModel->checkpoint( tr("Reset") );
 
                 mObject->setSize( mObject->naturalSize() );
@@ -799,7 +980,7 @@ namespace glabels
 
         void ObjectEditor::onShadowControlsChanged()
         {
-                if ( !mBlocked )
+                if ( !mBlocked && mObject )
                 {
                         mBlocked = true;
 

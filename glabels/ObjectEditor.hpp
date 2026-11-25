@@ -53,9 +53,70 @@ namespace glabels
 
 
                 /////////////////////////////////
+                // Public types
+                /////////////////////////////////
+        public:
+                /// Identifiers for existing ObjectEditor child widgets transplanted into the ribbon
+                /// and Content panel (SPEC 3.4 & 6.2).
+                enum class ControlId
+                {
+                        TextFontFamilyCombo,
+                        TextFontSizeSpin,
+                        TextFontBoldToggle,
+                        TextFontItalicToggle,
+                        TextFontUnderlineToggle,
+                        TextColorButton,
+                        TextHAlignLeftToggle,
+                        TextHAlignCenterToggle,
+                        TextHAlignRightToggle,
+                        TextVAlignTopToggle,
+                        TextVAlignMiddleToggle,
+                        TextVAlignBottomToggle,
+                        TextLineSpacingSpin,
+                        TextWrapModeCombo,
+                        TextAutoShrinkCheck,
+                        TextEdit,
+                        TextInsertFieldButton,
+                        BarcodeStyleButton,
+                        BarcodeShowTextCheck,
+                        BarcodeChecksumCheck,
+                        BarcodeColorButton,
+                        BarcodeDataEdit,
+                        BarcodeInsertFieldButton,
+                        ImageFilenameLineEdit,
+                        ImageBrowseButton,
+                        ImageFieldButton,
+                        LineWidthSpin,
+                        LineColorButton,
+                        FillColorButton,
+                        PosXSpin,
+                        PosYSpin,
+                        SizeWSpin,
+                        SizeHSpin,
+                        SizeAspectCheck,
+                        SizeOriginalSizeLabel,
+                        SizeResetImageButton,
+                        SizeLineLengthSpin,
+                        SizeLineAngleSpin,
+                        ShadowEnableCheck,
+                        ShadowXSpin,
+                        ShadowYSpin,
+                        ShadowColorButton,
+                        ShadowOpacitySpin
+                };
+
+
+                /////////////////////////////////
                 // Public methods
                 /////////////////////////////////
-                void setModel( model::Model* model, UndoRedoModel* undoRedoModel );
+                void     setModel( model::Model* model, UndoRedoModel* undoRedoModel );
+                QWidget* control( ControlId id ) const;
+                void     setTransplanted( bool transplanted );
+
+        public slots:
+                void insertTextField( const QString& key );
+                void insertBarcodeField( const QString& key );
+                void setImageField( const QString& key );
 
 
                 /////////////////////////////////
@@ -71,6 +132,7 @@ namespace glabels
                 void loadTextPage();
                 void loadBarcodePage();
                 void loadShadowPage();
+                void applyNeoIcons();
 
 
                 /////////////////////////////////
@@ -118,6 +180,7 @@ namespace glabels
                 QString                  mImageCwd;
 
                 bool                     mBlocked;
+                bool                     mTransplanted{ false };
 
         };
 

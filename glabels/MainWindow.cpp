@@ -69,7 +69,9 @@
 #include <QDebug>
 #include <QFileInfo>
 #include <QGridLayout>
+#include <QGroupBox>
 #include <QHBoxLayout>
+#include <QLineEdit>
 #include <QMessageBox>
 #include <QMouseEvent>
 #include <QPrinterInfo>
@@ -237,6 +239,7 @@ namespace glabels
                 updatePrintTabInfo();
                 updateStatusBarSummary();
                 updateContextualTabState( false );
+                syncFieldDropButtons();
 
                 connect( mLabelEditor, SIGNAL(contextMenuActivate(model::Point)),
                          this, SLOT(onContextMenuActivate(model::Point)), Qt::UniqueConnection );
@@ -245,6 +248,8 @@ namespace glabels
                 connect( mModel.get(), SIGNAL(selectionChanged()), this, SLOT(onSelectionChanged()) );
                 connect( mModel.get(), SIGNAL(changed()), this, SLOT(onLabelChanged()) );
                 connect( mModel.get(), SIGNAL(sizeChanged()), this, SLOT(onLabelChanged()) );
+                connect( mModel.get(), &model::Model::mergeSourceChanged, this, [this]() { syncFieldDropButtons(); } );
+                connect( mModel.get(), &model::Model::variablesChanged, this, [this]() { syncFieldDropButtons(); } );
                 connect( mUndoRedoModel.get(), SIGNAL(changed()), this, SLOT(onUndoRedoChanged()) );
         }
 
@@ -1448,9 +1453,170 @@ namespace glabels
 
         void MainWindow::populateContextualTabs()
         {
-                // Contextual tabs receive transplanted ObjectEditor controls in WP4;
-                // wire shared Arrange groups on each contextual tab now.
                 using Btn = ribbon::RibbonButton;
+                using Cid = ObjectEditor::ControlId;
+
+                mObjectEditor->setTransplanted( true );
+
+                auto ctrl = [this]( Cid id ) -> QWidget*
+                {
+                        return mObjectEditor->control( id );
+                };
+
+                auto makeFieldLabel = []( const QString& text, QWidget* parent ) -> QLabel*
+                {
+                        auto* lbl = new QLabel( text, parent );
+                        lbl->setProperty( "role", QStringLiteral( "fieldLabel" ) );
+                        return lbl;
+                };
+
+                // -----------------------------------------------------------------
+                // Single shared ShadowPopover (SPEC 6.2 & mockup d10)
+                // Used by Text, Image, Shape, Line — NEVER Barcode!
+                // -----------------------------------------------------------------
+                ribbon::ShadowPopover::Controls shadowCtrls;
+                shadowCtrls.enableGroup = qobject_cast<QGroupBox*>( ctrl( Cid::ShadowEnableCheck ) );
+                shadowCtrls.xSpin       = ctrl( Cid::ShadowXSpin );
+                shadowCtrls.ySpin       = ctrl( Cid::ShadowYSpin );
+                shadowCtrls.colorButton = ctrl( Cid::ShadowColorButton );
+                shadowCtrls.opacitySpin = ctrl( Cid::ShadowOpacitySpin );
+                mShadowPopover = new ribbon::ShadowPopover( shadowCtrls, this );
+
+                // -----------------------------------------------------------------
+                // Shared transplanted Position (X, Y), Rect Size (W, H, Lock aspect,
+                // Image Original size + Reset), and Line (Width, Color) containers
+                // -----------------------------------------------------------------
+                mSharedPosWidget = new QWidget( this );
+                {
+                        auto* grid = new QGridLayout( mSharedPosWidget );
+                        grid->setContentsMargins( 0, 4, 0, 0 );
+                        grid->setHorizontalSpacing( 6 );
+                        grid->setVerticalSpacing( 6 );
+
+                        QWidget* posX = ctrl( Cid::PosXSpin );
+                        QWidget* posY = ctrl( Cid::PosYSpin );
+                        posX->setParent( mSharedPosWidget );
+                        posY->setParent( mSharedPosWidget );
+                        posX->setFixedWidth( 92 );
+                        posY->setFixedWidth( 92 );
+                        posX->show();
+                        posY->show();
+
+                        grid->addWidget( makeFieldLabel( tr( "X" ), mSharedPosWidget ), 0, 0 );
+                        grid->addWidget( posX, 0, 1 );
+                        grid->addWidget( makeFieldLabel( tr( "Y" ), mSharedPosWidget ), 1, 0 );
+                        grid->addWidget( posY, 1, 1 );
+                }
+
+                mSharedRectSizeWidget = new QWidget( this );
+                {
+                        auto* row = new QHBoxLayout( mSharedRectSizeWidget );
+                        row->setContentsMargins( 8, 4, 0, 0 );
+                        row->setSpacing( 8 );
+
+                        auto* grid = new QGridLayout();
+                        grid->setContentsMargins( 0, 0, 0, 0 );
+                        grid->setHorizontalSpacing( 6 );
+                        grid->setVerticalSpacing( 6 );
+
+                        QWidget* sizeW = ctrl( Cid::SizeWSpin );
+                        QWidget* sizeH = ctrl( Cid::SizeHSpin );
+                        sizeW->setParent( mSharedRectSizeWidget );
+                        sizeH->setParent( mSharedRectSizeWidget );
+                        sizeW->setFixedWidth( 92 );
+                        sizeH->setFixedWidth( 92 );
+                        sizeW->show();
+                        sizeH->show();
+
+                        grid->addWidget( makeFieldLabel( tr( "W" ), mSharedRectSizeWidget ), 0, 0 );
+                        grid->addWidget( sizeW, 0, 1 );
+                        grid->addWidget( makeFieldLabel( tr( "H" ), mSharedRectSizeWidget ), 1, 0 );
+                        grid->addWidget( sizeH, 1, 1 );
+                        row->addLayout( grid );
+
+                        QWidget* aspectCheck = ctrl( Cid::SizeAspectCheck );
+                        aspectCheck->setParent( mSharedRectSizeWidget );
+                        if ( auto* cb = qobject_cast<QCheckBox*>( aspectCheck ) )
+                        {
+                                cb->setText( tr( "Lock aspect" ) );
+                        }
+                        aspectCheck->show();
+                        row->addWidget( aspectCheck, 0, Qt::AlignVCenter );
+
+                        // Image-only sub-widget (Original size + Reset button)
+                        mImageResetSubWidget = new QWidget( mSharedRectSizeWidget );
+                        auto* imgCol = new QVBoxLayout( mImageResetSubWidget );
+                        imgCol->setContentsMargins( 6, 0, 0, 0 );
+                        imgCol->setSpacing( 4 );
+                        QWidget* origLbl  = ctrl( Cid::SizeOriginalSizeLabel );
+                        QWidget* resetBtn = ctrl( Cid::SizeResetImageButton );
+                        origLbl->setParent( mImageResetSubWidget );
+                        origLbl->setProperty( "role", QStringLiteral( "ribbonCaption" ) );
+                        origLbl->show();
+                        resetBtn->setParent( mImageResetSubWidget );
+                        resetBtn->setFixedHeight( theme::Metrics::field );
+                        resetBtn->show();
+                        imgCol->addWidget( origLbl );
+                        imgCol->addWidget( resetBtn, 0, Qt::AlignLeft );
+                        mImageResetSubWidget->hide();
+                        row->addWidget( mImageResetSubWidget, 0, Qt::AlignVCenter );
+                }
+
+                mSharedLineWidget = new QWidget( this );
+                {
+                        auto* grid = new QGridLayout( mSharedLineWidget );
+                        grid->setContentsMargins( 0, 4, 0, 0 );
+                        grid->setHorizontalSpacing( 6 );
+                        grid->setVerticalSpacing( 6 );
+
+                        QWidget* lw = ctrl( Cid::LineWidthSpin );
+                        QWidget* lc = ctrl( Cid::LineColorButton );
+                        lw->setParent( mSharedLineWidget );
+                        lc->setParent( mSharedLineWidget );
+                        lw->setFixedWidth( 84 );
+                        lc->setFixedWidth( 96 );
+                        lw->show();
+                        lc->show();
+
+                        grid->addWidget( makeFieldLabel( tr( "Width" ), mSharedLineWidget ), 0, 0 );
+                        grid->addWidget( lw, 0, 1 );
+                        grid->addWidget( makeFieldLabel( tr( "Color" ), mSharedLineWidget ), 1, 0 );
+                        grid->addWidget( lc, 1, 1 );
+                }
+
+                // Helpers for repeated contextual groups
+                auto addPosSizeHost = [this]( ribbon::RibbonTab* tab, ribbon::TabId id, const QString& title )
+                {
+                        auto* grp = tab->addGroup( title, QStringLiteral( "ruler" ), 2 );
+                        auto* host = new QHBoxLayout();
+                        host->setContentsMargins( 0, 0, 0, 0 );
+                        host->setSpacing( 0 );
+                        grp->addLayout( host );
+                        mPosSizeHostLayouts.insert( id, host );
+                };
+
+                auto addLineHost = [this]( ribbon::RibbonTab* tab, ribbon::TabId id )
+                {
+                        auto* grp = tab->addGroup( tr( "Line" ), QStringLiteral( "slash" ), 0 );
+                        auto* host = new QHBoxLayout();
+                        host->setContentsMargins( 0, 0, 0, 0 );
+                        host->setSpacing( 0 );
+                        grp->addLayout( host );
+                        mLineHostLayouts.insert( id, host );
+                };
+
+                auto addEffectsGroup = [this]( ribbon::RibbonTab* tab )
+                {
+                        auto* grp = tab->addGroup( tr( "Effects" ), QStringLiteral( "layers" ), 2 );
+                        auto* shadowBtn = new ribbon::RibbonDropButton(
+                                tr( "Shadow" ), QStringLiteral( "layers" ), Btn::Size::Large, grp );
+                        shadowBtn->setToolTip( tr( "Enable and configure drop shadow" ) );
+                        shadowBtn->setPopupWidget( mShadowPopover );
+                        connect( shadowBtn, &ribbon::RibbonDropButton::aboutToShowPopup,
+                                 mShadowPopover, &ribbon::ShadowPopover::syncFromObjectEditor );
+                        grp->addWidget( shadowBtn );
+                };
+
                 auto addArrangeGroup = [this]( ribbon::RibbonTab* tab )
                 {
                         auto* arrangeGrp = tab->addGroup( tr( "Arrange" ), QStringLiteral( "bring-to-front" ), 3 );
@@ -1472,11 +1638,400 @@ namespace glabels
                         arrangeGrp->addLayout( xformGrid );
                 };
 
-                addArrangeGroup( mRibbonBar->tab( ribbon::TabId::ContextText ) );
-                addArrangeGroup( mRibbonBar->tab( ribbon::TabId::ContextBarcode ) );
-                addArrangeGroup( mRibbonBar->tab( ribbon::TabId::ContextImage ) );
-                addArrangeGroup( mRibbonBar->tab( ribbon::TabId::ContextShape ) );
-                addArrangeGroup( mRibbonBar->tab( ribbon::TabId::ContextLine ) );
+                // =================================================================
+                // 1. Contextual tab: Text (SPEC 6.2 & s04)
+                // =================================================================
+                {
+                        ribbon::RibbonTab* tab = mRibbonBar->tab( ribbon::TabId::ContextText );
+
+                        // Font
+                        auto* fontGrp = tab->addGroup( tr( "Font" ), QStringLiteral( "type" ), 0 );
+                        auto* fontCol = new QVBoxLayout();
+                        fontCol->setContentsMargins( 0, 4, 0, 0 );
+                        fontCol->setSpacing( 6 );
+
+                        auto* row1 = new QHBoxLayout();
+                        row1->setSpacing( 4 );
+                        QWidget* fontCombo = ctrl( Cid::TextFontFamilyCombo );
+                        QWidget* fontSize  = ctrl( Cid::TextFontSizeSpin );
+                        fontCombo->setParent( fontGrp );
+                        fontSize->setParent( fontGrp );
+                        fontCombo->setFixedWidth( 150 );
+                        fontSize->setFixedWidth( 68 );
+                        fontCombo->show();
+                        fontSize->show();
+                        row1->addWidget( fontCombo );
+                        row1->addWidget( fontSize );
+                        fontCol->addLayout( row1 );
+
+                        auto* row2 = new QHBoxLayout();
+                        row2->setSpacing( 3 );
+                        QWidget* boldBtn   = ctrl( Cid::TextFontBoldToggle );
+                        QWidget* italicBtn = ctrl( Cid::TextFontItalicToggle );
+                        QWidget* underBtn  = ctrl( Cid::TextFontUnderlineToggle );
+                        QWidget* colorBtn  = ctrl( Cid::TextColorButton );
+                        for ( QWidget* w : { boldBtn, italicBtn, underBtn, colorBtn } )
+                        {
+                                w->setParent( fontGrp );
+                                w->show();
+                        }
+                        colorBtn->setFixedWidth( 96 );
+                        row2->addWidget( boldBtn );
+                        row2->addWidget( italicBtn );
+                        row2->addWidget( underBtn );
+                        row2->addSpacing( 6 );
+                        row2->addWidget( colorBtn );
+                        row2->addStretch( 1 );
+                        fontCol->addLayout( row2 );
+                        fontGrp->addLayout( fontCol );
+
+                        // Alignment
+                        auto* alignGrp = tab->addGroup( tr( "Alignment" ), QStringLiteral( "align-left" ), 1 );
+                        auto* alignCol = new QVBoxLayout();
+                        alignCol->setContentsMargins( 0, 4, 0, 0 );
+                        alignCol->setSpacing( 6 );
+
+                        auto* hRow = new QHBoxLayout();
+                        hRow->setSpacing( 2 );
+                        for ( Cid cid : { Cid::TextHAlignLeftToggle, Cid::TextHAlignCenterToggle, Cid::TextHAlignRightToggle } )
+                        {
+                                QWidget* w = ctrl( cid );
+                                w->setParent( alignGrp );
+                                w->show();
+                                hRow->addWidget( w );
+                        }
+                        alignCol->addLayout( hRow );
+
+                        auto* vRow = new QHBoxLayout();
+                        vRow->setSpacing( 2 );
+                        for ( Cid cid : { Cid::TextVAlignTopToggle, Cid::TextVAlignMiddleToggle, Cid::TextVAlignBottomToggle } )
+                        {
+                                QWidget* w = ctrl( cid );
+                                w->setParent( alignGrp );
+                                w->show();
+                                vRow->addWidget( w );
+                        }
+                        alignCol->addLayout( vRow );
+                        alignGrp->addLayout( alignCol );
+
+                        // Paragraph
+                        auto* paraGrp = tab->addGroup( tr( "Paragraph" ), QStringLiteral( "align-left" ), 2 );
+                        auto* paraCol = new QVBoxLayout();
+                        paraCol->setContentsMargins( 0, 4, 0, 0 );
+                        paraCol->setSpacing( 6 );
+
+                        auto* pRow1 = new QHBoxLayout();
+                        pRow1->setSpacing( 6 );
+                        QWidget* lsSpin    = ctrl( Cid::TextLineSpacingSpin );
+                        QWidget* wrapCombo = ctrl( Cid::TextWrapModeCombo );
+                        lsSpin->setParent( paraGrp );
+                        wrapCombo->setParent( paraGrp );
+                        lsSpin->setFixedWidth( 64 );
+                        wrapCombo->setFixedWidth( 104 );
+                        lsSpin->show();
+                        wrapCombo->show();
+                        pRow1->addWidget( makeFieldLabel( tr( "Line spacing" ), paraGrp ) );
+                        pRow1->addWidget( lsSpin );
+                        pRow1->addSpacing( 4 );
+                        pRow1->addWidget( makeFieldLabel( tr( "Wrap" ), paraGrp ) );
+                        pRow1->addWidget( wrapCombo );
+                        paraCol->addLayout( pRow1 );
+
+                        QWidget* shrinkCheck = ctrl( Cid::TextAutoShrinkCheck );
+                        shrinkCheck->setParent( paraGrp );
+                        shrinkCheck->show();
+                        paraCol->addWidget( shrinkCheck );
+                        paraGrp->addLayout( paraCol );
+
+                        // Content (Insert field dropdown sharing textInsertFieldButton's QMenu)
+                        auto* contentGrp = tab->addGroup( tr( "Content" ), QStringLiteral( "braces" ), 1 );
+                        mTextInsertFieldDropBtn = new ribbon::RibbonDropButton(
+                                tr( "Insert field" ), QStringLiteral( "braces" ), Btn::Size::Large, contentGrp );
+                        if ( auto* fb = qobject_cast<QPushButton*>( ctrl( Cid::TextInsertFieldButton ) ) )
+                        {
+                                mTextInsertFieldDropBtn->setMenu( fb->menu() );
+                                mTextInsertFieldDropBtn->setEnabled( fb->isEnabled() );
+                        }
+                        contentGrp->addWidget( mTextInsertFieldDropBtn );
+
+                        addPosSizeHost( tab, ribbon::TabId::ContextText, tr( "Position and size" ) );
+                        addEffectsGroup( tab );
+                        addArrangeGroup( tab );
+                }
+
+                // =================================================================
+                // 2. Contextual tab: Barcode (SPEC 6.2 & s05 — NO Effects/Shadow!)
+                // =================================================================
+                {
+                        ribbon::RibbonTab* tab = mRibbonBar->tab( ribbon::TabId::ContextBarcode );
+
+                        // Type
+                        auto* typeGrp = tab->addGroup( tr( "Type" ), QStringLiteral( "barcode" ), 0 );
+                        auto* typeCol = new QVBoxLayout();
+                        typeCol->setContentsMargins( 0, 4, 0, 0 );
+                        typeCol->setSpacing( 6 );
+
+                        QWidget* styleBtn = ctrl( Cid::BarcodeStyleButton );
+                        styleBtn->setParent( typeGrp );
+                        styleBtn->setMinimumWidth( 168 );
+                        styleBtn->show();
+                        typeCol->addWidget( styleBtn );
+
+                        auto* flagsRow = new QHBoxLayout();
+                        flagsRow->setSpacing( 10 );
+                        QWidget* showText = ctrl( Cid::BarcodeShowTextCheck );
+                        QWidget* checksum = ctrl( Cid::BarcodeChecksumCheck );
+                        showText->setParent( typeGrp );
+                        checksum->setParent( typeGrp );
+                        showText->show();
+                        checksum->show();
+                        flagsRow->addWidget( showText );
+                        flagsRow->addWidget( checksum );
+                        typeCol->addLayout( flagsRow );
+                        typeGrp->addLayout( typeCol );
+
+                        // Color
+                        auto* colorGrp = tab->addGroup( tr( "Color" ), QStringLiteral( "palette" ), 1 );
+                        auto* colorCol = new QVBoxLayout();
+                        colorCol->setContentsMargins( 0, 4, 0, 0 );
+                        colorCol->setSpacing( 4 );
+                        colorCol->addWidget( makeFieldLabel( tr( "Color" ), colorGrp ) );
+                        QWidget* bcColor = ctrl( Cid::BarcodeColorButton );
+                        bcColor->setParent( colorGrp );
+                        bcColor->setFixedWidth( 96 );
+                        bcColor->show();
+                        colorCol->addWidget( bcColor );
+                        colorGrp->addLayout( colorCol );
+
+                        // Data
+                        auto* dataGrp = tab->addGroup( tr( "Data" ), QStringLiteral( "braces" ), 1 );
+                        mBarcodeInsertFieldDropBtn = new ribbon::RibbonDropButton(
+                                tr( "Insert field" ), QStringLiteral( "braces" ), Btn::Size::Large, dataGrp );
+                        if ( auto* fb = qobject_cast<QPushButton*>( ctrl( Cid::BarcodeInsertFieldButton ) ) )
+                        {
+                                mBarcodeInsertFieldDropBtn->setMenu( fb->menu() );
+                                mBarcodeInsertFieldDropBtn->setEnabled( fb->isEnabled() );
+                        }
+                        dataGrp->addWidget( mBarcodeInsertFieldDropBtn );
+
+                        addPosSizeHost( tab, ribbon::TabId::ContextBarcode, tr( "Position and size" ) );
+                        // Intentionally NO Effects/Shadow group on Barcode (SPEC 6.2 & hard rule)
+                        addArrangeGroup( tab );
+                }
+
+                // =================================================================
+                // 3. Contextual tab: Image (SPEC 6.2 & s06)
+                // =================================================================
+                {
+                        ribbon::RibbonTab* tab = mRibbonBar->tab( ribbon::TabId::ContextImage );
+
+                        // Source
+                        auto* srcGrp = tab->addGroup( tr( "Source" ), QStringLiteral( "image" ), 0 );
+                        auto* srcCol = new QVBoxLayout();
+                        srcCol->setContentsMargins( 0, 4, 0, 0 );
+                        srcCol->setSpacing( 6 );
+
+                        auto* fileRow = new QHBoxLayout();
+                        fileRow->setSpacing( 4 );
+                        QWidget* fnEdit   = ctrl( Cid::ImageFilenameLineEdit );
+                        QWidget* browseBt = ctrl( Cid::ImageBrowseButton );
+                        fnEdit->setParent( srcGrp );
+                        browseBt->setParent( srcGrp );
+                        fnEdit->setFixedWidth( 170 );
+                        fnEdit->show();
+                        browseBt->show();
+                        fileRow->addWidget( fnEdit );
+                        fileRow->addWidget( browseBt );
+                        srcCol->addLayout( fileRow );
+
+                        mImageUseFieldDropBtn = new ribbon::RibbonDropButton(
+                                tr( "Use merge field" ), QStringLiteral( "braces" ), Btn::Size::Small, srcGrp );
+                        if ( auto* fb = qobject_cast<QPushButton*>( ctrl( Cid::ImageFieldButton ) ) )
+                        {
+                                mImageUseFieldDropBtn->setMenu( fb->menu() );
+                                mImageUseFieldDropBtn->setEnabled( fb->isEnabled() );
+                        }
+                        srcCol->addWidget( mImageUseFieldDropBtn, 0, Qt::AlignLeft );
+                        srcGrp->addLayout( srcCol );
+
+                        addPosSizeHost( tab, ribbon::TabId::ContextImage, tr( "Position and size" ) );
+                        addEffectsGroup( tab );
+                        addArrangeGroup( tab );
+                }
+
+                // =================================================================
+                // 4. Contextual tab: Shape (SPEC 6.2 & s07)
+                // =================================================================
+                {
+                        ribbon::RibbonTab* tab = mRibbonBar->tab( ribbon::TabId::ContextShape );
+
+                        addLineHost( tab, ribbon::TabId::ContextShape );
+
+                        // Fill
+                        auto* fillGrp = tab->addGroup( tr( "Fill" ), QStringLiteral( "palette" ), 1 );
+                        auto* fillCol = new QVBoxLayout();
+                        fillCol->setContentsMargins( 0, 4, 0, 0 );
+                        fillCol->setSpacing( 4 );
+                        fillCol->addWidget( makeFieldLabel( tr( "Fill" ), fillGrp ) );
+                        QWidget* fillBtn = ctrl( Cid::FillColorButton );
+                        fillBtn->setParent( fillGrp );
+                        fillBtn->setFixedWidth( 96 );
+                        fillBtn->show();
+                        fillCol->addWidget( fillBtn );
+                        fillGrp->addLayout( fillCol );
+
+                        addPosSizeHost( tab, ribbon::TabId::ContextShape, tr( "Position and size" ) );
+                        addEffectsGroup( tab );
+                        addArrangeGroup( tab );
+                }
+
+                // =================================================================
+                // 5. Contextual tab: Line (SPEC 6.2 & s08)
+                // =================================================================
+                {
+                        ribbon::RibbonTab* tab = mRibbonBar->tab( ribbon::TabId::ContextLine );
+
+                        addLineHost( tab, ribbon::TabId::ContextLine );
+                        addPosSizeHost( tab, ribbon::TabId::ContextLine, tr( "Position" ) );
+
+                        // Size (Length + Angle)
+                        auto* sizeGrp = tab->addGroup( tr( "Size" ), QStringLiteral( "ruler" ), 1 );
+                        auto* grid = new QGridLayout();
+                        grid->setContentsMargins( 0, 4, 0, 0 );
+                        grid->setHorizontalSpacing( 6 );
+                        grid->setVerticalSpacing( 6 );
+
+                        QWidget* lenSpin = ctrl( Cid::SizeLineLengthSpin );
+                        QWidget* angSpin = ctrl( Cid::SizeLineAngleSpin );
+                        lenSpin->setParent( sizeGrp );
+                        angSpin->setParent( sizeGrp );
+                        lenSpin->setFixedWidth( 92 );
+                        angSpin->setFixedWidth( 92 );
+                        lenSpin->show();
+                        angSpin->show();
+
+                        grid->addWidget( makeFieldLabel( tr( "Length" ), sizeGrp ), 0, 0 );
+                        grid->addWidget( lenSpin, 0, 1 );
+                        grid->addWidget( makeFieldLabel( tr( "Angle" ), sizeGrp ), 1, 0 );
+                        grid->addWidget( angSpin, 1, 1 );
+                        sizeGrp->addLayout( grid );
+
+                        addEffectsGroup( tab );
+                        addArrangeGroup( tab );
+                }
+
+                // =================================================================
+                // Transplant Content panel controls once (SPEC 3.4 & 6.5)
+                // =================================================================
+                if ( mContentPanel )
+                {
+                        ribbon::ContentPanel::TransplantedControls panelCtrls;
+                        panelCtrls.textEdit                 = ctrl( Cid::TextEdit );
+                        panelCtrls.textInsertFieldButton    = ctrl( Cid::TextInsertFieldButton );
+                        panelCtrls.barcodeDataEdit          = ctrl( Cid::BarcodeDataEdit );
+                        panelCtrls.barcodeInsertFieldButton = ctrl( Cid::BarcodeInsertFieldButton );
+                        panelCtrls.imageFilenameSource      = qobject_cast<QLineEdit*>( ctrl( Cid::ImageFilenameLineEdit ) );
+                        panelCtrls.imageBrowseSource        = qobject_cast<QPushButton*>( ctrl( Cid::ImageBrowseButton ) );
+                        panelCtrls.imageFieldButton         = ctrl( Cid::ImageFieldButton );
+                        mContentPanel->installControls( panelCtrls );
+
+                        connect( mContentPanel, &ribbon::ContentPanel::fieldActivated,
+                                 this, [this]( const QString& key )
+                                 {
+                                         switch ( currentSelectionKind() )
+                                         {
+                                         case ribbon::SelectionKind::Text:
+                                                 mObjectEditor->insertTextField( key );
+                                                 break;
+                                         case ribbon::SelectionKind::Barcode:
+                                                 mObjectEditor->insertBarcodeField( key );
+                                                 break;
+                                         case ribbon::SelectionKind::Image:
+                                                 mObjectEditor->setImageField( key );
+                                                 break;
+                                         default:
+                                                 break;
+                                         }
+                                 } );
+                }
+
+                // Initial dock of shared widgets so they belong to live ribbon layouts
+                attachSharedContextualWidgets( ribbon::TabId::ContextShape );
+                attachSharedContextualWidgets( ribbon::TabId::ContextText );
+        }
+
+
+        void MainWindow::attachSharedContextualWidgets( ribbon::TabId ctxTab )
+        {
+                if ( auto* posHost = mPosSizeHostLayouts.value( ctxTab, nullptr ) )
+                {
+                        if ( mSharedPosWidget )
+                        {
+                                posHost->addWidget( mSharedPosWidget );
+                                mSharedPosWidget->show();
+                        }
+                        if ( mSharedRectSizeWidget )
+                        {
+                                if ( ctxTab == ribbon::TabId::ContextLine )
+                                {
+                                        mSharedRectSizeWidget->hide();
+                                }
+                                else
+                                {
+                                        posHost->addWidget( mSharedRectSizeWidget );
+                                        mSharedRectSizeWidget->show();
+                                        if ( mImageResetSubWidget )
+                                        {
+                                                mImageResetSubWidget->setVisible( ctxTab == ribbon::TabId::ContextImage );
+                                        }
+                                }
+                        }
+                }
+
+                if ( auto* lineHost = mLineHostLayouts.value( ctxTab, nullptr ) )
+                {
+                        if ( mSharedLineWidget )
+                        {
+                                lineHost->addWidget( mSharedLineWidget );
+                                mSharedLineWidget->show();
+                        }
+                }
+
+                if ( auto* tabWidget = mRibbonBar ? mRibbonBar->tab( ctxTab ) : nullptr )
+                {
+                        tabWidget->updateLayoutState();
+                }
+        }
+
+
+        void MainWindow::syncFieldDropButtons()
+        {
+                if ( !mObjectEditor )
+                {
+                        return;
+                }
+                using Cid = ObjectEditor::ControlId;
+                if ( mTextInsertFieldDropBtn )
+                {
+                        if ( auto* fb = mObjectEditor->control( Cid::TextInsertFieldButton ) )
+                        {
+                                mTextInsertFieldDropBtn->setEnabled( fb->isEnabled() );
+                        }
+                }
+                if ( mBarcodeInsertFieldDropBtn )
+                {
+                        if ( auto* fb = mObjectEditor->control( Cid::BarcodeInsertFieldButton ) )
+                        {
+                                mBarcodeInsertFieldDropBtn->setEnabled( fb->isEnabled() );
+                        }
+                }
+                if ( mImageUseFieldDropBtn )
+                {
+                        if ( auto* fb = mObjectEditor->control( Cid::ImageFieldButton ) )
+                        {
+                                mImageUseFieldDropBtn->setEnabled( fb->isEnabled() );
+                        }
+                }
         }
 
 
@@ -1701,11 +2256,21 @@ namespace glabels
 
                 if ( ribbon::shouldShowContextualTab( mCurrentPage, kind ) )
                 {
-                        mRibbonBar->setVisibleContextualTab( ribbon::contextualTabForSelection( kind ) );
+                        const auto ctxTab = ribbon::contextualTabForSelection( kind );
+                        if ( ctxTab.has_value() )
+                        {
+                                attachSharedContextualWidgets( *ctxTab );
+                        }
+                        mRibbonBar->setVisibleContextualTab( ctxTab );
                 }
                 else
                 {
                         mRibbonBar->setVisibleContextualTab( std::nullopt );
+                }
+
+                if ( mShadowPopover && mShadowPopover->isVisible() )
+                {
+                        mShadowPopover->syncFromObjectEditor();
                 }
 
                 const ribbon::TabId nextTab = ribbon::resolveTabOnSelectionChange(

@@ -1,6 +1,7 @@
 //  StartupView.hpp
 //
 //  Copyright (C) 2016-2026  Jaye Evins <evins@snaught.com>
+//  Copyright (C) 2026       gLabels Neo contributors
 //
 //  This file is part of gLabels-qt.
 //
@@ -22,7 +23,9 @@
 #define StartupView_hpp
 
 
-#include "ui_StartupView.h"
+#include <QLabel>
+#include <QVBoxLayout>
+#include <QWidget>
 
 
 namespace glabels
@@ -33,9 +36,9 @@ namespace glabels
 
 
         ///
-        /// Startup View Widget
+        /// Startup / Welcome View Widget (SPEC 6.3, mockup s01)
         ///
-        class StartupView : public QWidget, public Ui_StartupView
+        class StartupView : public QWidget
         {
                 Q_OBJECT
 
@@ -44,7 +47,14 @@ namespace glabels
                 // Life Cycle
                 /////////////////////////////////
         public:
-                StartupView( MainWindow* window );
+                explicit StartupView( MainWindow* window );
+
+
+                /////////////////////////////////
+                // Events
+                /////////////////////////////////
+        protected:
+                void paintEvent( QPaintEvent* event ) override;
 
 
                 /////////////////////////////////
@@ -53,24 +63,27 @@ namespace glabels
         private slots:
                 void onNewProjectButtonClicked();
                 void onOpenProjectButtonClicked();
-                void onOpenRecentAction();
                 void onSettingsChanged();
-                void onAppearanceChanged();
+                void onThemeChanged();
 
 
                 /////////////////////////////////
                 // Private methods
                 /////////////////////////////////
         private:
-                void loadRecentsMenu();
+                void loadRecentsList();
 
 
                 /////////////////////////////////
                 // Private data
                 /////////////////////////////////
         private:
-                MainWindow* mWindow;
-
+                MainWindow*  mWindow{ nullptr };
+                QLabel*      mMarkLabel{ nullptr };
+                QLabel*      mHeadingLabel{ nullptr };
+                QLabel*      mAttributionLabel{ nullptr };
+                QWidget*     mRecentCard{ nullptr };
+                QVBoxLayout* mRecentRowsLayout{ nullptr };
         };
 
 }

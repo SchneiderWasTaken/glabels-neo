@@ -1,6 +1,7 @@
 //  MainWindow.hpp
 //
 //  Copyright (C) 2014-2026  Jaye Evins <evins@snaught.com>
+//  Copyright (C) 2026       gLabels Neo contributors
 //
 //  This file is part of gLabels-qt.
 //
@@ -23,20 +24,22 @@
 
 
 #include "UndoRedoModel.hpp"
+#include "ribbon/RibbonTypes.hpp"
 
 #include <model/Model.hpp>
 
 #include <QAction>
+#include <QActionGroup>
+#include <QCheckBox>
 #include <QCloseEvent>
+#include <QComboBox>
+#include <QDoubleSpinBox>
 #include <QLabel>
-#include <QListWidget>
+#include <QList>
 #include <QMainWindow>
 #include <QMenu>
-#include <QMenuBar>
 #include <QScrollArea>
 #include <QStackedWidget>
-#include <QToolBar>
-#include <QToolButton>
 
 #include <memory>
 
@@ -54,6 +57,19 @@ namespace glabels
         class StartupView;
         class VariablesView;
         class DeployView;
+
+        namespace ribbon
+        {
+                class Backstage;
+                class ContentPanel;
+                class EditorRulerFrame;
+                class RibbonBar;
+                class RibbonButton;
+                class RibbonGroup;
+                class RibbonStatusBar;
+                class RibbonToggleGroup;
+                class ShadowPopover;
+        }
 
 
         ///
@@ -80,19 +96,33 @@ namespace glabels
                 void setModel( model::Model* model );
                 bool isEmpty() const;
 
+                // Inspection accessors (used by unit tests)
+                ribbon::RibbonBar*       ribbonBar() const;
+                ribbon::Backstage*       backstage() const;
+                ribbon::ContentPanel*    contentPanel() const;
+                ribbon::RibbonStatusBar* ribbonStatusBar() const;
+                QStackedWidget*          pageStack() const;
+                QList<QAction*>          allWindowActions() const;
+                ribbon::SelectionKind    currentSelectionKind() const;
+
 
                 /////////////////////////////////////
                 // Events
                 /////////////////////////////////////
         protected:
                 void closeEvent( QCloseEvent *event ) override;
+                bool event( QEvent *event ) override;
+                bool eventFilter( QObject *watched, QEvent *event ) override;
 
 
                 /////////////////////////////////////
                 // Slots
                 /////////////////////////////////////
         private slots:
-                void changePage( bool checked );
+                void onRibbonTabChanged( ribbon::TabId id );
+                void onFileButtonClicked();
+                void onBackstageCloseRequested();
+                void onStatusZoomStepsRequested( int steps );
 
                 void clipboardChanged();
 
@@ -124,7 +154,7 @@ namespace glabels
                 void editPreferences();
 
                 void viewFileToolBar( bool );
-                void viewEditorToolBar( bool );
+                void viewContentPanel( bool );
                 void viewGrid( bool );
                 void viewMarkup( bool );
                 void viewZoomIn();
@@ -179,9 +209,18 @@ namespace glabels
                 /////////////////////////////////////
         private:
                 void createActions();
-                void createMenus();
-                void createToolBars();
+                void createContextMenus();
+                void createRibbon();
                 void createStatusBar();
+
+                void populateHomeTab();
+                void populateLabelTab();
+                void populateDataTab();
+                void populatePrintTab();
+                void populateDeployTab();
+                void populateViewTab();
+                void populateHelpTab();
+                void populateContextualTabs();
 
                 QWidget* createWelcomePage();
                 QWidget* createEditorPage();
@@ -191,6 +230,13 @@ namespace glabels
                 QWidget* createFillPage();
                 QWidget* createPrintPage();
                 QWidget* createDeployPage();
+
+                void switchToPage( ribbon::PageId page, bool syncRibbon = true );
+                void updateContextualTabState( bool activateIfSingle );
+                void updateDataTabGroups();
+                void updateLabelTabInfo();
+                void updatePrintTabInfo();
+                void updateStatusBarSummary();
 
                 void manageActions();
 
@@ -215,130 +261,145 @@ namespace glabels
                 // Private Data
                 // owned by QMainWindow
                 /////////////////////////////////////
-                QMenu*    fileMenu;
-                QMenu*    fileRecentMenu;
-                QMenu*    editMenu;
-                QMenu*    viewMenu;
-                QMenu*    viewToolBarsMenu;
-                QMenu*    objectsMenu;
-                QMenu*    objectsCreateMenu;
-                QMenu*    objectsOrderMenu;
-                QMenu*    objectsXformMenu;
-                QMenu*    objectsAlignMenu;
-                QMenu*    objectsCenterMenu;
-                QMenu*    helpMenu;
+        private:
+                QStackedWidget*           mShellStack{ nullptr };
+                ribbon::RibbonBar*        mRibbonBar{ nullptr };
+                ribbon::Backstage*        mBackstage{ nullptr };
+                ribbon::RibbonStatusBar*  mRibbonStatusBar{ nullptr };
+                ribbon::EditorRulerFrame* mEditorRulerFrame{ nullptr };
+                ribbon::ContentPanel*     mContentPanel{ nullptr };
+                ribbon::ShadowPopover*    mShadowPopover{ nullptr };
 
-                QMenu*    contextMenu;
-                QMenu*    contextOrderMenu;
-                QMenu*    contextXformMenu;
-                QMenu*    contextAlignMenu;
-                QMenu*    contextCenterMenu;
-                QMenu*    noSelectionContextMenu;
+                QMenu*    contextMenu{ nullptr };
+                QMenu*    contextOrderMenu{ nullptr };
+                QMenu*    contextXformMenu{ nullptr };
+                QMenu*    contextAlignMenu{ nullptr };
+                QMenu*    contextCenterMenu{ nullptr };
+                QMenu*    noSelectionContextMenu{ nullptr };
 
-                QToolBar* fileToolBar;
-                QToolBar* editorToolBar;
+                QStackedWidget*      mPages{ nullptr };
+                StartupView*         mWelcomeView{ nullptr };
+                QScrollArea*         mLabelEditorScrollArea{ nullptr };
+                LabelEditor*         mLabelEditor{ nullptr };
+                ObjectEditor*        mObjectEditor{ nullptr };
+                PropertiesView*      mPropertiesView{ nullptr };
+                MergeView*           mMergeView{ nullptr };
+                VariablesView*       mVariablesView{ nullptr };
+                FillView*            mFillView{ nullptr };
+                PrintView*           mPrintView{ nullptr };
+                DeployView*          mDeployView{ nullptr };
 
-                QToolBar*            mContents;
-                QToolButton*         mWelcomeButton;
-                QToolButton*         mEditorButton;
-                QToolButton*         mPropertiesButton;
-                QToolButton*         mMergeButton;
-                QToolButton*         mVariablesButton;
-                QToolButton*         mFillButton;
-                QToolButton*         mPrintButton;
-                QToolButton*         mDeployButton;
+                ribbon::PageId       mCurrentPage{ ribbon::PageId::Welcome };
+                ribbon::DataSubPage  mLastDataSubPage{ ribbon::DataSubPage::Merge };
+                bool                 mCreatingObject{ false };
+                bool                 mSyncingRibbon{ false };
 
-                QAction*             mWelcomeAction;
-                QAction*             mEditorAction;
-                QAction*             mPropertiesAction;
-                QAction*             mMergeAction;
-                QAction*             mVariablesAction;
-                QAction*             mFillAction;
-                QAction*             mPrintAction;
-                QAction*             mDeployAction;
+                // Ribbon sub-widgets needing synchronization
+                QLabel*                    mLabelTabName{ nullptr };
+                QLabel*                    mLabelTabDetails{ nullptr };
+                ribbon::RibbonGroup*       mLabelTabParamsGroup{ nullptr };
+                QDoubleSpinBox*            mLabelTabLengthSpin{ nullptr };
+                QComboBox*                 mLabelTabOrientationCombo{ nullptr };
 
-                QStackedWidget*      mPages;
-                StartupView*         mWelcomeView;
-                QScrollArea*         mLabelEditorScrollArea;
-                LabelEditor*         mLabelEditor;
-                ObjectEditor*        mObjectEditor;
-                PropertiesView*      mPropertiesView;
-                MergeView*           mMergeView;
-                VariablesView*       mVariablesView;
-                FillView*            mFillView;
-                PrintView*           mPrintView;
-                DeployView*          mDeployView;
+                ribbon::RibbonButton*      mDataMergeBtn{ nullptr };
+                ribbon::RibbonButton*      mDataVariablesBtn{ nullptr };
+                ribbon::RibbonButton*      mDataFillBtn{ nullptr };
+                ribbon::RibbonGroup*       mDataMergeSourceGroup{ nullptr };
+                ribbon::RibbonGroup*       mDataMergeRecordsGroup{ nullptr };
+                ribbon::RibbonGroup*       mDataVarsGroup{ nullptr };
+                ribbon::RibbonGroup*       mDataFillRowsGroup{ nullptr };
+                ribbon::RibbonGroup*       mDataFillIoGroup{ nullptr };
+                ribbon::RibbonGroup*       mDataFillOutputGroup{ nullptr };
+                ribbon::RibbonButton*      mVarsEditRibbonBtn{ nullptr };
+                ribbon::RibbonButton*      mVarsDeleteRibbonBtn{ nullptr };
+                ribbon::RibbonButton*      mFillPrintRibbonBtn{ nullptr };
+                ribbon::RibbonButton*      mFillSystemDialogRibbonBtn{ nullptr };
 
-                QLabel*   zoomInfoLabel;
-                QLabel*   cursorInfoLabel;
+                ribbon::RibbonButton*      mPrintRibbonBtn{ nullptr };
+                ribbon::RibbonButton*      mPrintSystemDialogRibbonBtn{ nullptr };
+                QComboBox*                 mPrintTabDestCombo{ nullptr };
+                QLabel*                    mPrintTabStatusLabel{ nullptr };
 
-                QAction*  fileNewAction;
-                QAction*  fileOpenAction;
-                QAction*  fileSaveAction;
-                QAction*  fileSaveAsAction;
-                QAction*  fileShowEditorPageAction;
-                QAction*  fileShowPropertiesPageAction;
-                QAction*  fileShowMergePageAction;
-                QAction*             fileShowVariablesPageAction;
-                QAction*             fileShowFillPageAction;
-                QAction*             fileShowPrintPageAction;
-                QAction*             fileShowDeployPageAction;
-                QAction*  fileTemplateDesignerAction;
-                QAction*  fileCloseAction;
-                QAction*  fileExitAction;
+                QCheckBox*                 mViewGridCheck{ nullptr };
+                QCheckBox*                 mViewMarkupCheck{ nullptr };
+                QCheckBox*                 mViewQatCheck{ nullptr };
+                QCheckBox*                 mViewContentPanelCheck{ nullptr };
+                ribbon::RibbonToggleGroup* mViewColorSchemeGroup{ nullptr };
+                ribbon::RibbonToggleGroup* mViewIconStyleGroup{ nullptr };
+
+                QActionGroup*              mInsertToolGroup{ nullptr };
+
+                QAction*  fileNewAction{ nullptr };
+                QAction*  fileOpenAction{ nullptr };
+                QAction*  fileSaveAction{ nullptr };
+                QAction*  fileSaveAsAction{ nullptr };
+                QAction*  fileShowEditorPageAction{ nullptr };
+                QAction*  fileShowPropertiesPageAction{ nullptr };
+                QAction*  fileShowMergePageAction{ nullptr };
+                QAction*  fileShowVariablesPageAction{ nullptr };
+                QAction*  fileShowFillPageAction{ nullptr };
+                QAction*  fileShowPrintPageAction{ nullptr };
+                QAction*  fileShowDeployPageAction{ nullptr };
+                QAction*  fileTemplateDesignerAction{ nullptr };
+                QAction*  fileCloseAction{ nullptr };
+                QAction*  fileExitAction{ nullptr };
 
                 QList<QAction*>  fileRecentActionList;
 
-                QAction*  editUndoAction;
-                QAction*  editRedoAction;
-                QAction*  editCutAction;
-                QAction*  editCopyAction;
-                QAction*  editPasteAction;
-                QAction*  editDeleteAction;
-                QAction*  editSelectAllAction;
-                QAction*  editUnSelectAllAction;
-                QAction*  editPreferencesAction;
+                QAction*  editUndoAction{ nullptr };
+                QAction*  editRedoAction{ nullptr };
+                QAction*  editCutAction{ nullptr };
+                QAction*  editCopyAction{ nullptr };
+                QAction*  editPasteAction{ nullptr };
+                QAction*  editDeleteAction{ nullptr };
+                QAction*  editSelectAllAction{ nullptr };
+                QAction*  editUnSelectAllAction{ nullptr };
+                QAction*  editPreferencesAction{ nullptr };
 
-                QAction*  viewFileToolBarAction;
-                QAction*  viewEditorToolBarAction;
-                QAction*  viewGridAction;
-                QAction*  viewMarkupAction;
-                QAction*  viewZoomInAction;
-                QAction*  viewZoomOutAction;
-                QAction*  viewZoom1To1Action;
-                QAction*  viewZoomToFitAction;
+                QAction*  viewFileToolBarAction{ nullptr };
+                QAction*  viewContentPanelAction{ nullptr };
+                QAction*  viewCollapseRibbonAction{ nullptr };
+                QAction*  viewGridAction{ nullptr };
+                QAction*  viewMarkupAction{ nullptr };
+                QAction*  viewZoomInAction{ nullptr };
+                QAction*  viewZoomOutAction{ nullptr };
+                QAction*  viewZoom1To1Action{ nullptr };
+                QAction*  viewZoomToFitAction{ nullptr };
 
-                QAction*  objectsArrowModeAction;
-                QAction*  objectsCreateTextAction;
-                QAction*  objectsCreateBoxAction;
-                QAction*  objectsCreateLineAction;
-                QAction*  objectsCreateEllipseAction;
-                QAction*  objectsCreateImageAction;
-                QAction*  objectsCreateBarcodeAction;
-                QAction*  objectsOrderRaiseAction;
-                QAction*  objectsOrderLowerAction;
-                QAction*  objectsXformRotateLeftAction;
-                QAction*  objectsXformRotateRightAction;
-                QAction*  objectsXformFlipHorizAction;
-                QAction*  objectsXformFlipVertAction;
-                QAction*  objectsAlignLeftAction;
-                QAction*  objectsAlignHCenterAction;
-                QAction*  objectsAlignRightAction;
-                QAction*  objectsAlignTopAction;
-                QAction*  objectsAlignVCenterAction;
-                QAction*  objectsAlignBottomAction;
-                QAction*  objectsCenterAction;
-                QAction*  objectsCenterHorizAction;
-                QAction*  objectsCenterVertAction;
+                QAction*  objectsArrowModeAction{ nullptr };
+                QAction*  objectsCreateTextAction{ nullptr };
+                QAction*  objectsCreateBoxAction{ nullptr };
+                QAction*  objectsCreateLineAction{ nullptr };
+                QAction*  objectsCreateEllipseAction{ nullptr };
+                QAction*  objectsCreateImageAction{ nullptr };
+                QAction*  objectsCreateBarcodeAction{ nullptr };
+                QAction*  objectsOrderRaiseAction{ nullptr };
+                QAction*  objectsOrderLowerAction{ nullptr };
+                QAction*  objectsXformRotateLeftAction{ nullptr };
+                QAction*  objectsXformRotateRightAction{ nullptr };
+                QAction*  objectsXformFlipHorizAction{ nullptr };
+                QAction*  objectsXformFlipVertAction{ nullptr };
+                QAction*  objectsAlignLeftAction{ nullptr };
+                QAction*  objectsAlignHCenterAction{ nullptr };
+                QAction*  objectsAlignRightAction{ nullptr };
+                QAction*  objectsAlignTopAction{ nullptr };
+                QAction*  objectsAlignVCenterAction{ nullptr };
+                QAction*  objectsAlignBottomAction{ nullptr };
+                QAction*  objectsCenterAction{ nullptr };
+                QAction*  objectsCenterHorizAction{ nullptr };
+                QAction*  objectsCenterVertAction{ nullptr };
 
-                QAction*  helpContentsAction;
-                QAction*  helpReportBugAction;
-                QAction*  helpAboutAction;
+                QAction*  helpContentsAction{ nullptr };
+                QAction*  helpReportBugAction{ nullptr };
+                QAction*  helpCheckForUpdatesAction{ nullptr };
+                QAction*  helpAboutAction{ nullptr };
 
-                QAction*  contextCutAction;
-                QAction*  contextCopyAction;
-                QAction*  contextPasteAction;
-                QAction*  contextDeleteAction;
+                QAction*  contextCutAction{ nullptr };
+                QAction*  contextCopyAction{ nullptr };
+                QAction*  contextPasteAction{ nullptr };
+                QAction*  contextDeleteAction{ nullptr };
+
+                QList<QAction*> mAllWindowActions;
         };
 
 

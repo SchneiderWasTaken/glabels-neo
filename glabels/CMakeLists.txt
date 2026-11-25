@@ -164,6 +164,12 @@ set (glabels_resource_files
   images.qrc
 )
 
+# --- ribbon-ui: core (resources) ---
+list (APPEND glabels_resource_files
+  ribbon/ribbon.qrc
+)
+# --- end ribbon-ui: core (resources) ---
+
 qt6_wrap_cpp (glabels_moc_sources ${glabels_qobject_headers})
 qt6_wrap_ui (glabels_forms_headers ${glabels_forms})
 qt6_add_resources (glabels_qrc_sources ${glabels_resource_files})

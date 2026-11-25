@@ -73,7 +73,10 @@ namespace glabels::ribbon
                 void setCollapsed( bool collapsed );
                 void toggleCollapsed();
 
-                /// All QActions bound across Quick Access and every RibbonTab.
+                /// Associate a page-switch QAction (e.g. Ctrl+1, Ctrl+P) with a ribbon tab.
+                void registerTabAction( TabId id, QAction* action );
+
+                /// All QActions bound across Quick Access, tab headers, and every RibbonTab.
                 QList<QAction*> allBoundActions() const;
 
         signals:
@@ -102,6 +105,7 @@ namespace glabels::ribbon
                 QWidget*                 mCollapsedPopup{ nullptr };
 
                 QMap<TabId, RibbonTab*>  mTabs;
+                QMap<TabId, QAction*>    mTabActions;
                 QList<TabId>             mTabOrder;
                 TabId                    mCurrentTab{ TabId::Home };
                 std::optional<TabId>     mVisibleContextual;

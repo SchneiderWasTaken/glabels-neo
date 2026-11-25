@@ -58,6 +58,7 @@ namespace glabels
                 explicit DeployView( QWidget* parent = nullptr );
 
                 void setModel( model::Model* model );
+                QPushButton* buildButton() const { return mBuildButton; }
 
         private slots:
                 void onBrowseSource();

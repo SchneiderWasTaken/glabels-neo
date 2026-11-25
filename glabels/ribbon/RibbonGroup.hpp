@@ -68,7 +68,10 @@ namespace glabels::ribbon
 
                 void setShowSeparator( bool show );
 
-                /// Collect all QActions bound to RibbonButtons inside this group.
+                /// Register a non-RibbonButton action hosted in this group (e.g. a QCheckBox).
+                void registerAction( QAction* action );
+
+                /// Collect all QActions bound to RibbonButtons or registered in this group.
                 QList<QAction*> boundActions() const;
 
         protected:
@@ -95,6 +98,7 @@ namespace glabels::ribbon
 
                 RibbonDropButton* mOverflowButton{ nullptr };
                 QWidget*          mOverflowPopup{ nullptr };
+                QList<QAction*>   mExtraActions;
         };
 
 }

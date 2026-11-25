@@ -237,15 +237,27 @@ namespace glabels::ribbon
         }
 
 
+        void RibbonGroup::registerAction( QAction* action )
+        {
+                if ( action && !mExtraActions.contains( action ) )
+                {
+                        mExtraActions.append( action );
+                }
+        }
+
+
         QList<QAction*> RibbonGroup::boundActions() const
         {
-                QList<QAction*> result;
+                QList<QAction*> result = mExtraActions;
                 const auto buttons = mBody->findChildren<RibbonButton*>();
                 for ( RibbonButton* btn : buttons )
                 {
                         if ( QAction* act = btn->action() )
                         {
-                                result.append( act );
+                                if ( !result.contains( act ) )
+                                {
+                                        result.append( act );
+                                }
                         }
                 }
                 return result;

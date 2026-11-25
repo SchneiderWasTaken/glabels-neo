@@ -568,14 +568,40 @@ namespace glabels::ribbon
         }
 
 
+        void RibbonBar::registerTabAction( TabId id, QAction* action )
+        {
+                if ( action )
+                {
+                        mTabActions.insert( id, action );
+                        if ( auto* btn = mStrip->button( id ) )
+                        {
+                                btn->setToolTip( formatActionTooltip( action ) );
+                        }
+                }
+        }
+
+
         QList<QAction*> RibbonBar::allBoundActions() const
         {
                 QList<QAction*> result = mQuickAccess->boundActions();
+                for ( auto it = mTabActions.cbegin(); it != mTabActions.cend(); ++it )
+                {
+                        if ( it.value() && !result.contains( it.value() ) )
+                        {
+                                result.append( it.value() );
+                        }
+                }
                 for ( TabId id : mTabOrder )
                 {
                         if ( RibbonTab* t = mTabs.value( id, nullptr ) )
                         {
-                                result.append( t->boundActions() );
+                                for ( QAction* act : t->boundActions() )
+                                {
+                                        if ( act && !result.contains( act ) )
+                                        {
+                                                result.append( act );
+                                        }
+                                }
                         }
                 }
                 return result;

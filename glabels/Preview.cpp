@@ -23,6 +23,7 @@
 
 #include "PreviewOverlayItem.hpp"
 #include "RollTemplatePath.hpp"
+#include "theme/Theme.hpp"
 
 #include <QDebug>
 #include <QGraphicsDropShadowEffect>
@@ -69,6 +70,9 @@ namespace glabels
 
                 setFrameStyle( QFrame::NoFrame );
                 setRenderHints( QPainter::Antialiasing );
+
+                connect( &theme::Theme::instance(), &theme::Theme::changed,
+                         this, &Preview::onRendererChanged );
         }
 
 
@@ -89,6 +93,10 @@ namespace glabels
         ///
         void Preview::onRendererChanged()
         {
+                if ( !mRenderer )
+                {
+                        return;
+                }
                 mModel = mRenderer->model();
 
                 mScene->clear();
@@ -128,7 +136,9 @@ namespace glabels
                                                     const QPainterPath& path,
                                                     uint32_t            labelInstance)
         {
-                QBrush brush( labelNumberColor );
+                QColor numColor = theme::Theme::instance().palette().accent;
+                numColor.setAlpha( 72 );
+                QBrush brush( numColor );
 
                 auto frame = mModel->tmplate().frame();
 
@@ -182,7 +192,7 @@ namespace glabels
                 shadowEffect->setBlurRadius( shadowRadiusPixels );
 
                 QBrush brush( paperColor );
-                QPen pen( paperOutlineColor );
+                QPen pen( theme::Theme::instance().palette().line2 );
                 pen.setCosmetic( true );
                 pen.setWidthF( paperOutlineWidthPixels );
 
@@ -226,7 +236,7 @@ namespace glabels
                                  const QPainterPath& path )
         {
                 QBrush brush( labelColor );
-                QPen pen( labelOutlineColor );
+                QPen pen( theme::Theme::instance().palette().line2 );
                 pen.setCosmetic( true );
                 pen.setWidthF( labelOutlineWidthPixels );
 

@@ -23,6 +23,7 @@
 
 #include "Cursors.hpp"
 #include "UndoRedoModel.hpp"
+#include "theme/Theme.hpp"
 
 #include "model/FrameCd.hpp"
 #include "model/FrameEllipse.hpp"
@@ -107,6 +108,8 @@ namespace glabels
                 setAcceptDrops( true );
 
                 connect( model::Settings::instance(), SIGNAL(changed()), this, SLOT(onSettingsChanged()) );
+                connect( &theme::Theme::instance(), &theme::Theme::changed,
+                         this, QOverload<>::of( &QWidget::update ) );
                 onSettingsChanged();
         }
 
@@ -1006,8 +1009,8 @@ namespace glabels
                         painter.setRenderHint( QPainter::TextAntialiasing, true );
                         painter.setRenderHint( QPainter::SmoothPixmapTransform, true );
 
-                        /* Fill background before any transformations */
-                        painter.setBrush( QBrush( palette().color(QPalette::AlternateBase).darker(110) ) );
+                        /* Fill background before any transformations using theme work backdrop */
+                        painter.setBrush( QBrush( theme::Theme::instance().palette().work ) );
                         painter.setPen( Qt::NoPen );
                         painter.drawRect( rect() );
 
@@ -1186,7 +1189,9 @@ namespace glabels
 
                         painter->setClipPath( mModel->frame()->path() );
 
-                        QPen pen( gridLineColor, gridLineWidthPixels );
+                        QColor themedGrid = theme::Theme::instance().palette().line2;
+                        themedGrid.setAlpha( 160 );
+                        QPen pen( themedGrid, gridLineWidthPixels );
                         pen.setCosmetic( true );
                         painter->setPen( pen );
 
@@ -1258,7 +1263,7 @@ namespace glabels
                  */
                 painter->save();
 
-                QPen pen( labelOutlineColor, labelOutlineWidthPixels );
+                QPen pen( theme::Theme::instance().palette().line2, labelOutlineWidthPixels );
                 pen.setCosmetic( true );
                 painter->setBrush( QBrush( Qt::NoBrush ) );
                 painter->setPen( pen );
@@ -1282,12 +1287,68 @@ namespace glabels
         {
                 painter->save();
 
+                const auto& pal = theme::Theme::instance().palette();
+                const double s = 1.0 / mScale;
+                const double hs = 7.0 * s;
+
                 for ( model::ModelObject* object : mModel->objectList() )
                 {
-                        if ( object->isSelected() )
+                        if ( !object->isSelected() )
                         {
-                                object->drawSelectionHighlight( painter, mScale );
+                                continue;
                         }
+
+                        painter->save();
+                        painter->translate( object->x0().pt(), object->y0().pt() );
+                        painter->setTransform( object->matrix(), true );
+
+                        const double w = object->w().pt();
+                        const double h = object->h().pt();
+                        const bool isLine = ( dynamic_cast<model::ModelLineObject*>( object ) != nullptr );
+
+                        // Dashed accent selection box (SPEC 8)
+                        QPen outlinePen( pal.accent, 1.5, Qt::DashLine );
+                        outlinePen.setCosmetic( true );
+                        painter->setPen( outlinePen );
+                        painter->setBrush( Qt::NoBrush );
+                        if ( isLine )
+                        {
+                                painter->drawLine( QPointF( 0, 0 ), QPointF( w, h ) );
+                        }
+                        else
+                        {
+                                painter->drawRect( QRectF( 0, 0, w, h ) );
+                        }
+
+                        // Accent-stroked white square resize handles (hit testing stays in ModelObject)
+                        QPen handlePen( pal.accent, 1.5 );
+                        handlePen.setCosmetic( true );
+                        painter->setPen( handlePen );
+                        painter->setBrush( QColor( Qt::white ) );
+
+                        auto drawHandle = [&]( double hx, double hy )
+                        {
+                                painter->drawRect( QRectF( hx - hs / 2.0, hy - hs / 2.0, hs, hs ) );
+                        };
+
+                        if ( isLine )
+                        {
+                                drawHandle( 0, 0 );
+                                drawHandle( w, h );
+                        }
+                        else
+                        {
+                                drawHandle( 0,     0 );
+                                drawHandle( w / 2, 0 );
+                                drawHandle( w,     0 );
+                                drawHandle( w,     h / 2 );
+                                drawHandle( w,     h );
+                                drawHandle( w / 2, h );
+                                drawHandle( 0,     h );
+                                drawHandle( 0,     h / 2 );
+                        }
+
+                        painter->restore();
                 }
 
                 painter->restore();
@@ -1304,9 +1365,12 @@ namespace glabels
                 {
                         painter->save();
 
-                        QPen pen( selectRegionOutlineColor, selectRegionOutlineWidthPixels );
+                        const QColor accent = theme::Theme::instance().palette().accent;
+                        QColor fill = accent;
+                        fill.setAlpha( 38 );
+                        QPen pen( accent, 1.5 );
                         pen.setCosmetic( true );
-                        painter->setBrush( selectRegionFillColor );
+                        painter->setBrush( fill );
                         painter->setPen( pen );
 
                         painter->drawRect( mSelectRegion.rect() );

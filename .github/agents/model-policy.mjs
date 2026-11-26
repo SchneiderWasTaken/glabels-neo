@@ -5,11 +5,11 @@
 //   - two cheap OpenRouter models (DeepSeek V4.1 flash 1017, GLM 5.3 flash), paid per token;
 //   - Claude Sonnet and Haiku, on the maintainer's Claude subscription (usage limits, no per-token bill), and Claude Opus,
 //     only as the required reviewer of `auto-fix` pull requests.
-// Nothing else, in particular no other OpenRouter model: the ceiling for per-token spending is what GLM 5.3 flash costs.
+// Nothing else, in particular no other OpenRouter model: the ceiling for per-token spending is what DeepSeek V4.1 flash 1017 costs.
 //
 // Gates, all checked before every model call and all fail-closed:
 //   1. an exact-match allowlist (no aliases such as "~...-latest", no ":variant" suffixes, no other providers);
-//   2. for OpenRouter models, the live per-token prices must not exceed the ceiling (GLM 5.3 flash today); if the
+//   2. for OpenRouter models, the live per-token prices must not exceed the ceiling (DeepSeek V4.1 flash 1017 today); if the
 //      prices cannot be read, the call is refused;
 //   3. per run, a budget that stops a run as soon as the tokens it has streamed would cost more than it (opencode-lib.mjs).
 
@@ -39,8 +39,8 @@ export const NEEDS = Object.freeze({ openrouter: 'OPENROUTER_API_KEY', claude: '
 export const ALLOWED_OPENROUTER = Object.freeze(POOL.filter((m) => m.provider === 'openrouter').map((m) => m.model));
 export const ALLOWED_CLAUDE = Object.freeze(POOL.filter((m) => m.provider === 'claude').map((m) => m.model));
 
-/** USD per token: GLM 5.3 flash on OpenRouter ($0.12 / $0.38 per million tokens).  No OpenRouter model may cost more. */
-export const PRICE_CEILING = Object.freeze({ prompt: 0.00000012, completion: 0.00000038 });
+/** USD per token: DeepSeek V4.1 flash 1017 on OpenRouter ($0.15 / $0.60 per million tokens), the dearest model in the pool.  No OpenRouter model may cost more. */
+export const PRICE_CEILING = Object.freeze({ prompt: 0.00000015, completion: 0.0000006 });
 
 const MODELS_URL = 'https://openrouter.ai/api/v1/models';
 

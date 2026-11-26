@@ -6,7 +6,7 @@ import {
   memberById, resetCatalogue, tokenCostUsd,
 } from '../model-policy.mjs';
 
-const GOOD = { id: 'deepseek/deepseek-v4.1-flash-1017', pricing: { prompt: '0.00000003', completion: '0.0000002', request: '0', image: '0', web_search: '0', internal_reasoning: '0' } };
+const GOOD = { id: 'deepseek/deepseek-v4.1-flash-1017', pricing: { prompt: '0.00000015', completion: '0.0000006', request: '0', image: '0', web_search: '0', internal_reasoning: '0' } };
 const GLM = { id: 'z-ai/glm-5.3-flash', pricing: { prompt: '0.00000012', completion: '0.00000038' } };
 const catalogue = (...entries) => async () => ({ ok: true, status: 200, json: async () => ({ data: entries }) });
 const KEYS = { OPENROUTER_API_KEY: 'k1', CLAUDE_CODE_OAUTH_TOKEN: 'k2' };
@@ -71,14 +71,14 @@ test('MODEL_POOL can only narrow the pool, never widen it', () => {
   assert.throws(() => candidatesFor('fix', { env: { ...KEYS, MODEL_POOL: 'claude-haiku' } }), /no model is available/);
 });
 
-test('price ceiling: GLM 5.3 flash is the most expensive OpenRouter model allowed', () => {
+test('price ceiling: DeepSeek V4.1 flash 1017 is the most expensive OpenRouter model allowed', () => {
   checkPricing(GOOD);
   checkPricing(GLM);
-  assert.equal(PRICE_CEILING.prompt, 0.00000012);
-  assert.equal(PRICE_CEILING.completion, 0.00000038);
-  const dearer = (over) => ({ id: 'x', pricing: { ...GLM.pricing, ...over } });
-  assert.throws(() => checkPricing(dearer({ prompt: '0.00000013' })), /more expensive/);
-  assert.throws(() => checkPricing(dearer({ completion: '0.0000005' })), /more expensive/);
+  assert.equal(PRICE_CEILING.prompt, 0.00000015);
+  assert.equal(PRICE_CEILING.completion, 0.0000006);
+  const dearer = (over) => ({ id: 'x', pricing: { ...GOOD.pricing, ...over } });
+  assert.throws(() => checkPricing(dearer({ prompt: '0.00000016' })), /more expensive/);
+  assert.throws(() => checkPricing(dearer({ completion: '0.0000007' })), /more expensive/);
   assert.throws(() => checkPricing(dearer({ internal_reasoning: '0.000001' })), /more expensive/);
   assert.throws(() => checkPricing(dearer({ request: '0.01' })), /more expensive/);
   assert.throws(() => checkPricing(dearer({ web_search: '0.01' })), /more expensive/);
@@ -114,8 +114,8 @@ test('assertModelRunnable: allowlist first, then the live price for OpenRouter, 
 
 test('token cost is priced at the ceiling, cache and reasoning included', () => {
   assert.equal(tokenCostUsd({}), 0);
-  assert.ok(Math.abs(tokenCostUsd({ input: 1_000_000 }) - 0.12) < 1e-9);
-  assert.ok(Math.abs(tokenCostUsd({ output: 1_000_000 }) - 0.38) < 1e-9);
-  assert.ok(Math.abs(tokenCostUsd({ reasoning: 1_000_000 }) - 0.38) < 1e-9);
-  assert.ok(Math.abs(tokenCostUsd({ cacheRead: 1_000_000, cacheWrite: 1_000_000 }) - 0.24) < 1e-9);
+  assert.ok(Math.abs(tokenCostUsd({ input: 1_000_000 }) - 0.15) < 1e-9);
+  assert.ok(Math.abs(tokenCostUsd({ output: 1_000_000 }) - 0.6) < 1e-9);
+  assert.ok(Math.abs(tokenCostUsd({ reasoning: 1_000_000 }) - 0.6) < 1e-9);
+  assert.ok(Math.abs(tokenCostUsd({ cacheRead: 1_000_000, cacheWrite: 1_000_000 }) - 0.3) < 1e-9);
 });

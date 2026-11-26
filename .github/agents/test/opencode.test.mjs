@@ -60,7 +60,7 @@ test('parseEvents reads text, cost, tokens and tool calls, and ignores noise', (
 
 test('the budget guard counts tokens even when the tool reports the run as free', () => {
   const free = ev({ type: 'step_finish', part: { cost: 0, tokens: { input: 2_000_000, output: 0 } } });
-  assert.ok(costSoFar(free) > 0.2); // 2M input tokens at the ceiling is 0.24 USD
+  assert.ok(costSoFar(free) > 0.2); // 2M input tokens at the ceiling is 0.30 USD
   assert.equal(costSoFar(''), 0);
   const reported = ev({ type: 'step_finish', part: { cost: 5, tokens: { input: 1 } } });
   assert.equal(costSoFar(reported), 5);

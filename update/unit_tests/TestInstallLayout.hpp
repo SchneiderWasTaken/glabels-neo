@@ -34,7 +34,6 @@ private slots:
         void macBundleWithoutFillApp();
         void refusesWhenNotAReleasePackage();
         void refusesWhenHelperIsMissing();
-        void refusesWhenManagedByWindowsLauncher();
         void refusesUnsupportedOs();
         void platformKeyIsKnownForThisBuild();
         void validateStaged();

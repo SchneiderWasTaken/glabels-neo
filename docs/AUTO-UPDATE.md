@@ -1,12 +1,15 @@
 # Automatic updates
 
-gLabels Neo keeps itself up to date in the background. It checks for a newer release now and then,
-downloads and checks it while you work, and swaps it in when you close the program, so the next
+gLabels Neo can keep itself up to date, **but only if you ask it to**. Updates are always *pulled* by the program
+(it asks GitHub whether something newer exists); nothing is ever pushed to your computer, and nothing is
+installed, or even looked for, until you have opted in. If you do, it checks for a newer release now and then,
+downloads and verifies it while you work, and swaps it in when you close the program, so the next
 start is already on the new version. Nothing changes under you while the program is open.
 
 ## For users
 
-- **The first time**, the program asks whether it may check for updates in the background. Until you say yes,
+- **The first time**, the program asks whether it may check for updates in the background, and, as a separate
+  tick box that is off by default, whether it may also install them without asking each time. Until you say yes,
   it contacts nobody. *Don't Check* (or closing the question) is remembered and not asked again.
 - **Help > Check for Updates...** looks right now, whatever you answered.
 - **Edit > Preferences > Updates** turns the background check on or off at any time, or lets updates install without asking.
@@ -26,7 +29,6 @@ you can write to** (your home folder, `~/Applications`, `C:\Users\you\...`). It 
 
 - copies in places that need administrator rights (for example `C:\Program Files`); the Help menu says so;
 - distribution packages and local developer builds;
-- the copy managed by the [Windows launcher](../tools/windows-launcher/README.md), which has its own updater;
 - versions from before this feature existed: install one release by hand, and updates are automatic from then on.
 
 ## How it works

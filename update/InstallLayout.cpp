@@ -170,15 +170,6 @@ namespace glabels::update
                         layout.mainRel   = "bin/" + exe.fileName();
                         layout.smokeRel  = ( os == Os::Windows ) ? "bin/glabels-batch-qt.exe" : "glabels-batch-qt";
 
-                        // The Windows launcher (tools/windows-launcher) keeps its own copy up to date;
-                        // two updaters would fight over the same directory.
-                        QDir parent = root;
-                        parent.cdUp();
-                        if ( os == Os::Windows && root.dirName() == "app" && QFileInfo::exists( parent.absoluteFilePath( "installed.json" ) ) )
-                        {
-                                return unsupported( tr( QT_TRANSLATE_NOOP( "InstallLayout", "This copy is kept up to date by the gLabels Neo launcher." ) ) );
-                        }
-
                         layout.units.append( makeUnit( root.absolutePath() ) );
                         layout.helperPath = root.absoluteFilePath( layout.helperRel );
 

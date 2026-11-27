@@ -155,25 +155,6 @@ void TestInstallLayout::refusesWhenHelperIsMissing()
 }
 
 
-void TestInstallLayout::refusesWhenManagedByWindowsLauncher()
-{
-        QTemporaryDir tmp;
-        const QString app = tmp.path() + "/gLabelsNeo/app";
-        touch( app + "/bin/glabels-qt.exe" );
-        touch( app + "/bin/glabels-updater.exe" );
-        touch( tmp.path() + "/gLabelsNeo/installed.json" );     // written by tools/windows-launcher
-
-        auto l = InstallLayout::detect( app + "/bin/glabels-qt.exe", Os::Windows );
-        QVERIFY( !l.supported );
-        QVERIFY( l.reason.contains( "launcher" ) );
-
-        // the same layout on another OS is not the launcher's business
-        touch( app + "/bin/glabels-updater" );
-        touch( app + "/bin/glabels-qt" );
-        QVERIFY( InstallLayout::detect( app + "/bin/glabels-qt", Os::Linux ).supported );
-}
-
-
 void TestInstallLayout::refusesUnsupportedOs()
 {
         QVERIFY( !InstallLayout::detect( "/x/bin/glabels-qt", Os::Other ).supported );

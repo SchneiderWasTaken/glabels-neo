@@ -25,7 +25,12 @@
 
 #include "TestUpdateUi.hpp"
 
+#include "AboutDialog.hpp"
 #include "UpdateUi.hpp"
+
+#include "model/Branding.hpp"
+#include "model/Version.hpp"
+#include "update/UpdateConfig.hpp"
 
 #include <QCheckBox>
 #include <QGroupBox>
@@ -260,9 +265,33 @@ void TestUpdateUi::consentDialogAsksOnceAndStoresTheAnswer()
         emit service->consentRequired();
         box = waitForBox( "look for new versions in the background" );
         QVERIFY( box );
+        QVERIFY( box->checkBox() );
+        QVERIFY( !box->checkBox()->isChecked() );                          // installing unasked is never pre-selected
         buttonLabelled( box, "Check Automatically" )->click();
         QTRY_VERIFY_WITH_TIMEOUT( update::UpdateSettings::autoCheck(), 5000 );
         QVERIFY( update::UpdateSettings::consentAsked() );
+        QVERIFY( !update::UpdateSettings::autoInstall() );                 // checking is not installing
+
+        // --- "Check Automatically" and install without asking (a separate, explicit tick) ---
+        QSettings().clear();
+        emit service->consentRequired();
+        box = waitForBox( "look for new versions in the background" );
+        QVERIFY( box );
+        box->checkBox()->setChecked( true );
+        buttonLabelled( box, "Check Automatically" )->click();
+        QTRY_VERIFY_WITH_TIMEOUT( update::UpdateSettings::autoInstall(), 5000 );
+        QVERIFY( update::UpdateSettings::autoCheck() );
+
+        // --- ticking the box but declining does not turn anything on ---
+        QSettings().clear();
+        emit service->consentRequired();
+        box = waitForBox( "look for new versions in the background" );
+        QVERIFY( box );
+        box->checkBox()->setChecked( true );
+        buttonLabelled( box, "Don't Check" )->click();
+        QTRY_VERIFY_WITH_TIMEOUT( update::UpdateSettings::consentAsked(), 5000 );
+        QVERIFY( !update::UpdateSettings::autoCheck() );
+        QVERIFY( !update::UpdateSettings::autoInstall() );
 }
 
 
@@ -293,4 +322,33 @@ void TestUpdateUi::manifestTextIsShownNotInterpreted()
                 }
         }
         QTest::qWait( 50 );
+}
+
+
+void TestUpdateUi::aboutDialogShowsReleaseVersionAndAttribution()
+{
+        AboutDialog about;
+        const QString text = about.aboutLabel->text();
+
+        // the attribution to the upstream project is always there
+        QVERIFY( text.contains( model::Branding::ATTRIBUTION ) );
+        QVERIFY( text.contains( model::Branding::UPSTREAM_URL ) );
+
+        // the version names the GitHub release this build belongs to, and links to it
+        QVERIFY( text.contains( "Version" ) );
+        QVERIFY( text.contains( model::Version::LONG_STRING ) );
+        if ( !update::Config::TAG.isEmpty() )
+        {
+                QVERIFY( text.contains( update::Config::TAG ) );
+                QVERIFY( text.contains( "https://github.com/" + update::Config::REPO + "/releases/tag/" ) );
+        }
+        else if ( update::Config::CHANNEL == "edge" )
+        {
+                QVERIFY( text.contains( "/releases/tag/edge" ) );
+                QVERIFY( text.contains( update::Config::COMMIT.left( 7 ) ) );
+        }
+        else
+        {
+                QVERIFY( text.contains( "development build" ) );        // not claimed to be a GitHub release
+        }
 }

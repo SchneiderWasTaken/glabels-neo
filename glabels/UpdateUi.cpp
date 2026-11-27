@@ -209,6 +209,8 @@ namespace glabels
 
         void UpdateUi::onConsentRequired()
         {
+                // TODO(installer): an installer should ask this same question during setup and store the answer
+                // (see "Planned: a Windows installer" in docs/AUTO-UPDATE.md); this dialog then never appears.
                 if ( mConsent && mConsent->isVisible() )
                 {
                         return;   // already asking
@@ -224,7 +226,7 @@ namespace glabels
                         tr( "If you agree, the program asks github.com for a small file (about 1 KB) every %1 hours or so, "
                             "and GitHub sees your IP address as with any download. Nothing else is sent, and there is no "
                             "account or identifier.\n\n"
-                            "Nothing is downloaded or installed until you say so. You can change this at any time in "
+                            "Unless you tick the box below, nothing is downloaded or installed until you say so. You can change this at any time in "
                             "Edit > Preferences > Updates, or use Help > Check for Updates to look once." )
                         .arg( service->build().channel == "edge" ? 6 : 12 ) );
 
@@ -233,13 +235,20 @@ namespace glabels
                 box->setDefaultButton( no );     // the privacy-preserving answer is the default
                 box->setEscapeButton( no );
 
+                // Installing without asking is a separate, explicit choice that is off unless ticked here
+                // (or later in Preferences).  It only counts together with "Check Automatically".
+                auto* install = new QCheckBox( tr( "Also download and install updates without asking each time" ), box );
+                install->setChecked( false );
+                box->setCheckBox( install );
+
                 mConsent = box;
                 connect( box, &QMessageBox::finished, this,
-                         [box, yes]()
+                         [box, yes, install]()
                          {
                                  // Closing the box any other way than "Check Automatically" is a no.
                                  const bool agreed = box->clickedButton() == yes;
                                  UpdateSettings::setAutoCheck( agreed );
+                                 UpdateSettings::setAutoInstall( agreed && install->isChecked() );
                                  if ( agreed )
                                  {
                                          UpdateService::instance()->checkNow( false );

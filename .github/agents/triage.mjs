@@ -44,7 +44,7 @@ const AREA_GUIDE = `Areas of the codebase (gLabels Neo, a Qt6/C++ label designer
 - merge: mail-merge / data sources (CSV, Excel), the Fill page
 - ui: windows, dialogs, editor, widgets (appearance and layout)
 - i18n: translations
-- packaging: installers, archives, auto-update launcher, build/CI
+- packaging: installers, archives, self-update, build/CI
 - file-format: reading and writing .glabels files
 - other`;
 

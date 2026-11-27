@@ -1,12 +1,15 @@
 # Automatic updates
 
-gLabels Neo keeps itself up to date in the background. It checks for a newer release now and then,
-downloads and checks it while you work, and swaps it in when you close the program, so the next
+gLabels Neo can keep itself up to date, **but only if you ask it to**. Updates are always *pulled* by the program
+(it asks GitHub whether something newer exists); nothing is ever pushed to your computer, and nothing is
+installed, or even looked for, until you have opted in. If you do, it checks for a newer release now and then,
+downloads and verifies it while you work, and swaps it in when you close the program, so the next
 start is already on the new version. Nothing changes under you while the program is open.
 
 ## For users
 
-- **The first time**, the program asks whether it may check for updates in the background. Until you say yes,
+- **The first time**, the program asks whether it may check for updates in the background, and, as a separate
+  tick box that is off by default, whether it may also install them without asking each time. Until you say yes,
   it contacts nobody. *Don't Check* (or closing the question) is remembered and not asked again.
 - **Help > Check for Updates...** looks right now, whatever you answered.
 - **Edit > Preferences > Updates** turns the background check on or off at any time, or lets updates install without asking.
@@ -26,7 +29,6 @@ you can write to** (your home folder, `~/Applications`, `C:\Users\you\...`). It 
 
 - copies in places that need administrator rights (for example `C:\Program Files`); the Help menu says so;
 - distribution packages and local developer builds;
-- the copy managed by the [Windows launcher](../tools/windows-launcher/README.md), which has its own updater;
 - versions from before this feature existed: install one release by hand, and updates are automatic from then on.
 
 ## How it works
@@ -135,3 +137,18 @@ On macOS both applications of the disk image (`glabels-qt.app`, `glabels-fill.ap
   at the first check, so after you have agreed to checking or asked for one, never before.
 - Installs in folders that need administrator rights are not offered updates at all (no "download it yourself" notice yet).
 - Failed background checks are quiet and retried; the log has the reason.
+
+## Planned: a Windows installer (tabled, to do)
+
+An installer is planned. Nothing in it is built yet; these are the points the update design leaves open for it.
+
+- [ ] **Opt-in during setup.** The installer should ask the same question as the first-run dialog (check for
+  updates; separately, install them without asking), both unticked by default, and write the answer to the settings
+  the program reads (`UpdateSettings::setAutoCheck`, `setConsentAsked`, `setAutoInstall`) so the program does not
+  ask again. Updates stay pull-only: the installer must not register a service or scheduled task that checks on its own.
+- [ ] **Per-machine installs** (`C:\Program Files`) are refused today because the program cannot replace itself
+  there. Either install per user by default, or add a notify-only mode that tells the user and opens the release page.
+- [ ] **Installer packages** need a manifest entry and a platform key of their own in
+  `scripts/make-update-manifest.sh` and `update/UpdateManifest.cpp` if they are to be updated in place.
+- [ ] **Uninstall** must remove the update data (`%LOCALAPPDATA%\glabels.org\glabels-qt\updates`) and any staged
+  `.<name>.update` folder.

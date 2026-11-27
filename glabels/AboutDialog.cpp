@@ -25,6 +25,7 @@
 
 #include "model/Branding.hpp"
 #include "model/Version.hpp"
+#include "update/UpdateConfig.hpp"
 
 #include <QDebug>
 #include <QDesktopServices>
@@ -47,11 +48,35 @@ namespace glabels
                 Icon->setPixmap( theme::ThemeIcons::brandMark( 72, devicePixelRatioF() ) );
                 titleLabel->hide();
 
-                QString version = tr("Version") + " " + model::Version::LONG_STRING;
+                // The version is the GitHub release this build belongs to, linked to its page:
+                //   a release build  -> its tag, e.g. "v1.2.0"
+                //   an edge build    -> the rolling "edge" prerelease and the commit it was built from
+                //   anything else    -> a local/development build, which is not a GitHub release
+                // The build details (snapshot name, commit, date) follow in a second line.
+                const QString releasesUrl = "https://github.com/" + update::Config::REPO + "/releases/";
+                QString release;
+                if ( !update::Config::TAG.isEmpty() )
+                {
+                        release = "<a href='" + releasesUrl + "tag/" + QString::fromLatin1( QUrl::toPercentEncoding( update::Config::TAG ) ) + "'>" +
+                                  update::Config::TAG.toHtmlEscaped() + "</a>";
+                }
+                else if ( update::Config::CHANNEL == "edge" )
+                {
+                        release = "<a href='" + releasesUrl + "tag/edge'>" +
+                                  tr( "edge" ).toHtmlEscaped() + " " + update::Config::COMMIT.left( 7 ).toHtmlEscaped() + "</a>";
+                }
+                else
+                {
+                        release = tr( "development build" ).toHtmlEscaped();
+                }
+
+                QString version = tr("Version") + " " + release;
+                QString build   = tr("Build") + ": " + model::Version::LONG_STRING.toHtmlEscaped();
 
                 // The fork line and the attribution are not passed through tr() as a whole: they name
                 // the upstream project, which the brand translator must not rewrite.
-                QString forkLine = model::Branding::ATTRIBUTION_SHORT.toHtmlEscaped() + " &middot; " + version;
+                QString forkLine = model::Branding::ATTRIBUTION_SHORT.toHtmlEscaped() + " &middot; " + version +
+                                   "<br/><span style='font-size:small;'>" + build + "</span>";
 
                 QString description = tr("A program to create labels and business cards.");
 
@@ -95,6 +120,7 @@ namespace glabels
                         "<p align='left'>"   + licenseParagraph1 + "</p>" +
                         "<p align='left'>"   + licenseParagraph2 + "</p>";
 
+                aboutLabel->setOpenExternalLinks( true );
                 aboutLabel->setText( markup );
 
                 // The text wraps; size the window for it so that nothing is cut off with the theme font.

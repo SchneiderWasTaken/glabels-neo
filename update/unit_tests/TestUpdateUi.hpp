@@ -35,4 +35,5 @@ private slots:
         void preferencesPageStoresTheChoices();
         void consentDialogAsksOnceAndStoresTheAnswer();
         void manifestTextIsShownNotInterpreted();
+        void aboutDialogShowsReleaseVersionAndAttribution();
 };

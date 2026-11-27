@@ -45,15 +45,14 @@ Get the latest build for your system from the
 
 The newest build of `main` is published continuously as the
 [edge prerelease](https://github.com/SchneiderWasTaken/glabels-neo/releases/tag/edge).
-On Windows, the [auto-updating Start menu launcher](tools/windows-launcher/README.md) keeps you on it
-automatically: it checks GitHub each time you open gLabels Neo and updates first when needed.
+Updates are strictly opt-in and always pulled by the program, never pushed to it: nothing contacts GitHub
+until you agree. The first time you run gLabels Neo it asks whether it may check for new versions (the answer
+is *no* unless you say yes) and, separately, whether it may install them without asking. You can change both at
+any time in Edit > Preferences > Updates, or look once with Help > Check for Updates. When you agree, it
+downloads in the background (in any folder you can write to) and swaps the new version in when you close it,
+so the next start is already current. See [Automatic updates](docs/AUTO-UPDATE.md).
 
-From the next release on, the program can also update itself in the background (in any folder you can write to), and
-swaps the new version in when you close it, so the next start is already current. It asks once whether it may check
-automatically, and never installs anything without your say-so unless you opt in
-(Help > Check for Updates, or Preferences > Updates; see [Automatic updates](docs/AUTO-UPDATE.md)).
-
-> Installers, AppImage/Flatpak, package-manager support (winget, Homebrew, Scoop)
+> A Windows installer (to do, see [Automatic updates](docs/AUTO-UPDATE.md#planned-a-windows-installer-tabled-to-do)), AppImage/Flatpak, package-manager support (winget, Homebrew, Scoop)
 > and automatic release builds on every merge are in progress - see the
 > [roadmap](docs/ROADMAP.md).
 

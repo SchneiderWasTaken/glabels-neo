@@ -24,7 +24,7 @@ test('agents may change source but never build, automation or packaging files', 
   }
   for (const p of [
     '.github/workflows/ci.yml', 'relay/src/index.js', 'scripts/package-linux.sh', 'CMakeLists.txt', 'glabels/CMakeLists.txt',
-    'cmake/Foo.cmake', 'tools/windows-launcher/x.ps1', 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'data/foo.desktop', 'package.json',
+    'cmake/Foo.cmake', 'tools/release-train-trigger/x.ps1', 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'data/foo.desktop', 'package.json',
     'model/Version.hpp.in', '.gitattributes', 'README.md', 'brand/logo.svg',
   ]) {
     assert.equal(agentMayChange(p), false, p);

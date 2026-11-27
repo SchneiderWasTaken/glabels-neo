@@ -708,9 +708,22 @@ void TestGoogleSheetsDataSource::loopbackTimeoutsAndSheetIdValidation()
         QTRY_COMPARE_WITH_TIMEOUT( failedSpy.count(), 1, 5000 );
         QVERIFY( failedSpy.at( 0 ).at( 0 ).toString().contains( QStringLiteral( "timed out" ) ) );
 
+        // A late callback with the old state cannot complete sign-in.  (Whether
+        // the port refuses at once or still accepts briefly varies by OS.)
+        QSignalSpy signedInSpy( &auth, &GoogleAuthManager::signedIn );
+        const QString oldState = QUrlQuery( opened ).queryItemValue( QStringLiteral( "state" ), QUrl::FullyDecoded );
         QTcpSocket probe;
         probe.connectToHost( QHostAddress::LocalHost, static_cast<quint16>( redirectUri.port() ) );
-        QVERIFY( !probe.waitForConnected( 1000 ) );
+        if ( probe.waitForConnected( 1000 ) )
+        {
+                probe.write( "GET /callback?code=late&state=" + oldState.toUtf8()
+                             + " HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n" );
+                probe.flush();
+                probe.waitForReadyRead( 1000 );
+                QVERIFY( !probe.readAll().startsWith( "HTTP/1.1 200" ) );
+        }
+        QTest::qWait( 200 );
+        QCOMPARE( signedInSpy.count(), 0 );
 
         // Only Google's ID characters are accepted (no "../" into URL paths).
         ExternalDataSource src;

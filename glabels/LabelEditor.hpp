@@ -93,6 +93,10 @@ namespace glabels
                 void setGridVisible( bool visibleFlag );
                 void setMarkupVisible( bool visibleFlag );
 
+                /// Show the values of one Fill row on the label, instead of ${field} placeholders
+                void setShowRowData( bool on );
+                void setPreviewRow( int row );
+
 
                 /////////////////////////////////////
                 // Zoom operations
@@ -135,6 +139,7 @@ namespace glabels
                 void paintEvent( QPaintEvent* event ) override;
                 void dragEnterEvent( QDragEnterEvent *event ) override;
                 void dragMoveEvent( QDragMoveEvent *event ) override;
+                void dragLeaveEvent( QDragLeaveEvent *event ) override;
                 void dropEvent( QDropEvent *event ) override;
 
 
@@ -145,6 +150,10 @@ namespace glabels
                 static QRectF  objectSnapBounds( const model::ModelObject* object );
                 static QString objectSnapTypeName( const model::ModelObject* object );
                 SnapInset      safeAreaInset() const;
+                static bool    fieldFromMime( const QMimeData* mime, QString& field );
+                void           bindFieldAt( const QString& field, model::Point p, model::ModelObject* object );
+                void           drawDropTargetLayer( QPainter* painter );
+                model::ModelObject* dropTargetAt( model::Distance x, model::Distance y ) const;
                 SnapContext    buildSnapContext( bool excludeSelected,
                                                  const model::ModelObject* excludeObject = nullptr ) const;
                 QRectF         selectionSnapBounds() const;
@@ -213,6 +222,9 @@ namespace glabels
                 model::Distance      mY0;
 
                 bool                 mMarkupVisible;
+                bool                 mShowRowData{ false };
+                int                  mPreviewRow{ 0 };
+                model::ModelObject*  mDropTarget{ nullptr };
                 bool                 mGridVisible;
 
                 double               mGridSpacing;

@@ -107,3 +107,13 @@ target_compile_definitions (TestMarketingShots PRIVATE GLABELS_SOURCE_DIR="${CMA
 target_link_libraries (TestMarketingShots glabels_lib glabels_resources Model Qt6::Test Qt6::Widgets Qt6::Svg)
 add_test (NAME MarketingShots COMMAND TestMarketingShots)
 set_tests_properties (MarketingShots PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+#=======================================
+# Test data in the designer: column matching, saved column choices, Data panel, drops, row preview
+#=======================================
+qt6_wrap_cpp (TestDataInDesigner_moc_sources TestDataInDesigner.hpp)
+add_executable (TestDataInDesigner TestDataInDesigner.cpp ${TestDataInDesigner_moc_sources})
+target_include_directories (TestDataInDesigner PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_link_libraries (TestDataInDesigner glabels_lib glabels_resources Model Qt6::Test Qt6::Widgets)
+add_test (NAME DataInDesigner COMMAND TestDataInDesigner)
+set_tests_properties (DataInDesigner PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")

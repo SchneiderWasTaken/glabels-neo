@@ -951,6 +951,7 @@ namespace glabels
                 populateViewTab();
                 populateHelpTab();
                 populateContextualTabs();
+                connectDataPanel();
 
                 connect( mRibbonBar, &ribbon::RibbonBar::tabChanged,
                          this, &MainWindow::onRibbonTabChanged );
@@ -1004,6 +1005,31 @@ namespace glabels
                 insertGrp->addWidget( new Btn( objectsCreateEllipseAction, QStringLiteral( "circle" ),          Btn::Size::Large, Btn::Variant::Standard, insertGrp ) );
                 insertGrp->addWidget( new Btn( objectsCreateImageAction,   QStringLiteral( "image" ),           Btn::Size::Large, Btn::Variant::Standard, insertGrp ) );
                 insertGrp->addWidget( new Btn( objectsCreateBarcodeAction, QStringLiteral( "barcode" ),         Btn::Size::Large, Btn::Variant::Standard, insertGrp ) );
+
+                // 3b. Data: connect a Google Sheet or Redash query without leaving the designer.
+                //     The columns then appear in the Content panel, ready to drag onto the label.
+                auto* dataGrp = home->addGroup( tr( "Data" ), QStringLiteral( "database" ), 2 );
+                auto* homeSheets = new Btn( Btn::Size::Large, Btn::Variant::Standard, dataGrp );
+                homeSheets->setText( tr( "Google Sheets..." ) );
+                homeSheets->setIconName( QStringLiteral( "file-spreadsheet" ) );
+                connect( homeSheets, &QAbstractButton::clicked, this,
+                         [this]() { mFillView->openExternalSourceDialog( model::ExternalSourceKind::GoogleSheets ); } );
+                dataGrp->addWidget( homeSheets );
+
+                auto* homeRedash = new Btn( Btn::Size::Large, Btn::Variant::Standard, dataGrp );
+                homeRedash->setText( tr( "Redash..." ) );
+                homeRedash->setIconName( QStringLiteral( "database" ) );
+                connect( homeRedash, &QAbstractButton::clicked, this,
+                         [this]() { mFillView->openExternalSourceDialog( model::ExternalSourceKind::Redash ); } );
+                dataGrp->addWidget( homeRedash );
+
+                mHomeRefreshSourceBtn = new Btn( Btn::Size::Large, Btn::Variant::Standard, dataGrp );
+                mHomeRefreshSourceBtn->setText( tr( "Refresh" ) );
+                mHomeRefreshSourceBtn->setIconName( QStringLiteral( "refresh-cw" ) );
+                mHomeRefreshSourceBtn->setEnabled( false );
+                connect( mHomeRefreshSourceBtn, &QAbstractButton::clicked, this,
+                         [this]() { mFillView->refreshExternalSource(); } );
+                dataGrp->addWidget( mHomeRefreshSourceBtn );
 
                 // 4. Arrange (collapse priority 3)
                 auto* arrangeGrp = home->addGroup( tr( "Arrange" ), QStringLiteral( "bring-to-front" ), 3 );
@@ -1281,6 +1307,10 @@ namespace glabels
                                  if ( mFillRefreshSourceRibbonBtn )
                                  {
                                          mFillRefreshSourceRibbonBtn->setEnabled( hasSource && !isRefreshing );
+                                 }
+                                 if ( mHomeRefreshSourceBtn )
+                                 {
+                                         mHomeRefreshSourceBtn->setEnabled( hasSource && !isRefreshing );
                                  }
                          } );
 
@@ -3120,6 +3150,50 @@ namespace glabels
                 {
                         mRibbonBar->quickAccessBar()->setVisible( state );
                 }
+        }
+
+
+        ///
+        /// Join the Data section of the Content panel to the Fill view and the editor, so the
+        /// data is handled where the label is designed.
+        ///
+        void MainWindow::connectDataPanel()
+        {
+                if ( !mContentPanel || !mFillView )
+                {
+                        return;
+                }
+
+                connect( mContentPanel, &ribbon::ContentPanel::connectSourceRequested, this,
+                         [this]( model::ExternalSourceKind kind ) { mFillView->openExternalSourceDialog( kind ); } );
+                connect( mContentPanel, &ribbon::ContentPanel::refreshSourceRequested, this,
+                         [this]() { mFillView->refreshExternalSource(); } );
+
+                connect( mContentPanel, &ribbon::ContentPanel::columnChosen, this,
+                         [this]( const QString& field, const QString& column )
+                         {
+                                 if ( !mModel || !mUndoRedoModel || !mModel->externalDataSource().isValid() )
+                                 {
+                                         return;
+                                 }
+                                 model::ExternalDataSource src = mModel->externalDataSource();
+                                 src.columnMap.insert( field, column == ribbon::ContentPanel::blankColumnToken() ? QString() : column );
+                                 mUndoRedoModel->checkpoint( tr( "Choose column" ) );
+                                 mModel->setExternalDataSource( src );
+                         } );
+
+                connect( mContentPanel, &ribbon::ContentPanel::showRowDataToggled, this,
+                         [this]( bool on ) { mLabelEditor->setShowRowData( on ); } );
+                connect( mContentPanel, &ribbon::ContentPanel::previewRowChanged, this,
+                         [this]( int row ) { mLabelEditor->setPreviewRow( row ); } );
+
+                connect( mFillView, &FillView::externalStatusChanged, mContentPanel, &ribbon::ContentPanel::setSourceStatus );
+                connect( mFillView, &FillView::mapColumnsRequested, this, [this]()
+                {
+                        viewContentPanelAction->setChecked( true );
+                        switchToPage( ribbon::PageId::Editor, true );
+                        mContentPanel->revealDataSection();
+                } );
         }
 
 

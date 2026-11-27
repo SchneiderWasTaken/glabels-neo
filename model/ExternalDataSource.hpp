@@ -126,6 +126,10 @@ namespace glabels::model
                 bool                  refreshOnOpen{ true };
                 bool                  refreshBeforePrint{ true };
 
+                /// Label field name -> source column name.  A field without an entry is matched by
+                /// name (see ColumnMatcher).  An entry with an empty column means "leave blank".
+                QMap<QString,QString> columnMap;
+
                 bool isEmpty() const;
                 bool isValid() const;
 

@@ -643,3 +643,52 @@ void TestGoogleSheetsDataSource::fillViewGoogleSheetsEndToEndRefresh()
         QCOMPARE( tableModel->jobAt( 0 )->quantity, 4 );
         QCOMPARE( tableModel->jobAt( 0 )->values.value( QStringLiteral( "Lot" ) ), QStringLiteral( "LOT-9" ) );
 }
+
+
+void TestGoogleSheetsDataSource::fillViewSheetColumnsBecomeVariables()
+{
+        MockGoogleServer server;
+        QVERIFY( server.listen( QHostAddress::LocalHost, 0 ) );
+        // Blank row in the middle is skipped; Qty is a control column, not a variable.
+        server.csvBody = "SKU,Product Name,Qty\nA-1,Apple,2\n,,\nB-2,Banana,\nC-3,Cherry,1\n";
+
+        Model model;
+        auto templates = Db::templates();
+        QVERIFY( !templates.isEmpty() );
+        model.setTmplate( templates.first() );
+
+        // Label already uses ${sku} (different case): no duplicate variable.
+        auto* textObj = new ModelTextObject();
+        textObj->setText( QStringLiteral( "${sku}" ) );
+        model.addObject( textObj );
+
+        ExternalDataSource src;
+        src.kind = ExternalSourceKind::GoogleSheets;
+        src.spreadsheetId = QStringLiteral( "pubsheet123" );
+        src.googleAuthMode = GoogleAuthMode::PublicLink;
+        src.refreshOnOpen = true;
+        model.setExternalDataSource( src );
+
+        FillView fillView;
+        fillView.googleSheetsClient()->setApiBaseUrlsForTests( server.baseUrl(), server.baseUrl() );
+        fillView.setModel( &model );
+
+        auto* tableModel = qobject_cast<FillJobModel*>( fillView.jobsTable->model() );
+        QVERIFY( tableModel != nullptr );
+        QTRY_COMPARE_WITH_TIMEOUT( tableModel->rowCount(), 3, 5000 );
+
+        QVERIFY( model.variables().hasVariable( QStringLiteral( "Product Name" ) ) );
+        QVERIFY( !model.variables().hasVariable( QStringLiteral( "SKU" ) ) );
+        QVERIFY( !model.variables().hasVariable( QStringLiteral( "Qty" ) ) );
+        QVERIFY( tableModel->fieldNames().contains( QStringLiteral( "Product Name" ) ) );
+
+        // Every filled row is a label, checked to print by default.
+        for ( int r = 0; r < 3; ++r )
+        {
+                QVERIFY( tableModel->jobAt( r )->doPrint );
+        }
+        QCOMPARE( tableModel->jobAt( 0 )->values.value( QStringLiteral( "Product Name" ) ), QStringLiteral( "Apple" ) );
+        QCOMPARE( tableModel->jobAt( 0 )->values.value( QStringLiteral( "sku" ) ), QStringLiteral( "A-1" ) );
+        QCOMPARE( tableModel->jobAt( 0 )->quantity, 2 );
+        QCOMPARE( tableModel->jobAt( 2 )->values.value( QStringLiteral( "Product Name" ) ), QStringLiteral( "Cherry" ) );
+}

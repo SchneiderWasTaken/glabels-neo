@@ -41,6 +41,7 @@ private slots:
         void sheetsApiV4FetchAndRetry401();
         void publicLinkCsvFetchAndPrivateDetection();
         void fillViewGoogleSheetsEndToEndRefresh();
+        void fillViewSheetColumnsBecomeVariables();
 };
 
 

@@ -1,6 +1,7 @@
 # Build, test, package, smoke-test and publish gLabels Neo.
 #
 #  - push to main          -> rolling "edge" prerelease with the newest build
+#  - push to dev           -> a full build and test, kept as run artifacts only: NOT published (see docs/DEV-BUILDS.md)
 #  - push of a v* tag      -> stable release (attached to that tag)
 #  - pull request touching packaging -> dry run: everything except publishing
 #
@@ -13,7 +14,7 @@ name: Release
 
 on:
   push:
-    branches: [main]
+    branches: [main, dev]
     tags: ['v*']
     # Everything that can change a package; documentation-only changes do not rebuild.
     # (Path filters do not apply to tag pushes: tags always build.)
@@ -78,10 +79,14 @@ jobs:
         run: |
           if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
             echo "channel=stable" >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_EVENT_NAME" == "push" && "$GITHUB_REF" == "refs/heads/dev" ]]; then
+            echo "channel=dev" >> "$GITHUB_OUTPUT"
           elif [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
             echo "channel=edge" >> "$GITHUB_OUTPUT"
           elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$GITHUB_REF" == "refs/heads/main" && "$PUBLISH" == "edge" ]]; then
             echo "channel=edge" >> "$GITHUB_OUTPUT"
+          elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$GITHUB_REF" == "refs/heads/dev" ]]; then
+            echo "channel=dev" >> "$GITHUB_OUTPUT"
           else
             echo "channel=dry-run" >> "$GITHUB_OUTPUT"
           fi
@@ -420,7 +425,8 @@ jobs:
   publish:
     name: Publish (${{ needs.channel.outputs.channel }})
     needs: [channel, linux, windows, macos]
-    if: needs.channel.outputs.channel != 'dry-run'
+    # Dev builds are never published: the repository is public, and a release is a public download.
+    if: needs.channel.outputs.channel != 'dry-run' && needs.channel.outputs.channel != 'dev'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -539,3 +545,30 @@ jobs:
             --notes-file notes.md
           # Last, so that the manifest found through "latest" always has its packages in place.
           gh release upload "$GITHUB_REF_NAME" dist/glabels-neo-update-manifest.json
+
+  # ---------------------------------------------------------------------- dev
+  # A dev build is only kept as this run's artifacts (7 days): the repository is public, so a release would be a
+  # public download of a build that carries the Google credentials. Nothing is published, no manifest is written.
+  dev-summary:
+    name: Dev build (not published)
+    needs: [channel, linux, windows, macos]
+    if: needs.channel.outputs.channel == 'dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Say where the packages are
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          {
+            echo "### Dev build of \`${GITHUB_SHA::7}\`"
+            echo
+            echo "Built and tested on all three platforms. **Not published.** Download the package for your system from"
+            echo "the **Artifacts** section at the bottom of [this run](${RUN_URL}) (sign in to GitHub; kept for 7 days):"
+            echo
+            echo "* \`pkg-windows\` - Windows (zip)"
+            echo "* \`pkg-macos\` - macOS (dmg)"
+            echo "* \`pkg-linux\` - Linux (tar.gz)"
+            echo
+            echo "The build shows \"(dev)\" in the title bar and in About, and does not update itself."
+          } >> "$GITHUB_STEP_SUMMARY"

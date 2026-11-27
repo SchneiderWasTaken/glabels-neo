@@ -48,6 +48,10 @@ namespace glabels::model
                 const int     MICRO   = @glabels-qt_VERSION_PATCH@;
 
                 const QString STRING  = "@VERSION_STRING@";
+
+                /// "dev" for builds of the dev branch (title bar shows "(dev)", About says so), else "release".
+                const QString FLAVOR  = "@BUILD_FLAVOR@";
+                const bool    IS_DEV_BUILD = @IS_DEV_BUILD@;
                 const QString LONG_STRING  = "@LONG_VERSION_STRING@";
 
                 QString details();

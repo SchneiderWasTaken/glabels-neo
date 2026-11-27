@@ -40,6 +40,7 @@ namespace glabels::model
 
                 ts << "> " << Branding::DISPLAY_NAME.toUpper() << "\n"
                    << ">     Version: " << STRING << "\n"
+                   << ">     Build flavor: " << FLAVOR << "\n"
                    << ">     " << Branding::ATTRIBUTION << "\n"
                    << "> " << "\n"
 

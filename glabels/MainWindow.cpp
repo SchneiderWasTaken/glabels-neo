@@ -56,6 +56,7 @@
 #include "theme/Theme.hpp"
 
 #include "model/Branding.hpp"
+#include "model/Version.hpp"
 #include "model/Db.hpp"
 #include "model/FrameContinuous.hpp"
 #include "model/Model.hpp"
@@ -2842,19 +2843,24 @@ namespace glabels
         ///
         void MainWindow::setTitle()
         {
+                // Builds of the dev branch say so, so that nobody mistakes one for a release.
+                const QString name = model::Version::IS_DEV_BUILD
+                                     ? model::Branding::DISPLAY_NAME + QStringLiteral( " (dev)" )
+                                     : model::Branding::DISPLAY_NAME;
+
                 if ( !mModel )
                 {
-                        setWindowTitle( model::Branding::DISPLAY_NAME );
+                        setWindowTitle( name );
                 }
                 else
                 {
                         if ( mModel->isModified() )
                         {
-                                setWindowTitle( model::Branding::DISPLAY_NAME + " - " + mModel->shortName() + " " + tr("(modified)") );
+                                setWindowTitle( name + " - " + mModel->shortName() + " " + tr("(modified)") );
                         }
                         else
                         {
-                                setWindowTitle( model::Branding::DISPLAY_NAME + " - " + mModel->shortName() );
+                                setWindowTitle( name + " - " + mModel->shortName() );
                         }
                 }
         }

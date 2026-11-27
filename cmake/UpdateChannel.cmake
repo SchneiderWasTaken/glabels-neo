@@ -13,6 +13,8 @@
 #             run of the release workflow, otherwise off.  Local and pull-request builds never
 #             try to update themselves.
 #    stable | edge | off   force one.
+#
+# A dev build (BUILD_FLAVOR "dev", see the top-level CMakeLists.txt) always has self-update off.
 
 set (GLABELS_UPDATE_CHANNEL "auto" CACHE STRING "Self-update channel of this build: auto, stable, edge or off")
 set_property (CACHE GLABELS_UPDATE_CHANNEL PROPERTY STRINGS auto stable edge off)
@@ -63,6 +65,12 @@ if (UPDATE_CHANNEL STREQUAL "auto")
   else ()
     set (UPDATE_CHANNEL "off")
   endif ()
+endif ()
+
+# A dev build never updates itself: it would be "updated" to an edge or stable build and lose what is
+# being tried out. Install the next dev build by hand (the "dev" prerelease on GitHub).
+if (BUILD_FLAVOR STREQUAL "dev")
+  set (UPDATE_CHANNEL "off")
 endif ()
 
 # A channel is only usable if the build knows what it is, to compare against the newest release.

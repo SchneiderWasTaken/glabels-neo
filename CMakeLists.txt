@@ -26,16 +26,15 @@ set (BUG_WEBSITE  "https://github.com/SchneiderWasTaken/glabels-neo/issues")
 set (GLABELS_REPORT_ENDPOINT "" CACHE STRING "Base URL of the in-app bug report relay")
 set (REPORT_ENDPOINT "${GLABELS_REPORT_ENDPOINT}")
 
-# Google Sheets OAuth 2.0 Desktop client credentials and Picker bridge URL.
+# Google Sheets OAuth 2.0 Desktop client credentials and Picker API key.
+# The picker page is served by the app itself on 127.0.0.1, so there is no URL to set.
 # Empty client ID = Google Sign-In disabled (public/link-shared sheets still work without sign-in).
 # Can also be overridden at runtime via GLABELS_GOOGLE_* environment variables for local development.
 set (GLABELS_GOOGLE_CLIENT_ID "" CACHE STRING "Google OAuth 2.0 Desktop client ID")
 set (GLABELS_GOOGLE_CLIENT_SECRET "" CACHE STRING "Google OAuth 2.0 Desktop client secret")
-set (GLABELS_GOOGLE_PICKER_URL "https://schneiderwastaken.github.io/glabels-neo/picker/" CACHE STRING "Google Picker helper page URL")
 set (GLABELS_GOOGLE_PICKER_API_KEY "" CACHE STRING "Google Picker browser API key")
 set (GOOGLE_CLIENT_ID "${GLABELS_GOOGLE_CLIENT_ID}")
 set (GOOGLE_CLIENT_SECRET "${GLABELS_GOOGLE_CLIENT_SECRET}")
-set (GOOGLE_PICKER_URL "${GLABELS_GOOGLE_PICKER_URL}")
 set (GOOGLE_PICKER_API_KEY "${GLABELS_GOOGLE_PICKER_API_KEY}")
 
 execute_process(

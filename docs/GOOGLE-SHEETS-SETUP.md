@@ -36,11 +36,20 @@ Enable these three APIs:
 - **Name:** `gLabels Neo Desktop`
 - Save the generated **Client ID** and **Client Secret**.
 
-### 5. Create the Google Picker Browser API Key (*Credentials → Create Credentials → API key*)
+### 5. Create the Google Picker API Key (*Credentials → Create Credentials → API key*)
 - Click **Edit API key**:
-  - **Application restrictions:** **Websites** → add `https://schneiderwastaken.github.io/*` (and your custom domain if any)
-  - **API restrictions:** Restrict key to **Google Picker API**
+  - **API restrictions:** Restrict the key to **Google Picker API** only. This is the restriction that matters.
+  - **Application restrictions:** **None**. The picker page is served by gLabels Neo itself at `http://127.0.0.1:<random port>/picker`, so there is no fixed website to list. The key is compiled into the app and is not a secret; restricting it to the Picker API keeps it from being used for anything else.
+- Optionally set a low daily quota on the Picker API for this project.
 - Save the **API Key**.
+
+#### How the picker works
+"Pick a Google Sheet…" starts a one-off web server on `127.0.0.1` (random port) and opens
+`http://127.0.0.1:<port>/picker?n=<one-time code>` in the browser. The app serves that page once, with the
+short-lived access token inside the page itself, so the token never appears in a URL, browser history,
+process arguments or any website. The page loads Google's Picker script, and the chosen sheet comes back to
+`/picked` on the same port. The server only answers requests whose `Host` is `127.0.0.1`, and both the
+sign-in and picker listeners close after 5 minutes or when the dialog closes.
 
 ---
 
@@ -53,10 +62,9 @@ Add these in **GitHub Repository Settings → Secrets and variables → Actions*
 | :--- | :--- | :--- |
 | **Secret** | `GOOGLE_CLIENT_ID` | Your Desktop OAuth Client ID (`<projectNumber>-...apps.googleusercontent.com`) |
 | **Secret** | `GOOGLE_CLIENT_SECRET` | Your Desktop OAuth Client Secret |
-| **Variable** | `GOOGLE_PICKER_API_KEY` | Your website-restricted Google Picker API key |
-| **Variable** *(optional)* | `GOOGLE_PICKER_URL` | Defaults to `https://schneiderwastaken.github.io/glabels-neo/picker/` |
+| **Variable** | `GOOGLE_PICKER_API_KEY` | Your Picker-API-restricted Google Picker API key |
 
-Also ensure GitHub Pages is enabled (`PAGES_ENABLED = true`) so `/privacy/` and `/picker/` are live.
+Also ensure GitHub Pages is enabled (`PAGES_ENABLED = true`) so `/privacy/` is live (Google requires it for the consent screen).
 
 ### Local Development / Testing Without Rebuilding
 You can test Google Sign-In and Picker locally at any time by exporting environment variables before launching `glabels-qt`:
@@ -65,6 +73,4 @@ You can test Google Sign-In and Picker locally at any time by exporting environm
 $env:GLABELS_GOOGLE_CLIENT_ID     = "<your-client-id>"
 $env:GLABELS_GOOGLE_CLIENT_SECRET = "<your-client-secret>"
 $env:GLABELS_GOOGLE_PICKER_API_KEY = "<your-picker-api-key>"
-# Optional: override picker URL if testing locally
-# $env:GLABELS_GOOGLE_PICKER_URL  = "https://schneiderwastaken.github.io/glabels-neo/picker/"
 ```

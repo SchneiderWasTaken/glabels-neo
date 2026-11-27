@@ -28,6 +28,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QString>
+#include <QTimer>
 #include <QUrl>
 
 #include <functional>
@@ -43,7 +44,7 @@ namespace glabels::datasource
 
         ///
         /// Manages Google OAuth 2.0 authentication (RFC 8252 loopback + PKCE)
-        /// and the Google Picker loopback bridge for linking private or shared
+        /// and the local Google Picker page for linking private or shared
         /// Google Sheets from any personal Gmail or Google Workspace account.
         ///
         /// Refresh tokens are persisted only in SecretStore (OS credential store).
@@ -66,9 +67,10 @@ namespace glabels::datasource
                 static GoogleAuthManager* instance();
 
                 /// Effective OAuth configuration (env override > compile-time Version::GOOGLE_*).
+                /// The picker page is always served by the app itself on 127.0.0.1, so
+                /// there is no picker URL to configure.
                 QString clientId() const;
                 QString clientSecret() const;
-                QString pickerUrl() const;
                 QString pickerApiKey() const;
                 QString scopes() const;
                 QString cloudProjectNumber() const;
@@ -89,21 +91,25 @@ namespace glabels::datasource
                 void ensureAccessToken( TokenCallback callback );
                 void invalidateAccessToken();
 
-                /// Launch the Google Picker bridge in the user's browser to pick a spreadsheet
-                /// (grants persistent read access under the non-sensitive drive.file scope).
+                /// Serve the Google Picker page from 127.0.0.1 and open it in the user's browser.
+                /// The access token is only in that one-time page, never in a URL.
+                /// (drive.file grants per-file access to the sheets the user picks.)
                 void pickSpreadsheet();
                 void cancelPicker();
 
                 /// Test / configuration overrides.
                 void setClientCredentialsForTests( const QString& clientId,
                                                    const QString& clientSecret,
-                                                   const QString& pickerUrl = QString(),
                                                    const QString& pickerApiKey = QString() );
                 void setEndpointsForTests( const QString& authUrl,
                                            const QString& tokenUrl,
                                            const QString& userinfoUrl,
                                            const QString& revokeUrl );
                 void setUrlOpenerForTests( UrlOpener opener );
+                void setLoopbackTimeoutForTests( int ms ) { mLoopbackTimeoutMs = ms; }
+
+                /// How long a sign-in or picker listener waits for the browser.
+                static constexpr int LOOPBACK_TIMEOUT_MS = 5 * 60 * 1000;
 
         signals:
                 void signedIn( const QString& email );
@@ -122,11 +128,28 @@ namespace glabels::datasource
 
                 void onPickerConnection();
                 void handlePickerHttpRequest( QTcpSocket* socket, const QByteArray& raw );
+                QByteArray pickerPageHtml( QByteArray& cspOut ) const;
+
+                /// Read one HTTP request header from a loopback socket (size-capped,
+                /// 10 s per socket) and hand it to `handler` exactly once.
+                void readLoopbackRequest( QTcpSocket* socket,
+                                          std::function<void( QTcpSocket*, const QByteArray& )> handler );
+
+                /// Parse "GET <path> HTTP/1.1" and check the Host header names this
+                /// listener (blocks DNS-rebinding pages).  Returns false on anything else.
+                static bool parseLoopbackRequest( const QByteArray& raw,
+                                                  quint16           port,
+                                                  QUrl&             targetOut );
 
                 static void writeHtmlResponse( QTcpSocket*    socket,
                                                int            statusCode,
                                                const QString& title,
                                                const QString& body );
+                static void writeRawResponse( QTcpSocket*       socket,
+                                              int               statusCode,
+                                              const QByteArray& contentType,
+                                              const QByteArray& payload,
+                                              const QByteArray& extraHeaders = QByteArray() );
                 static QString randomBase64Url( int byteCount );
                 static QString pkceChallengeS256( const QString& verifier );
 
@@ -139,7 +162,13 @@ namespace glabels::datasource
                 QString                  mPendingState;
                 QString                  mPendingVerifier;
                 QString                  mPendingRedirectUri;
-                QString                  mPendingPickerState;
+                QString                  mPendingPickerState;   // posted back with the result
+                QString                  mPendingPickerNonce;   // one-time key for GET /picker
+                QString                  mPendingPickerToken;   // embedded once in the page
+                bool                     mPickerPageServed{ false };
+                QPointer<QTimer>         mOAuthTimeout;
+                QPointer<QTimer>         mPickerTimeout;
+                int                      mLoopbackTimeoutMs{ LOOPBACK_TIMEOUT_MS };
 
                 QString                  mAccessToken;
                 QDateTime                mAccessTokenExpiresAt;
@@ -150,7 +179,6 @@ namespace glabels::datasource
                 // Optional test/runtime overrides
                 QString                  mClientIdOverride;
                 QString                  mClientSecretOverride;
-                QString                  mPickerUrlOverride;
                 QString                  mPickerApiKeyOverride;
                 QString                  mAuthEndpoint;
                 QString                  mTokenEndpoint;

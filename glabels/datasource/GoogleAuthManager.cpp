@@ -122,16 +122,6 @@ namespace glabels::datasource
         }
 
 
-        QString GoogleAuthManager::pickerUrl() const
-        {
-                if ( !mPickerUrlOverride.isEmpty() )
-                {
-                        return mPickerUrlOverride;
-                }
-                return envOrBuild( "GLABELS_GOOGLE_PICKER_URL", model::Version::GOOGLE_PICKER_URL );
-        }
-
-
         QString GoogleAuthManager::pickerApiKey() const
         {
                 if ( !mPickerApiKeyOverride.isEmpty() )
@@ -144,14 +134,11 @@ namespace glabels::datasource
 
         QString GoogleAuthManager::scopes() const
         {
-                const QString envScopes = qEnvironmentVariable( "GLABELS_GOOGLE_SCOPES" ).trimmed();
-                if ( !envScopes.isEmpty() )
-                {
-                        return envScopes;
-                }
                 // drive.file is a non-sensitive Google OAuth scope that works for ANY
                 // Google user (personal Gmail or Workspace) without CASA auditing when
-                // paired with Google Picker.
+                // paired with Google Picker.  It covers only the files the user picks
+                // (Google offers no read-only variant; the app only ever reads).
+                // Fixed in code: no environment override can widen it.
                 return QStringLiteral( "openid email https://www.googleapis.com/auth/drive.file" );
         }
 
@@ -176,7 +163,7 @@ namespace glabels::datasource
 
         bool GoogleAuthManager::isPickerConfigured() const
         {
-                return isConfigured() && !pickerUrl().isEmpty() && !pickerApiKey().isEmpty();
+                return isConfigured() && !pickerApiKey().isEmpty();
         }
 
 
@@ -198,12 +185,10 @@ namespace glabels::datasource
 
         void GoogleAuthManager::setClientCredentialsForTests( const QString& clientId,
                                                               const QString& clientSecret,
-                                                              const QString& pickerUrl,
                                                               const QString& pickerApiKey )
         {
                 mClientIdOverride = clientId;
                 mClientSecretOverride = clientSecret;
-                mPickerUrlOverride = pickerUrl;
                 mPickerApiKeyOverride = pickerApiKey;
         }
 
@@ -251,6 +236,14 @@ namespace glabels::datasource
                 mOAuthServer = server;
                 connect( server, &QTcpServer::newConnection, this, &GoogleAuthManager::onOAuthConnection );
 
+                mOAuthTimeout = new QTimer( this );
+                mOAuthTimeout->setSingleShot( true );
+                connect( mOAuthTimeout, &QTimer::timeout, this, [this]() {
+                        cancelSignIn();
+                        emit signInFailed( tr( "Google Sign-In timed out. Click \"Sign in with Google\" to try again." ) );
+                } );
+                mOAuthTimeout->start( mLoopbackTimeoutMs );
+
                 mPendingState = randomBase64Url( 24 );
                 mPendingVerifier = randomBase64Url( 32 );
                 mPendingRedirectUri = QStringLiteral( "http://127.0.0.1:%1/callback" ).arg( server->serverPort() );
@@ -281,6 +274,12 @@ namespace glabels::datasource
 
         void GoogleAuthManager::cancelSignIn()
         {
+                if ( mOAuthTimeout )
+                {
+                        mOAuthTimeout->stop();
+                        mOAuthTimeout->deleteLater();
+                        mOAuthTimeout = nullptr;
+                }
                 if ( mOAuthServer )
                 {
                         mOAuthServer->close();
@@ -297,33 +296,102 @@ namespace glabels::datasource
         {
                 while ( mOAuthServer && mOAuthServer->hasPendingConnections() )
                 {
-                        QTcpSocket* socket = mOAuthServer->nextPendingConnection();
-                        socket->setParent( this );
-                        connect( socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater );
-                        connect( socket, &QTcpSocket::readyRead, this, [this, socket]() {
-                                const QByteArray buf = socket->property( "buf" ).toByteArray() + socket->readAll();
-                                socket->setProperty( "buf", buf );
-                                if ( buf.contains( "\r\n\r\n" ) )
-                                {
-                                        handleOAuthHttpRequest( socket, buf );
-                                }
-                        } );
+                        readLoopbackRequest( mOAuthServer->nextPendingConnection(),
+                                             [this]( QTcpSocket* s, const QByteArray& raw ) {
+                                                     handleOAuthHttpRequest( s, raw );
+                                             } );
                 }
+        }
+
+
+        void GoogleAuthManager::readLoopbackRequest(
+                QTcpSocket* socket,
+                std::function<void( QTcpSocket*, const QByteArray& )> handler )
+        {
+                static constexpr int MAX_HEADER_BYTES = 16 * 1024;
+                static constexpr int SOCKET_TIMEOUT_MS = 10000;
+
+                // Reparent: the server may be deleted right after it answers, and
+                // the reply still has to reach the browser.
+                socket->setParent( this );
+                connect( socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater );
+                QTimer::singleShot( SOCKET_TIMEOUT_MS, socket, [socket]() {
+                        socket->abort();
+                        socket->deleteLater();
+                } );
+
+                connect( socket, &QTcpSocket::readyRead, this, [socket, handler]() {
+                        if ( socket->property( "handled" ).toBool() )
+                        {
+                                socket->readAll(); // one request per connection
+                                return;
+                        }
+                        const QByteArray buf = socket->property( "buf" ).toByteArray() + socket->readAll();
+                        if ( buf.size() > MAX_HEADER_BYTES )
+                        {
+                                socket->setProperty( "handled", true );
+                                writeHtmlResponse( socket, 431, tr( "Request too large" ), tr( "Request header too large." ) );
+                                return;
+                        }
+                        socket->setProperty( "buf", buf );
+                        if ( buf.contains( "\r\n\r\n" ) )
+                        {
+                                socket->setProperty( "handled", true );
+                                handler( socket, buf );
+                        }
+                } );
+        }
+
+
+        bool GoogleAuthManager::parseLoopbackRequest( const QByteArray& raw, quint16 port, QUrl& targetOut )
+        {
+                const int headerEnd = raw.indexOf( "\r\n\r\n" );
+                const QList<QByteArray> lines = raw.left( headerEnd < 0 ? raw.size() : headerEnd ).split( '\n' );
+                if ( lines.isEmpty() )
+                {
+                        return false;
+                }
+
+                const QList<QByteArray> parts = lines.first().trimmed().split( ' ' );
+                if ( parts.size() != 3 || parts.at( 0 ) != "GET" || !parts.at( 1 ).startsWith( '/' )
+                     || !parts.at( 2 ).startsWith( "HTTP/1." ) )
+                {
+                        return false;
+                }
+
+                // The browser sends "Host: 127.0.0.1:<port>".  A page on another
+                // domain that re-points its DNS at 127.0.0.1 sends its own name.
+                QByteArray host;
+                for ( int i = 1; i < lines.size(); ++i )
+                {
+                        const QByteArray line = lines.at( i ).trimmed();
+                        if ( line.left( 5 ).toLower() == "host:" )
+                        {
+                                if ( !host.isNull() )
+                                {
+                                        return false; // duplicate Host header
+                                }
+                                host = line.mid( 5 ).trimmed();
+                        }
+                }
+                if ( host != "127.0.0.1" && host != "127.0.0.1:" + QByteArray::number( port ) )
+                {
+                        return false;
+                }
+
+                targetOut = QUrl( QStringLiteral( "http://127.0.0.1" ) + QString::fromLatin1( parts.at( 1 ) ) );
+                return targetOut.isValid();
         }
 
 
         void GoogleAuthManager::handleOAuthHttpRequest( QTcpSocket* socket, const QByteArray& raw )
         {
-                const int lineEnd = raw.indexOf( "\r\n" );
-                const QString requestLine = QString::fromLatin1( lineEnd >= 0 ? raw.left( lineEnd ) : raw );
-                const QStringList parts = requestLine.split( ' ' );
-                if ( parts.size() < 2 )
+                QUrl targetUrl;
+                if ( !parseLoopbackRequest( raw, socket->localPort(), targetUrl ) )
                 {
                         writeHtmlResponse( socket, 400, tr( "Invalid request" ), tr( "Malformed callback request." ) );
                         return;
                 }
-
-                const QUrl targetUrl( QStringLiteral( "http://127.0.0.1" ) + parts.at( 1 ) );
                 if ( targetUrl.path() != QStringLiteral( "/callback" ) )
                 {
                         writeHtmlResponse( socket, 404, tr( "Not found" ), tr( "Unknown callback path." ) );
@@ -335,23 +403,24 @@ namespace glabels::datasource
                 const QString state = q.queryItemValue( QStringLiteral( "state" ), QUrl::FullyDecoded );
                 const QString code = q.queryItemValue( QStringLiteral( "code" ), QUrl::FullyDecoded );
 
-                if ( !error.isEmpty() )
+                // Check state first.  A request without the right state is not from
+                // Google's redirect: refuse it, but leave the real sign-in running.
+                if ( mPendingState.isEmpty() || state != mPendingState )
+                {
+                        writeHtmlResponse( socket, 400,
+                                           tr( "Sign-in verification failed" ),
+                                           tr( "The sign-in state did not match. Please try again from gLabels Neo." ) );
+                        return;
+                }
+
+                if ( !error.isEmpty() || code.isEmpty() )
                 {
                         writeHtmlResponse( socket, 200,
                                            tr( "Google Sign-In canceled" ),
                                            tr( "You can close this tab and return to gLabels Neo." ) );
                         cancelSignIn();
-                        emit signInFailed( tr( "Google Sign-In was canceled or denied (%1)." ).arg( error ) );
-                        return;
-                }
-
-                if ( state.isEmpty() || state != mPendingState || code.isEmpty() )
-                {
-                        writeHtmlResponse( socket, 400,
-                                           tr( "Sign-in verification failed" ),
-                                           tr( "The sign-in state did not match. Please try again from gLabels Neo." ) );
-                        cancelSignIn();
-                        emit signInFailed( tr( "Google Sign-In state verification failed. Please try again." ) );
+                        emit signInFailed( tr( "Google Sign-In was canceled or denied (%1)." )
+                                                   .arg( error.isEmpty() ? tr( "no code" ) : error ) );
                         return;
                 }
 
@@ -635,7 +704,7 @@ namespace glabels::datasource
                 if ( !isPickerConfigured() )
                 {
                         emit pickerFailed(
-                                tr( "Google Picker is not configured in this build (requires GLABELS_GOOGLE_PICKER_API_KEY and GLABELS_GOOGLE_PICKER_URL)." ) );
+                                tr( "Google Picker is not configured in this build (requires GLABELS_GOOGLE_PICKER_API_KEY)." ) );
                         return;
                 }
 
@@ -659,23 +728,27 @@ namespace glabels::datasource
                         mPickerServer = server;
                         connect( server, &QTcpServer::newConnection, this, &GoogleAuthManager::onPickerConnection );
 
+                        mPickerTimeout = new QTimer( this );
+                        mPickerTimeout->setSingleShot( true );
+                        connect( mPickerTimeout, &QTimer::timeout, this, [this]() {
+                                cancelPicker();
+                                emit pickerFailed( tr( "Choosing a Google Sheet timed out. Click \"Pick a Google Sheet...\" to try again." ) );
+                        } );
+                        mPickerTimeout->start( mLoopbackTimeoutMs );
+
+                        // The browser opens our own page on 127.0.0.1.  Its URL carries
+                        // only a one-time code; the access token is written into the
+                        // page body once and is never part of any URL, so it cannot
+                        // land in browser history, process arguments or a web server.
                         mPendingPickerState = randomBase64Url( 24 );
-                        const QString callbackUrl = QStringLiteral( "http://127.0.0.1:%1/picked" ).arg( server->serverPort() );
+                        mPendingPickerNonce = randomBase64Url( 24 );
+                        mPendingPickerToken = token;
+                        mPickerPageServed = false;
 
-                        // Pass sensitive access_token only in the URL fragment (#) so it is
-                        // never transmitted to the static hosting server.
-                        QUrlQuery frag;
-                        frag.addQueryItem( QStringLiteral( "access_token" ), token );
-                        frag.addQueryItem( QStringLiteral( "callback" ), callbackUrl );
-                        frag.addQueryItem( QStringLiteral( "state" ), mPendingPickerState );
-                        frag.addQueryItem( QStringLiteral( "api_key" ), pickerApiKey() );
-                        if ( !cloudProjectNumber().isEmpty() )
-                        {
-                                frag.addQueryItem( QStringLiteral( "app_id" ), cloudProjectNumber() );
-                        }
-
-                        QUrl url( pickerUrl() );
-                        url.setFragment( frag.toString( QUrl::FullyEncoded ), QUrl::StrictMode );
+                        QUrl url( QStringLiteral( "http://127.0.0.1:%1/picker" ).arg( server->serverPort() ) );
+                        QUrlQuery q;
+                        q.addQueryItem( QStringLiteral( "n" ), mPendingPickerNonce );
+                        url.setQuery( q );
 
                         const bool opened = mUrlOpener
                                 ? mUrlOpener( url )
@@ -691,6 +764,12 @@ namespace glabels::datasource
 
         void GoogleAuthManager::cancelPicker()
         {
+                if ( mPickerTimeout )
+                {
+                        mPickerTimeout->stop();
+                        mPickerTimeout->deleteLater();
+                        mPickerTimeout = nullptr;
+                }
                 if ( mPickerServer )
                 {
                         mPickerServer->close();
@@ -698,6 +777,9 @@ namespace glabels::datasource
                         mPickerServer = nullptr;
                 }
                 mPendingPickerState.clear();
+                mPendingPickerNonce.clear();
+                mPendingPickerToken.clear();
+                mPickerPageServed = false;
         }
 
 
@@ -705,52 +787,69 @@ namespace glabels::datasource
         {
                 while ( mPickerServer && mPickerServer->hasPendingConnections() )
                 {
-                        QTcpSocket* socket = mPickerServer->nextPendingConnection();
-                        socket->setParent( this );
-                        connect( socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater );
-                        connect( socket, &QTcpSocket::readyRead, this, [this, socket]() {
-                                const QByteArray buf = socket->property( "buf" ).toByteArray() + socket->readAll();
-                                socket->setProperty( "buf", buf );
-                                if ( buf.contains( "\r\n\r\n" ) )
-                                {
-                                        handlePickerHttpRequest( socket, buf );
-                                }
-                        } );
+                        readLoopbackRequest( mPickerServer->nextPendingConnection(),
+                                             [this]( QTcpSocket* s, const QByteArray& raw ) {
+                                                     handlePickerHttpRequest( s, raw );
+                                             } );
                 }
         }
 
 
         void GoogleAuthManager::handlePickerHttpRequest( QTcpSocket* socket, const QByteArray& raw )
         {
-                const int lineEnd = raw.indexOf( "\r\n" );
-                const QString requestLine = QString::fromLatin1( lineEnd >= 0 ? raw.left( lineEnd ) : raw );
-                const QStringList parts = requestLine.split( ' ' );
-                if ( parts.size() < 2 )
+                QUrl targetUrl;
+                if ( !parseLoopbackRequest( raw, socket->localPort(), targetUrl ) )
                 {
-                        writeHtmlResponse( socket, 400, tr( "Invalid request" ), tr( "Malformed picker callback." ) );
-                        return;
-                }
-
-                const QUrl targetUrl( QStringLiteral( "http://127.0.0.1" ) + parts.at( 1 ) );
-                if ( targetUrl.path() != QStringLiteral( "/picked" ) )
-                {
-                        writeHtmlResponse( socket, 404, tr( "Not found" ), tr( "Unknown callback path." ) );
+                        writeHtmlResponse( socket, 400, tr( "Invalid request" ), tr( "Malformed picker request." ) );
                         return;
                 }
 
                 const QUrlQuery q( targetUrl );
+
+                if ( targetUrl.path() == QStringLiteral( "/picker" ) )
+                {
+                        const QString nonce = q.queryItemValue( QStringLiteral( "n" ), QUrl::FullyDecoded );
+                        if ( mPendingPickerNonce.isEmpty() || nonce != mPendingPickerNonce )
+                        {
+                                writeHtmlResponse( socket, 404, tr( "Link expired" ),
+                                                   tr( "This link is no longer valid. Go back to gLabels Neo and click \"Pick a Google Sheet...\"." ) );
+                                return;
+                        }
+                        if ( mPickerPageServed )
+                        {
+                                writeHtmlResponse( socket, 410, tr( "Already opened" ),
+                                                   tr( "This page was already opened. Go back to gLabels Neo and click \"Pick a Google Sheet...\" to try again." ) );
+                                return;
+                        }
+                        mPickerPageServed = true;
+                        QByteArray csp;
+                        const QByteArray page = pickerPageHtml( csp );
+                        mPendingPickerToken.clear(); // served once; nothing else needs it
+                        // strict-origin: Google may see "http://127.0.0.1:<port>" but
+                        // never the path or the one-time code.
+                        writeRawResponse( socket, 200, "text/html; charset=utf-8", page,
+                                          "Content-Security-Policy: " + csp + "\r\n"
+                                          "Referrer-Policy: strict-origin\r\n" );
+                        return;
+                }
+
+                if ( targetUrl.path() != QStringLiteral( "/picked" ) )
+                {
+                        writeHtmlResponse( socket, 404, tr( "Not found" ), tr( "Unknown path." ) );
+                        return;
+                }
+
                 const QString state = q.queryItemValue( QStringLiteral( "state" ), QUrl::FullyDecoded );
                 const QString error = q.queryItemValue( QStringLiteral( "error" ), QUrl::FullyDecoded );
                 const QString id = q.queryItemValue( QStringLiteral( "id" ), QUrl::FullyDecoded ).trimmed();
                 const QString name = q.queryItemValue( QStringLiteral( "name" ), QUrl::FullyDecoded ).trimmed();
 
-                if ( state.isEmpty() || state != mPendingPickerState )
+                // Wrong state: not our page.  Refuse it but keep the real picker open.
+                if ( mPendingPickerState.isEmpty() || state != mPendingPickerState )
                 {
                         writeHtmlResponse( socket, 400,
                                            tr( "Verification failed" ),
                                            tr( "Picker state did not match. Please try again from gLabels Neo." ) );
-                        cancelPicker();
-                        emit pickerFailed( tr( "Google Picker state verification failed." ) );
                         return;
                 }
 
@@ -778,6 +877,80 @@ namespace glabels::datasource
         }
 
 
+        ///
+        /// The Google Picker page, served once from 127.0.0.1.  Settings go in as
+        /// a JSON literal ("<" escaped so nothing can close the script tag).
+        ///
+        QByteArray GoogleAuthManager::pickerPageHtml( QByteArray& cspOut ) const
+        {
+                QJsonObject cfg;
+                cfg.insert( QStringLiteral( "token" ), mPendingPickerToken );
+                cfg.insert( QStringLiteral( "apiKey" ), pickerApiKey() );
+                cfg.insert( QStringLiteral( "appId" ), cloudProjectNumber() );
+                cfg.insert( QStringLiteral( "state" ), mPendingPickerState );
+                QByteArray cfgJson = QJsonDocument( cfg ).toJson( QJsonDocument::Compact );
+                cfgJson.replace( "<", "\\u003c" );
+
+                const QByteArray nonce = randomBase64Url( 18 ).toLatin1();
+
+                // Scripts: only our inline one and Google's.  No framing.  Google's
+                // picker runs in its own docs.google.com frame.
+                cspOut = "default-src 'none'; "
+                         "script-src 'nonce-" + nonce + "' https://apis.google.com https://*.gstatic.com https://*.google.com; "
+                         "style-src 'unsafe-inline' https://*.gstatic.com https://*.google.com; "
+                         "img-src https: data:; font-src https://*.gstatic.com; "
+                         "connect-src https://*.google.com https://*.googleapis.com; "
+                         "frame-src https://*.google.com; "
+                         "base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+
+                QByteArray html =
+                        "<!DOCTYPE html><html><head><meta charset=\"utf-8\">"
+                        "<meta name=\"robots\" content=\"noindex\">"
+                        "<title>Choose a Google Sheet</title>"
+                        "<style>body{font-family:system-ui,-apple-system,sans-serif;max-width:560px;"
+                        "margin:64px auto;padding:24px;color:#1f2937;line-height:1.5}"
+                        "h1{font-size:1.25rem;margin:0 0 12px}button{font:inherit;padding:6px 14px}</style>"
+                        "</head><body><h1>Choose a Google Sheet</h1>"
+                        "<p id=\"st\">Loading Google Picker&hellip;</p>"
+                        "<p><button id=\"again\" type=\"button\" hidden>Open the picker</button></p>"
+                        "<script nonce=\"@NONCE@\">"
+                        "(function(){'use strict';"
+                        "if(window.top!==window.self){return;}"
+                        "var cfg=@CFG@;"
+                        "var st=document.getElementById('st'),btn=document.getElementById('again'),done=false;"
+                        "function sendBack(p){if(done){return;}done=true;cfg.token='';"
+                        "var q=new URLSearchParams(p);q.set('state',cfg.state);"
+                        "window.location.replace('/picked?'+q.toString());}"
+                        "function openPicker(){"
+                        "var view=new google.picker.DocsView(google.picker.ViewId.SPREADSHEETS);"
+                        "view.setIncludeFolders(true);"
+                        "var b=new google.picker.PickerBuilder().addView(view)"
+                        ".setOAuthToken(cfg.token).setDeveloperKey(cfg.apiKey)"
+                        ".setOrigin(window.location.origin)"
+                        ".setCallback(function(d){"
+                        "if(d.action===google.picker.Action.PICKED&&d.docs&&d.docs.length){"
+                        "var doc=d.docs[0];st.textContent='Linking '+(doc.name||'the sheet')+'\\u2026';"
+                        "sendBack({id:doc.id,name:doc.name||''});}"
+                        "else if(d.action===google.picker.Action.CANCEL){"
+                        "st.textContent='No sheet chosen. You can close this tab.';sendBack({error:'cancelled'});}});"
+                        "if(cfg.appId){b.setAppId(cfg.appId);}"
+                        "b.build().setVisible(true);}"
+                        "btn.onclick=openPicker;"
+                        "var s=document.createElement('script');"
+                        "s.src='https://apis.google.com/js/api.js';"
+                        "s.onload=function(){gapi.load('picker',{callback:function(){"
+                        "st.textContent='Choose the Google Sheet to link to gLabels Neo.';"
+                        "btn.hidden=false;openPicker();}});};"
+                        "s.onerror=function(){st.textContent='Could not load Google Picker. Check your internet connection.';};"
+                        "document.head.appendChild(s);"
+                        "})();"
+                        "</script></body></html>";
+                html.replace( "@NONCE@", nonce );
+                html.replace( "@CFG@", cfgJson );
+                return html;
+        }
+
+
         void GoogleAuthManager::writeHtmlResponse( QTcpSocket*    socket,
                                                    int            statusCode,
                                                    const QString& title,
@@ -791,12 +964,40 @@ namespace glabels::datasource
                         "h1{font-size:1.25rem;margin:0 0 12px}</style></head>"
                         "<body><h1>%1</h1><p>%2</p></body></html>" )
                         .arg( title.toHtmlEscaped(), body.toHtmlEscaped() );
-                const QByteArray payload = html.toUtf8();
+                writeRawResponse( socket, statusCode, "text/html; charset=utf-8", html.toUtf8(),
+                                  "Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; "
+                                  "frame-ancestors 'none'\r\n" );
+        }
+
+
+        void GoogleAuthManager::writeRawResponse( QTcpSocket*       socket,
+                                                  int               statusCode,
+                                                  const QByteArray& contentType,
+                                                  const QByteArray& payload,
+                                                  const QByteArray& extraHeaders )
+        {
+                QByteArray reason;
+                switch ( statusCode )
+                {
+                case 200: reason = "OK"; break;
+                case 400: reason = "Bad Request"; break;
+                case 404: reason = "Not Found"; break;
+                case 410: reason = "Gone"; break;
+                case 431: reason = "Request Header Fields Too Large"; break;
+                default:  reason = "Error"; break;
+                }
                 const QByteArray response =
-                        "HTTP/1.1 " + QByteArray::number( statusCode )
-                        + " OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: "
-                        + QByteArray::number( payload.size() )
-                        + "\r\nConnection: close\r\n\r\n" + payload;
+                        "HTTP/1.1 " + QByteArray::number( statusCode ) + " " + reason + "\r\n"
+                        "Content-Type: " + contentType + "\r\n"
+                        "Content-Length: " + QByteArray::number( payload.size() ) + "\r\n"
+                        "Cache-Control: no-store\r\n"
+                        "X-Content-Type-Options: nosniff\r\n"
+                        "X-Frame-Options: DENY\r\n"
+                        + ( extraHeaders.contains( "Referrer-Policy:" )
+                                    ? QByteArray()
+                                    : QByteArray( "Referrer-Policy: no-referrer\r\n" ) )
+                        + extraHeaders
+                        + "Connection: close\r\n\r\n" + payload;
                 socket->write( response );
                 socket->flush();
                 socket->disconnectFromHost();

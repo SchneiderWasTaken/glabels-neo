@@ -41,7 +41,6 @@ namespace glabels::model
 
                 const QString GOOGLE_CLIENT_ID      = "@GOOGLE_CLIENT_ID@";
                 const QString GOOGLE_CLIENT_SECRET  = "@GOOGLE_CLIENT_SECRET@";
-                const QString GOOGLE_PICKER_URL     = "@GOOGLE_PICKER_URL@";
                 const QString GOOGLE_PICKER_API_KEY = "@GOOGLE_PICKER_API_KEY@";
 
                 const int     MAJOR   = @glabels-qt_VERSION_MAJOR@;

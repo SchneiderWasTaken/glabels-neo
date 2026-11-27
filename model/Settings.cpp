@@ -615,4 +615,36 @@ namespace glabels::model
         }
         // --- end snapping & guides ---
 
+
+        // --- external data sources ---
+        QStringList Settings::recentRedashServers()
+        {
+                instance()->beginGroup( "ExternalSources" );
+                const QStringList list = mInstance->value( "recentRedashServers" ).toStringList();
+                mInstance->endGroup();
+                return list;
+        }
+
+
+        void Settings::addRecentRedashServer( const QString& serverUrl )
+        {
+                const QString cleaned = serverUrl.trimmed();
+                if ( cleaned.isEmpty() )
+                {
+                        return;
+                }
+
+                instance()->beginGroup( "ExternalSources" );
+                QStringList list = mInstance->value( "recentRedashServers" ).toStringList();
+                list.removeAll( cleaned );
+                list.prepend( cleaned );
+                while ( list.count() > 10 )
+                {
+                        list.removeLast();
+                }
+                mInstance->setValue( "recentRedashServers", list );
+                mInstance->endGroup();
+        }
+        // --- end external data sources ---
+
 }

@@ -25,11 +25,15 @@
 #include "PrinterMonitor.hpp"
 #include "ZplRenderer.hpp"
 
+#include "datasource/ExternalDataSourceDialog.hpp"
+#include "datasource/SecretStore.hpp"
+
 #include "model/Model.hpp"
 #include "model/ModelTextObject.hpp"
 #include "model/Settings.hpp"
 
 #include <QDebug>
+#include <QEventLoop>
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFrame>
@@ -43,9 +47,12 @@
 #include <QPrinter>
 #include <QPrinterInfo>
 #include <QPrintDialog>
+#include <QProgressDialog>
+#include <QPushButton>
 #include <QRegularExpression>
 #include <QTableWidgetItem>
 #include <QTextStream>
+#include <QToolButton>
 
 #ifndef GLABELS_FILL_NO_XLSX
 #include <xlsxdocument.h>
@@ -182,7 +189,66 @@ namespace glabels
                 mainCol->addLayout( headerRow );
 
                 // Inline toolbar row (only visible in standalone glabels-fill kiosk mode)
+                linkExternalSourceButton = new QToolButton( this );
+                linkExternalSourceButton->setText( tr("Redash...") );
+                linkExternalSourceButton->setToolButtonStyle( Qt::ToolButtonTextBesideIcon );
+                refreshExternalSourceButton = new QToolButton( this );
+                refreshExternalSourceButton->setText( tr("Refresh") );
+                refreshExternalSourceButton->setToolButtonStyle( Qt::ToolButtonTextBesideIcon );
+                refreshExternalSourceButton->setEnabled( false );
+                const int spacerIdx = toolbarLayout->indexOf( toolbarSpacer );
+                const int insertAt = ( spacerIdx >= 0 ) ? spacerIdx : toolbarLayout->count();
+                toolbarLayout->insertWidget( insertAt, linkExternalSourceButton );
+                toolbarLayout->insertWidget( insertAt + 1, refreshExternalSourceButton );
+                connect( linkExternalSourceButton, &QToolButton::clicked,
+                         this, &FillView::onLinkExternalSourceClicked );
+                connect( refreshExternalSourceButton, &QToolButton::clicked,
+                         this, &FillView::onRefreshExternalSourceClicked );
                 mainCol->addLayout( toolbarLayout );
+
+                // Linked external data source banner (hidden unless a live source is attached)
+                mExternalBanner = new QFrame( this );
+                mExternalBanner->setProperty( "role", QStringLiteral( "card" ) );
+                mExternalBanner->setFrameShape( QFrame::StyledPanel );
+                auto* bannerLayout = new QHBoxLayout( mExternalBanner );
+                bannerLayout->setContentsMargins( 12, 8, 12, 8 );
+                bannerLayout->setSpacing( 10 );
+
+                auto* bannerTextCol = new QVBoxLayout();
+                bannerTextCol->setContentsMargins( 0, 0, 0, 0 );
+                bannerTextCol->setSpacing( 2 );
+                mExternalTitleLabel = new QLabel( mExternalBanner );
+                mExternalTitleLabel->setStyleSheet( QStringLiteral( "font-weight: 600;" ) );
+                mExternalStatusLabel = new QLabel( mExternalBanner );
+                mExternalStatusLabel->setProperty( "role", QStringLiteral( "caption" ) );
+                bannerTextCol->addWidget( mExternalTitleLabel );
+                bannerTextCol->addWidget( mExternalStatusLabel );
+                bannerLayout->addLayout( bannerTextCol, 1 );
+
+                mBannerRefreshBtn = new QPushButton( tr("Refresh"), mExternalBanner );
+                mBannerConfigureBtn = new QPushButton( tr("Configure..."), mExternalBanner );
+                mBannerUnlinkBtn = new QPushButton( tr("Unlink"), mExternalBanner );
+                bannerLayout->addWidget( mBannerRefreshBtn );
+                bannerLayout->addWidget( mBannerConfigureBtn );
+                bannerLayout->addWidget( mBannerUnlinkBtn );
+                mExternalBanner->hide();
+                mainCol->addWidget( mExternalBanner );
+
+                connect( mBannerRefreshBtn, &QPushButton::clicked,
+                         this, &FillView::onRefreshExternalSourceClicked );
+                connect( mBannerConfigureBtn, &QPushButton::clicked,
+                         this, &FillView::onLinkExternalSourceClicked );
+                connect( mBannerUnlinkBtn, &QPushButton::clicked,
+                         this, &FillView::onUnlinkExternalSourceClicked );
+
+                connect( &mRedashClient, &datasource::ExternalDataFetcher::started,
+                         this, &FillView::onExternalFetchStarted );
+                connect( &mRedashClient, &datasource::ExternalDataFetcher::progressChanged,
+                         this, &FillView::onExternalFetchProgress );
+                connect( &mRedashClient, &datasource::ExternalDataFetcher::finished,
+                         this, &FillView::onExternalFetchFinished );
+                connect( &mRedashClient, &datasource::ExternalDataFetcher::failed,
+                         this, &FillView::onExternalFetchFailed );
 
                 // Middle row: jobs table on left, Sheet preview card on workWell on right (s12)
                 auto* middleRow = new QHBoxLayout();
@@ -271,10 +337,25 @@ namespace glabels
         ///
         void FillView::setModel( model::Model* model )
         {
+                if ( mModel )
+                {
+                        disconnect( mModel, nullptr, this, nullptr );
+                }
+                mRedashClient.cancel();
+                mLastExternalSyncAt = QDateTime();
+                mLastExternalRowCount = 0;
+                mLastExternalError.clear();
+                mExternalAutoLoaded = false;
+
                 mModel = model;
                 mRenderer.setModel( mModel );
 
-                connect( mModel, SIGNAL(changed()), this, SLOT(onModelChanged()) );
+                if ( mModel )
+                {
+                        connect( mModel, SIGNAL(changed()), this, SLOT(onModelChanged()) );
+                        connect( mModel, &model::Model::externalDataSourceChanged,
+                                 this, &FillView::onExternalSourceChanged );
+                }
 
                 onModelChanged();
 
@@ -290,6 +371,19 @@ namespace glabels
                 // refreshFields()/importRows so the model has its columns
                 // and rows populated.
                 mJobsModel.setLockedFields( mKioskLockedFields );
+
+                updateExternalSourceBanner();
+
+                if ( mModel && mModel->externalDataSource().isValid()
+                     && mModel->externalDataSource().refreshOnOpen )
+                {
+                        const auto& src = mModel->externalDataSource();
+                        if ( datasource::SecretStore::hasSecret( src.credentialKey() ) )
+                        {
+                                mExternalAutoLoaded = true;
+                                refreshExternalSource();
+                        }
+                }
         }
 
 
@@ -316,6 +410,14 @@ namespace glabels
                 importExcelButton->setVisible( showInline );
                 exportCsvButton->setVisible( showInline );
                 exportExcelButton->setVisible( showInline );
+                if ( linkExternalSourceButton )
+                {
+                        linkExternalSourceButton->setVisible( showInline );
+                }
+                if ( refreshExternalSourceButton )
+                {
+                        refreshExternalSourceButton->setVisible( showInline );
+                }
                 printButton->setVisible( showInline );
                 zplButton->setVisible( showInline );
                 systemDialogButton->setVisible( showInline );
@@ -778,6 +880,7 @@ namespace glabels
         void FillView::onPrintButtonClicked()
         {
                 if ( !mModel ) return;
+                if ( !ensureFreshExternalDataBeforePrint() ) return;
 
                 installFillMerge();
                 auto* fm = dynamic_cast<FillMerge*>( mModel->merge() );
@@ -839,6 +942,7 @@ namespace glabels
         void FillView::onSystemDialogButtonClicked()
         {
                 if ( !mModel ) return;
+                if ( !ensureFreshExternalDataBeforePrint() ) return;
 
                 installFillMerge();
                 auto* fm = dynamic_cast<FillMerge*>( mModel->merge() );
@@ -881,6 +985,7 @@ namespace glabels
         void FillView::onZplButtonClicked()
         {
                 if ( !mModel ) return;
+                if ( !ensureFreshExternalDataBeforePrint() ) return;
 
                 installFillMerge();
                 auto* fm = dynamic_cast<FillMerge*>( mModel->merge() );
@@ -1105,6 +1210,438 @@ namespace glabels
                 }
                 mJobsModel.setJobs( jobs );
                 onFormChanged();
+        }
+
+
+        void FillView::openExternalSourceDialog()
+        {
+                onLinkExternalSourceClicked();
+        }
+
+
+        void FillView::refreshExternalSource()
+        {
+                onRefreshExternalSourceClicked();
+        }
+
+
+        void FillView::applyExternalFetchResult( const datasource::FetchResult& result )
+        {
+                onExternalFetchFinished( result );
+        }
+
+
+        void FillView::onLinkExternalSourceClicked()
+        {
+                if ( !mModel )
+                {
+                        return;
+                }
+
+                datasource::ExternalDataSourceDialog dlg(
+                        mModel->externalDataSource(),
+                        mJobsModel.fieldNames(),
+                        this );
+                if ( dlg.exec() != QDialog::Accepted )
+                {
+                        return;
+                }
+
+                if ( dlg.wasUnlinked() )
+                {
+                        onUnlinkExternalSourceClicked();
+                        return;
+                }
+
+                const model::ExternalDataSource src = dlg.source();
+                mModel->setExternalDataSource( src );
+                mLastExternalError.clear();
+
+                if ( dlg.hasTestedResult() )
+                {
+                        applyExternalFetchResult( dlg.testedResult() );
+                }
+                else
+                {
+                        refreshExternalSource();
+                }
+        }
+
+
+        void FillView::onRefreshExternalSourceClicked()
+        {
+                if ( !mModel || !mModel->externalDataSource().isValid() )
+                {
+                        return;
+                }
+
+                const model::ExternalDataSource& src = mModel->externalDataSource();
+                if ( src.kind == model::ExternalSourceKind::Redash )
+                {
+                        mRedashClient.fetch( src );
+                }
+        }
+
+
+        void FillView::onUnlinkExternalSourceClicked()
+        {
+                if ( !mModel )
+                {
+                        return;
+                }
+                mRedashClient.cancel();
+                mLastExternalSyncAt = QDateTime();
+                mLastExternalRowCount = 0;
+                mLastExternalError.clear();
+                mModel->clearExternalDataSource();
+                updateExternalSourceBanner();
+        }
+
+
+        void FillView::onExternalSourceChanged()
+        {
+                updateExternalSourceBanner();
+        }
+
+
+        void FillView::onExternalFetchStarted()
+        {
+                mLastExternalError.clear();
+                updateExternalSourceBanner();
+        }
+
+
+        void FillView::onExternalFetchProgress( const QString& status )
+        {
+                if ( mExternalStatusLabel )
+                {
+                        mExternalStatusLabel->setText( status );
+                        mExternalStatusLabel->setStyleSheet( QString() );
+                }
+        }
+
+
+        void FillView::onExternalFetchFinished( const datasource::FetchResult& result )
+        {
+                mLastExternalSyncAt = result.fetchedAt.isValid() ? result.fetchedAt : QDateTime::currentDateTime();
+                mLastExternalRowCount = result.rows.size();
+                mLastExternalError.clear();
+
+                const QString matchKeySetting = mModel ? mModel->externalDataSource().matchKeyField : QString();
+                mergeExternalRows( result.rows, result.headers, matchKeySetting );
+                updateExternalSourceBanner();
+        }
+
+
+        void FillView::onExternalFetchFailed( const QString& error )
+        {
+                mLastExternalError = error;
+                updateExternalSourceBanner();
+        }
+
+
+        void FillView::mergeExternalRows( const QList<QMap<QString,QString>>& rows,
+                                          const QStringList&                  header,
+                                          const QString&                      matchKeySetting )
+        {
+                const QStringList labelFields = mJobsModel.fieldNames();
+
+                // Map each label field to its matching source column name (exact match
+                // first, then case-insensitive fallback so SQL snake_case matches ${SKU}).
+                QMap<QString,QString> fieldToHeader;
+                for ( const QString& field : labelFields )
+                {
+                        if ( header.contains( field ) )
+                        {
+                                fieldToHeader.insert( field, field );
+                        }
+                        else
+                        {
+                                for ( const QString& h : header )
+                                {
+                                        if ( h.compare( field, Qt::CaseInsensitive ) == 0 )
+                                        {
+                                                fieldToHeader.insert( field, h );
+                                                break;
+                                        }
+                                }
+                        }
+                }
+
+                // Special optional Qty / Print columns from the query
+                QString qtyHeader;
+                QString printHeader;
+                for ( const QString& h : header )
+                {
+                        if ( qtyHeader.isEmpty() && h.compare( QStringLiteral( "Qty" ), Qt::CaseInsensitive ) == 0 )
+                        {
+                                qtyHeader = h;
+                        }
+                        if ( printHeader.isEmpty() && h.compare( QStringLiteral( "Print" ), Qt::CaseInsensitive ) == 0 )
+                        {
+                                printHeader = h;
+                        }
+                }
+
+                // Resolve match key to preserve Qty, Print, and non-source/unlocked fields across refreshes.
+                QString matchField;
+                if ( matchKeySetting != QStringLiteral( "__replace__" ) )
+                {
+                        if ( !matchKeySetting.isEmpty() && fieldToHeader.contains( matchKeySetting ) )
+                        {
+                                matchField = matchKeySetting;
+                        }
+                        else if ( matchKeySetting.isEmpty() )
+                        {
+                                for ( const QString& locked : mJobsModel.lockedFields() )
+                                {
+                                        if ( fieldToHeader.contains( locked ) )
+                                        {
+                                                matchField = locked;
+                                                break;
+                                        }
+                                }
+                                if ( matchField.isEmpty() )
+                                {
+                                        for ( const QString& f : labelFields )
+                                        {
+                                                if ( fieldToHeader.contains( f ) )
+                                                {
+                                                        matchField = f;
+                                                        break;
+                                                }
+                                        }
+                                }
+                        }
+                }
+
+                QMap<QString,QList<FillJob>> existingByKey;
+                if ( !matchField.isEmpty() && !mJobsModel.jobs().isEmpty() )
+                {
+                        for ( const auto& existing : mJobsModel.jobs() )
+                        {
+                                const QString keyVal = existing.values.value( matchField );
+                                existingByKey[ keyVal ].append( existing );
+                        }
+                }
+
+                QList<FillJob> mergedJobs;
+                mergedJobs.reserve( rows.size() );
+                for ( const auto& row : rows )
+                {
+                        FillJob job;
+                        bool matchedExisting = false;
+
+                        if ( !matchField.isEmpty() )
+                        {
+                                const QString incomingKey = row.value( fieldToHeader.value( matchField ) );
+                                auto it = existingByKey.find( incomingKey );
+                                if ( it != existingByKey.end() && !it.value().isEmpty() )
+                                {
+                                        job = it.value().takeFirst();
+                                        matchedExisting = true;
+                                }
+                        }
+
+                        if ( !matchedExisting )
+                        {
+                                job.quantity = qtyHeader.isEmpty() ? 1 : row.value( qtyHeader, QStringLiteral( "1" ) ).toInt();
+                                if ( job.quantity < 1 )
+                                {
+                                        job.quantity = 1;
+                                }
+                                if ( !printHeader.isEmpty() )
+                                {
+                                        const QString pv = row.value( printHeader, QStringLiteral( "1" ) ).trimmed().toLower();
+                                        job.doPrint = ( pv != QStringLiteral( "0" ) && pv != QStringLiteral( "false" ) );
+                                }
+                                else
+                                {
+                                        job.doPrint = true;
+                                }
+                        }
+
+                        for ( const QString& field : labelFields )
+                        {
+                                if ( fieldToHeader.contains( field ) )
+                                {
+                                        job.values.insert( field, row.value( fieldToHeader.value( field ) ) );
+                                }
+                                else if ( !job.values.contains( field ) )
+                                {
+                                        job.values.insert( field, QString() );
+                                }
+                        }
+
+                        mergedJobs.append( job );
+                }
+
+                mJobsModel.setJobs( mergedJobs );
+                onFormChanged();
+        }
+
+
+        bool FillView::ensureFreshExternalDataBeforePrint()
+        {
+                if ( !mModel )
+                {
+                        return true;
+                }
+                const model::ExternalDataSource& src = mModel->externalDataSource();
+                if ( !src.isValid() || !src.refreshBeforePrint )
+                {
+                        return true;
+                }
+
+                // Avoid double-fetching if the user just clicked Refresh seconds ago.
+                if ( mLastExternalSyncAt.isValid()
+                     && mLastExternalSyncAt.secsTo( QDateTime::currentDateTime() ) < 5 )
+                {
+                        return true;
+                }
+
+                bool succeeded = false;
+                bool canceled = false;
+                QString errorMsg;
+
+                QEventLoop loop;
+                QProgressDialog progress(
+                        tr( "Refreshing latest data from %1..." ).arg( src.summaryText() ),
+                        tr( "Cancel" ),
+                        0, 0,
+                        this );
+                progress.setWindowModality( Qt::WindowModal );
+                progress.setMinimumDuration( 200 );
+
+                auto cFinish = connect( &mRedashClient, &datasource::ExternalDataFetcher::finished, &loop,
+                                        [&]( const datasource::FetchResult& ) {
+                                                succeeded = true;
+                                                loop.quit();
+                                        } );
+                auto cFail = connect( &mRedashClient, &datasource::ExternalDataFetcher::failed, &loop,
+                                      [&]( const QString& err ) {
+                                              errorMsg = err;
+                                              loop.quit();
+                                      } );
+                auto cProg = connect( &mRedashClient, &datasource::ExternalDataFetcher::progressChanged, &progress,
+                                      [&]( const QString& msg ) {
+                                              progress.setLabelText( msg );
+                                      } );
+                auto cCancel = connect( &progress, &QProgressDialog::canceled, &loop,
+                                        [&]() {
+                                                canceled = true;
+                                                mRedashClient.cancel();
+                                                loop.quit();
+                                        } );
+
+                if ( !mRedashClient.isRunning() )
+                {
+                        refreshExternalSource();
+                }
+
+                // refreshExternalSource() may fail synchronously (e.g. missing API key) before loop.exec().
+                if ( mRedashClient.isRunning() )
+                {
+                        loop.exec();
+                }
+                else if ( !succeeded && errorMsg.isEmpty() )
+                {
+                        errorMsg = mLastExternalError;
+                }
+
+                disconnect( cFinish );
+                disconnect( cFail );
+                disconnect( cProg );
+                disconnect( cCancel );
+                progress.reset();
+
+                if ( canceled )
+                {
+                        return false;
+                }
+                if ( succeeded )
+                {
+                        return true;
+                }
+
+                if ( mJobsModel.checkedQuantity() > 0 )
+                {
+                        const auto choice = QMessageBox::warning(
+                                this,
+                                tr( "Refresh failed" ),
+                                tr( "Could not refresh latest rows from %1:\n\n%2\n\nPrint the previously loaded rows instead?" )
+                                        .arg( src.summaryText(), errorMsg ),
+                                QMessageBox::Yes | QMessageBox::Cancel,
+                                QMessageBox::Cancel );
+                        return choice == QMessageBox::Yes;
+                }
+
+                QMessageBox::warning(
+                        this,
+                        tr( "Refresh failed" ),
+                        tr( "Could not fetch rows from %1:\n\n%2" ).arg( src.summaryText(), errorMsg ) );
+                return false;
+        }
+
+
+        void FillView::updateExternalSourceBanner()
+        {
+                const bool hasSource = mModel && mModel->externalDataSource().isValid();
+                const bool running = mRedashClient.isRunning();
+
+                if ( mExternalBanner )
+                {
+                        mExternalBanner->setVisible( hasSource );
+                }
+                if ( refreshExternalSourceButton )
+                {
+                        refreshExternalSourceButton->setEnabled( hasSource && !running );
+                }
+                if ( mBannerRefreshBtn )
+                {
+                        mBannerRefreshBtn->setEnabled( hasSource && !running );
+                }
+
+                if ( hasSource )
+                {
+                        const model::ExternalDataSource& src = mModel->externalDataSource();
+                        mExternalTitleLabel->setText( src.summaryText() );
+
+                        if ( running )
+                        {
+                                mExternalStatusLabel->setText( tr( "Refreshing..." ) );
+                                mExternalStatusLabel->setStyleSheet( QString() );
+                        }
+                        else if ( !mLastExternalError.isEmpty() )
+                        {
+                                mExternalStatusLabel->setText( mLastExternalError );
+                                mExternalStatusLabel->setStyleSheet( QStringLiteral( "color: #d9534f;" ) );
+                        }
+                        else if ( !datasource::SecretStore::hasSecret( src.credentialKey() ) )
+                        {
+                                mExternalStatusLabel->setText(
+                                        tr( "API key not set on this computer — click Configure to enter your key." ) );
+                                mExternalStatusLabel->setStyleSheet( QString() );
+                        }
+                        else if ( mLastExternalSyncAt.isValid() )
+                        {
+                                mExternalStatusLabel->setText(
+                                        tr( "Synced at %1 · %2 row(s)%3" )
+                                                .arg( mLastExternalSyncAt.toString( QStringLiteral( "HH:mm:ss" ) ) )
+                                                .arg( mLastExternalRowCount )
+                                                .arg( src.refreshBeforePrint
+                                                              ? tr( " · Auto-refreshes before printing" )
+                                                              : QString() ) );
+                                mExternalStatusLabel->setStyleSheet( QString() );
+                        }
+                        else
+                        {
+                                mExternalStatusLabel->setText( tr( "Not yet synced — click Refresh to load rows." ) );
+                                mExternalStatusLabel->setStyleSheet( QString() );
+                        }
+                }
+
+                emit externalSourceStateChanged( hasSource, running );
         }
 
 

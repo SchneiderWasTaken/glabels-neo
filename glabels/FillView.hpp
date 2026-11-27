@@ -26,14 +26,24 @@
 #include "FillJobModel.hpp"
 #include "FillMerge.hpp"
 
+#include "datasource/RedashClient.hpp"
+
 #include "ui_FillView.h"
 
+#include "model/ExternalDataSource.hpp"
 #include "model/Model.hpp"
 #include "model/PageRenderer.hpp"
 #include "merge/Merge.hpp"
 
+#include <QDateTime>
 #include <QList>
 #include <QStringList>
+
+
+class QFrame;
+class QLabel;
+class QPushButton;
+class QToolButton;
 
 
 namespace glabels
@@ -81,8 +91,18 @@ namespace glabels
                 void setRibbonHosted( bool hosted );
                 bool isRibbonHosted() const;
 
+                // External data source actions (mirrored on the Data > Fill ribbon)
+                QToolButton* linkExternalSourceButton{ nullptr };
+                QToolButton* refreshExternalSourceButton{ nullptr };
+
+                void openExternalSourceDialog();
+                void refreshExternalSource();
+                void applyExternalFetchResult( const datasource::FetchResult& result );
+                datasource::RedashClient* redashClient() { return &mRedashClient; }
+
         signals:
                 void printAvailabilityChanged( bool canPrint );
+                void externalSourceStateChanged( bool hasSource, bool isRefreshing );
 
 
                 /////////////////////////////////
@@ -110,6 +130,15 @@ namespace glabels
                 void onPrintButtonClicked();
                 void onSystemDialogButtonClicked();
                 void onZplButtonClicked();
+
+                void onLinkExternalSourceClicked();
+                void onRefreshExternalSourceClicked();
+                void onUnlinkExternalSourceClicked();
+                void onExternalSourceChanged();
+                void onExternalFetchStarted();
+                void onExternalFetchProgress( const QString& status );
+                void onExternalFetchFinished( const glabels::datasource::FetchResult& result );
+                void onExternalFetchFailed( const QString& error );
 
 
                 /////////////////////////////////
@@ -144,6 +173,11 @@ namespace glabels
 
                 void importRows( const QList<QMap<QString,QString>>& rows,
                                  const QStringList& header );
+                void mergeExternalRows( const QList<QMap<QString,QString>>& rows,
+                                        const QStringList&                  header,
+                                        const QString&                      matchKeySetting );
+                bool ensureFreshExternalDataBeforePrint();
+                void updateExternalSourceBanner();
                 QList<QMap<QString,QString>> exportRows( QStringList* headerOut = nullptr ) const;
 
 
@@ -151,19 +185,32 @@ namespace glabels
                 // Private Data
                 /////////////////////////////////
         private:
-                model::Model*       mModel{ nullptr };
-                model::PageRenderer mRenderer;
-                FillJobModel        mJobsModel;
-                FillMerge           mFillMerge;
+                model::Model*            mModel{ nullptr };
+                model::PageRenderer      mRenderer;
+                FillJobModel             mJobsModel;
+                FillMerge                mFillMerge;
+                datasource::RedashClient mRedashClient;
 
-                QString             mKioskSourcePath;
-                QStringList         mKioskLockedFields;
+                QString                  mKioskSourcePath;
+                QStringList              mKioskLockedFields;
+
+                QFrame*                  mExternalBanner{ nullptr };
+                QLabel*                  mExternalTitleLabel{ nullptr };
+                QLabel*                  mExternalStatusLabel{ nullptr };
+                QPushButton*             mBannerRefreshBtn{ nullptr };
+                QPushButton*             mBannerConfigureBtn{ nullptr };
+                QPushButton*             mBannerUnlinkBtn{ nullptr };
+
+                QDateTime                mLastExternalSyncAt;
+                int                      mLastExternalRowCount{ 0 };
+                QString                  mLastExternalError;
+                bool                     mExternalAutoLoaded{ false };
 
                 // The merge the model had before we took over (restored on hide).
-                merge::Merge*       mSavedMerge{ nullptr };
-                bool                mBlocked{ false };
-                bool                mInstalled{ false };
-                bool                mRibbonHosted{ false };
+                merge::Merge*            mSavedMerge{ nullptr };
+                bool                     mBlocked{ false };
+                bool                     mInstalled{ false };
+                bool                     mRibbonHosted{ false };
         };
 
 

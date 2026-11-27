@@ -79,6 +79,16 @@ add_test (NAME Snap COMMAND TestSnap)
 set_tests_properties (Snap PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 # --- end ribbon-ui: core ---
 
+#=======================================
+# Test Redash external data source & Fill integration against a mock server
+#=======================================
+qt6_wrap_cpp (TestRedashDataSource_moc_sources TestRedashDataSource.hpp)
+add_executable (TestRedashDataSource TestRedashDataSource.cpp ${TestRedashDataSource_moc_sources})
+target_include_directories (TestRedashDataSource PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_link_libraries (TestRedashDataSource glabels_lib glabels_resources Model Qt6::Test Qt6::Widgets Qt6::Network)
+add_test (NAME RedashDataSource COMMAND TestRedashDataSource)
+set_tests_properties (RedashDataSource PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
 # Pictures for the README and the website: skipped unless GLABELS_MARKETING_SHOTS=<dir> is set.
 qt6_wrap_cpp (TestMarketingShots_moc_sources TestMarketingShots.hpp)
 add_executable (TestMarketingShots TestMarketingShots.cpp ${TestMarketingShots_moc_sources})

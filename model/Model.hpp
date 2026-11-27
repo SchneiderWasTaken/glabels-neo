@@ -22,6 +22,7 @@
 #define model_Model_hpp
 
 
+#include "ExternalDataSource.hpp"
 #include "Settings.hpp"
 #include "Template.hpp"
 #include "Variables.hpp"
@@ -82,6 +83,7 @@ namespace glabels::model
                 void mergeChanged();
                 void mergeSourceChanged();
                 void mergeSelectionChanged();
+                void externalDataSourceChanged();
 
 
                 /////////////////////////////////
@@ -117,6 +119,10 @@ namespace glabels::model
 
                 merge::Merge* merge() const;
                 void setMerge( merge::Merge* merge );
+
+                const ExternalDataSource& externalDataSource() const;
+                void setExternalDataSource( const ExternalDataSource& source );
+                void clearExternalDataSource();
 
 
                 /////////////////////////////////
@@ -249,6 +255,7 @@ namespace glabels::model
                 Variables                 mVariables;
 
                 QSharedPointer<merge::Merge> mMerge;
+                ExternalDataSource           mExternalDataSource;
         };
 
 }

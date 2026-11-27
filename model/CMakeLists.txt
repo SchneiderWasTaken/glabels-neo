@@ -23,6 +23,7 @@ set (Model_sources
   DataCache.cpp
   Db.cpp
   Distance.cpp
+  ExternalDataSource.cpp
   FileUtil.cpp
   Frame.cpp
   FrameCd.cpp

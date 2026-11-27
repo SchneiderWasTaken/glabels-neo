@@ -41,13 +41,17 @@ Qty,Print,Name,Price
 ```
 (Row 3 has Print=0, so it's staged but won't print until re-checked.)
 
-### Live External Data Sources (Redash)
+### Live External Data Sources (Google Sheets & Redash)
 
-The Fill page can also link directly to a **Redash** query (**Data → Fill → Live data → Redash…**):
+The Fill page can link directly to a **Google Sheet** or a **Redash** query (**Data → Fill → Live data**):
 
-- Paste a Redash query URL (e.g. `https://redash.company.com/queries/42`) or results URL (`.../api/queries/42/results.json?api_key=...`) to auto-fill the connection.
-- Supports both **User API keys** (live fresh execution via `POST /api/queries/{id}/results` with job polling and query parameters) and **Query API keys** (read-only latest cached results).
-- API keys are stored in the OS credential store (Windows Credential Manager, macOS Keychain, or Linux Secret Service) and are **never** written to `.glabels` project files.
+- **Google Sheets**:
+  - **Sign in with Google** (any personal Gmail or Google Workspace account) via system browser OAuth 2.0 + PKCE and **Pick a Google Sheet…** to link private or Workspace spreadsheets and select a worksheet tab. See `docs/GOOGLE-SHEETS-SETUP.md` for one-time Google Cloud configuration.
+  - **Public link** mode works immediately without signing in for sheets shared as *"Anyone with the link can view"*.
+- **Redash**:
+  - Paste a Redash query URL (e.g. `https://redash.company.com/queries/42`) or results URL (`.../api/queries/42/results.json?api_key=...`) to auto-fill the connection.
+  - Supports both **User API keys** (live fresh execution via `POST /api/queries/{id}/results` with job polling and query parameters) and **Query API keys** (read-only latest cached results).
+- Credentials (OAuth refresh tokens and Redash API keys) are stored in the OS credential store (Windows Credential Manager, macOS Keychain, or Linux Secret Service) and are **never** written to `.glabels` project files.
 - **Refresh automatically on open** and **Refresh before printing** keep the Fill table up to date while preserving per-row `Qty`, `Print`, and any non-source columns matched by a key field.
 
 ### Print

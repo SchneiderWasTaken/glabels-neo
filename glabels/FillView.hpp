@@ -26,6 +26,7 @@
 #include "FillJobModel.hpp"
 #include "FillMerge.hpp"
 
+#include "datasource/GoogleSheetsClient.hpp"
 #include "datasource/RedashClient.hpp"
 
 #include "ui_FillView.h"
@@ -93,12 +94,15 @@ namespace glabels
 
                 // External data source actions (mirrored on the Data > Fill ribbon)
                 QToolButton* linkExternalSourceButton{ nullptr };
+                QToolButton* linkGoogleSheetsButton{ nullptr };
                 QToolButton* refreshExternalSourceButton{ nullptr };
 
-                void openExternalSourceDialog();
+                void openExternalSourceDialog(
+                        model::ExternalSourceKind preferredKind = model::ExternalSourceKind::Redash );
                 void refreshExternalSource();
                 void applyExternalFetchResult( const datasource::FetchResult& result );
                 datasource::RedashClient* redashClient() { return &mRedashClient; }
+                datasource::GoogleSheetsClient* googleSheetsClient() { return &mGoogleSheetsClient; }
 
         signals:
                 void printAvailabilityChanged( bool canPrint );
@@ -132,6 +136,7 @@ namespace glabels
                 void onZplButtonClicked();
 
                 void onLinkExternalSourceClicked();
+                void onLinkGoogleSheetsClicked();
                 void onRefreshExternalSourceClicked();
                 void onUnlinkExternalSourceClicked();
                 void onExternalSourceChanged();
@@ -178,6 +183,8 @@ namespace glabels
                                         const QString&                      matchKeySetting );
                 bool ensureFreshExternalDataBeforePrint();
                 void updateExternalSourceBanner();
+                datasource::ExternalDataFetcher* activeFetcher();
+                bool isExternalFetchRunning() const;
                 QList<QMap<QString,QString>> exportRows( QStringList* headerOut = nullptr ) const;
 
 
@@ -185,11 +192,12 @@ namespace glabels
                 // Private Data
                 /////////////////////////////////
         private:
-                model::Model*            mModel{ nullptr };
-                model::PageRenderer      mRenderer;
-                FillJobModel             mJobsModel;
-                FillMerge                mFillMerge;
-                datasource::RedashClient mRedashClient;
+                model::Model*                  mModel{ nullptr };
+                model::PageRenderer            mRenderer;
+                FillJobModel                   mJobsModel;
+                FillMerge                      mFillMerge;
+                datasource::RedashClient       mRedashClient;
+                datasource::GoogleSheetsClient mGoogleSheetsClient;
 
                 QString                  mKioskSourcePath;
                 QStringList              mKioskLockedFields;

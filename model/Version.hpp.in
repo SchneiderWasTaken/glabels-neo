@@ -39,6 +39,11 @@ namespace glabels::model
                 const QString BUG_WEBSITE = "@BUG_WEBSITE@";
                 const QString REPORT_ENDPOINT = "@REPORT_ENDPOINT@";
 
+                const QString GOOGLE_CLIENT_ID      = "@GOOGLE_CLIENT_ID@";
+                const QString GOOGLE_CLIENT_SECRET  = "@GOOGLE_CLIENT_SECRET@";
+                const QString GOOGLE_PICKER_URL     = "@GOOGLE_PICKER_URL@";
+                const QString GOOGLE_PICKER_API_KEY = "@GOOGLE_PICKER_API_KEY@";
+
                 const int     MAJOR   = @glabels-qt_VERSION_MAJOR@;
                 const int     MINOR   = @glabels-qt_VERSION_MINOR@;
                 const int     MICRO   = @glabels-qt_VERSION_PATCH@;

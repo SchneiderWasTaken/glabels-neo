@@ -807,6 +807,16 @@ namespace glabels::model
                                 }
                         }
                 }
+                else if ( src.kind == ExternalSourceKind::GoogleSheets )
+                {
+                        src.spreadsheetId  = XmlUtil::getStringAttr( node, "spreadsheet_id", "" ).trimmed();
+                        src.sheetName      = XmlUtil::getStringAttr( node, "sheet", "" ).trimmed();
+                        src.sheetGid       = XmlUtil::getStringAttr( node, "gid", "" ).trimmed();
+                        src.cellRange      = XmlUtil::getStringAttr( node, "range", "" ).trimmed();
+                        src.googleAuthMode = ExternalDataSource::googleAuthModeFromString(
+                                XmlUtil::getStringAttr( node, "auth_mode", "oauth" ) );
+                        src.hasHeaderRow   = XmlUtil::getBoolAttr( node, "header_row", true );
+                }
 
                 if ( src.isValid() )
                 {

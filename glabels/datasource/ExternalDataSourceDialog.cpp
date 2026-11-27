@@ -27,7 +27,6 @@
 
 #include <QCheckBox>
 #include <QComboBox>
-#include <QDialogButtonBox>
 #include <QFormLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
@@ -37,6 +36,7 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QSpinBox>
+#include <QTabWidget>
 #include <QTableWidget>
 #include <QVBoxLayout>
 
@@ -46,118 +46,61 @@ namespace glabels::datasource
 
         namespace
         {
-                enum AuthModeOption
+                enum ProviderTab
+                {
+                        TAB_REDASH = 0,
+                        TAB_GOOGLE_SHEETS = 1
+                };
+
+                enum RedashAuthOption
                 {
                         AUTH_USER_FRESH = 0,
                         AUTH_USER_CACHED_5M = 1,
                         AUTH_QUERY_CACHED = 2
+                };
+
+                enum GoogleAuthOption
+                {
+                        GOOGLE_OAUTH = 0,
+                        GOOGLE_PUBLIC_LINK = 1
                 };
         }
 
 
         ExternalDataSourceDialog::ExternalDataSourceDialog( const model::ExternalDataSource& initialSource,
                                                             const QStringList&               labelFields,
-                                                            QWidget*                         parent )
+                                                            QWidget*                         parent,
+                                                            model::ExternalSourceKind        preferredKind,
+                                                            GoogleAuthManager*               googleAuth )
                 : QDialog( parent ),
                   mInitialSource( initialSource ),
                   mLabelFields( labelFields ),
-                  mClient( this )
+                  mGoogleAuth( googleAuth ? googleAuth : GoogleAuthManager::instance() ),
+                  mRedashClient( this ),
+                  mGoogleSheetsClient( mGoogleAuth, this )
         {
-                setWindowTitle( tr( "Link Redash query" ) );
-                setMinimumWidth( 560 );
+                setWindowTitle( tr( "Link external data source" ) );
+                setMinimumWidth( 580 );
 
                 auto* root = new QVBoxLayout( this );
                 root->setContentsMargins( 20, 18, 20, 18 );
                 root->setSpacing( 12 );
 
                 auto* intro = new QLabel(
-                        tr( "Connect a Redash query directly to the Fill table. "
-                            "Paste a query URL or enter your Redash server and query ID below." ),
+                        tr( "Link a live Redash query or Google Sheet to the Fill table. "
+                            "Credentials are stored in your system credential store and never written to .glabels files." ),
                         this );
                 intro->setWordWrap( true );
                 intro->setProperty( "role", QStringLiteral( "caption" ) );
                 root->addWidget( intro );
 
-                // Connection card
-                auto* connCard = new QGroupBox( tr( "Redash connection" ), this );
-                connCard->setProperty( "role", QStringLiteral( "card" ) );
-                auto* form = new QFormLayout( connCard );
-                form->setContentsMargins( 14, 14, 14, 14 );
-                form->setSpacing( 8 );
+                // Provider tabs
+                mProviderTabs = new QTabWidget( this );
+                mProviderTabs->addTab( buildRedashTab(), tr( "Redash" ) );
+                mProviderTabs->addTab( buildGoogleSheetsTab(), tr( "Google Sheets" ) );
+                root->addWidget( mProviderTabs );
 
-                mQuickUrlEdit = new QLineEdit( connCard );
-                mQuickUrlEdit->setPlaceholderText(
-                        tr( "Paste a Redash query or results URL (e.g. https://redash.company.com/queries/42)" ) );
-                form->addRow( tr( "Paste URL:" ), mQuickUrlEdit );
-
-                mServerCombo = new QComboBox( connCard );
-                mServerCombo->setEditable( true );
-                mServerCombo->addItems( model::Settings::recentRedashServers() );
-                if ( mServerCombo->lineEdit() )
-                {
-                        mServerCombo->lineEdit()->setPlaceholderText( QStringLiteral( "https://redash.example.com" ) );
-                }
-                form->addRow( tr( "Server URL:" ), mServerCombo );
-
-                mQueryIdSpin = new QSpinBox( connCard );
-                mQueryIdSpin->setRange( 1, 99999999 );
-                mQueryIdSpin->setValue( initialSource.queryId > 0 ? initialSource.queryId : 1 );
-                form->addRow( tr( "Query ID:" ), mQueryIdSpin );
-
-                mAuthModeCombo = new QComboBox( connCard );
-                mAuthModeCombo->addItem( tr( "User API key — run fresh query (live)" ), AUTH_USER_FRESH );
-                mAuthModeCombo->addItem( tr( "User API key — allow cached results (5 min)" ), AUTH_USER_CACHED_5M );
-                mAuthModeCombo->addItem( tr( "Query API key — latest cached results" ), AUTH_QUERY_CACHED );
-                form->addRow( tr( "API key type:" ), mAuthModeCombo );
-
-                auto* keyRow = new QHBoxLayout();
-                keyRow->setSpacing( 6 );
-                mApiKeyEdit = new QLineEdit( connCard );
-                mApiKeyEdit->setEchoMode( QLineEdit::Password );
-                mShowKeyBtn = new QPushButton( tr( "Show" ), connCard );
-                mShowKeyBtn->setCheckable( true );
-                mShowKeyBtn->setFixedWidth( 64 );
-                keyRow->addWidget( mApiKeyEdit, 1 );
-                keyRow->addWidget( mShowKeyBtn );
-                form->addRow( tr( "API key:" ), keyRow );
-
-                mKeyHintLabel = new QLabel( connCard );
-                mKeyHintLabel->setWordWrap( true );
-                mKeyHintLabel->setProperty( "role", QStringLiteral( "caption" ) );
-                form->addRow( QString(), mKeyHintLabel );
-
-                mDisplayNameEdit = new QLineEdit( connCard );
-                mDisplayNameEdit->setPlaceholderText( tr( "(optional — auto-filled on test)" ) );
-                form->addRow( tr( "Label / name:" ), mDisplayNameEdit );
-
-                root->addWidget( connCard );
-
-                // Parameters card
-                auto* paramsCard = new QGroupBox( tr( "Query parameters (optional)" ), this );
-                paramsCard->setProperty( "role", QStringLiteral( "card" ) );
-                auto* paramsLayout = new QVBoxLayout( paramsCard );
-                paramsLayout->setContentsMargins( 14, 12, 14, 12 );
-                paramsLayout->setSpacing( 6 );
-
-                mParamsTable = new QTableWidget( 0, 2, paramsCard );
-                mParamsTable->setHorizontalHeaderLabels( { tr( "Parameter" ), tr( "Value" ) } );
-                mParamsTable->horizontalHeader()->setStretchLastSection( true );
-                mParamsTable->verticalHeader()->setVisible( false );
-                mParamsTable->setSelectionBehavior( QAbstractItemView::SelectRows );
-                mParamsTable->setMaximumHeight( 110 );
-                paramsLayout->addWidget( mParamsTable );
-
-                auto* paramBtnRow = new QHBoxLayout();
-                mAddParamBtn = new QPushButton( tr( "Add parameter" ), paramsCard );
-                mRemoveParamBtn = new QPushButton( tr( "Remove" ), paramsCard );
-                paramBtnRow->addWidget( mAddParamBtn );
-                paramBtnRow->addWidget( mRemoveParamBtn );
-                paramBtnRow->addStretch( 1 );
-                paramsLayout->addLayout( paramBtnRow );
-
-                root->addWidget( paramsCard );
-
-                // Refresh & row-matching options
+                // Shared refresh & row-matching options
                 auto* syncCard = new QGroupBox( tr( "Refresh options" ), this );
                 syncCard->setProperty( "role", QStringLiteral( "card" ) );
                 auto* syncLayout = new QVBoxLayout( syncCard );
@@ -180,7 +123,6 @@ namespace glabels::datasource
                 }
                 matchRow->addWidget( mMatchKeyCombo, 1 );
                 syncLayout->addLayout( matchRow );
-
                 root->addWidget( syncCard );
 
                 // Test & status bar
@@ -194,7 +136,7 @@ namespace glabels::datasource
                 testRow->addWidget( mStatusLabel, 1 );
                 root->addLayout( testRow );
 
-                // Dialog footer buttons
+                // Dialog footer
                 auto* footer = new QHBoxLayout();
                 mUnlinkBtn = new QPushButton( tr( "Unlink source" ), this );
                 mUnlinkBtn->setVisible( initialSource.isValid() );
@@ -210,7 +152,18 @@ namespace glabels::datasource
                 footer->addWidget( mSaveBtn );
                 root->addLayout( footer );
 
-                // Populate initial values
+                // Populate initial state
+                mRefreshOnOpenCheck->setChecked( initialSource.isValid() ? initialSource.refreshOnOpen : true );
+                mRefreshBeforePrintCheck->setChecked( initialSource.isValid() ? initialSource.refreshBeforePrint : true );
+                if ( initialSource.isValid() )
+                {
+                        const int matchIdx = mMatchKeyCombo->findData( initialSource.matchKeyField );
+                        if ( matchIdx >= 0 )
+                        {
+                                mMatchKeyCombo->setCurrentIndex( matchIdx );
+                        }
+                }
+
                 if ( initialSource.kind == model::ExternalSourceKind::Redash )
                 {
                         mServerCombo->setCurrentText( initialSource.serverUrl );
@@ -230,65 +183,78 @@ namespace glabels::datasource
                         {
                                 mAuthModeCombo->setCurrentIndex( AUTH_USER_FRESH );
                         }
-                        mDisplayNameEdit->setText( initialSource.displayName );
+                        mRedashDisplayNameEdit->setText( initialSource.displayName );
                         setParametersInTable( initialSource.parameters );
-                        mRefreshOnOpenCheck->setChecked( initialSource.refreshOnOpen );
-                        mRefreshBeforePrintCheck->setChecked( initialSource.refreshBeforePrint );
-
-                        const int matchIdx = mMatchKeyCombo->findData( initialSource.matchKeyField );
-                        if ( matchIdx >= 0 )
+                        mProviderTabs->setCurrentIndex( TAB_REDASH );
+                }
+                else if ( initialSource.kind == model::ExternalSourceKind::GoogleSheets )
+                {
+                        mGoogleAuthModeCombo->setCurrentIndex(
+                                initialSource.googleAuthMode == model::GoogleAuthMode::PublicLink
+                                        ? GOOGLE_PUBLIC_LINK
+                                        : GOOGLE_OAUTH );
+                        mGoogleUrlEdit->setText( initialSource.spreadsheetId );
+                        mParsedGoogleGid = initialSource.sheetGid;
+                        if ( !initialSource.sheetName.isEmpty() )
                         {
-                                mMatchKeyCombo->setCurrentIndex( matchIdx );
+                                mGoogleTabCombo->addItem( initialSource.sheetName );
+                                mGoogleTabCombo->setCurrentText( initialSource.sheetName );
                         }
+                        mGoogleRangeEdit->setText( initialSource.cellRange );
+                        mGoogleDisplayNameEdit->setText( initialSource.displayName );
+                        mGoogleHeaderRowCheck->setChecked( initialSource.hasHeaderRow );
+                        mProviderTabs->setCurrentIndex( TAB_GOOGLE_SHEETS );
                 }
                 else
                 {
-                        mRefreshOnOpenCheck->setChecked( true );
-                        mRefreshBeforePrintCheck->setChecked( true );
                         if ( mServerCombo->count() == 0 )
                         {
                                 mServerCombo->setCurrentText( QString() );
                         }
+                        mProviderTabs->setCurrentIndex(
+                                preferredKind == model::ExternalSourceKind::GoogleSheets
+                                        ? TAB_GOOGLE_SHEETS
+                                        : TAB_REDASH );
                 }
 
-                // Wire signals
-                connect( mQuickUrlEdit, &QLineEdit::textChanged, this, &ExternalDataSourceDialog::onQuickUrlChanged );
-                connect( mServerCombo, &QComboBox::currentTextChanged, this, &ExternalDataSourceDialog::onCredentialTargetChanged );
-                connect( mQueryIdSpin, qOverload<int>( &QSpinBox::valueChanged ), this, &ExternalDataSourceDialog::onCredentialTargetChanged );
-                connect( mAuthModeCombo, qOverload<int>( &QComboBox::currentIndexChanged ), this, &ExternalDataSourceDialog::onAuthModeChanged );
-                connect( mShowKeyBtn, &QPushButton::toggled, this, &ExternalDataSourceDialog::onToggleShowKey );
-                connect( mAddParamBtn, &QPushButton::clicked, this, &ExternalDataSourceDialog::onAddParameter );
-                connect( mRemoveParamBtn, &QPushButton::clicked, this, &ExternalDataSourceDialog::onRemoveParameter );
+                // Wire shared signals
+                connect( mProviderTabs, &QTabWidget::currentChanged,
+                         this, &ExternalDataSourceDialog::onProviderTabChanged );
                 connect( mTestBtn, &QPushButton::clicked, this, &ExternalDataSourceDialog::onTestConnection );
                 connect( mUnlinkBtn, &QPushButton::clicked, this, &ExternalDataSourceDialog::onUnlinkClicked );
                 connect( cancelBtn, &QPushButton::clicked, this, &QDialog::reject );
                 connect( mSaveBtn, &QPushButton::clicked, this, &ExternalDataSourceDialog::onAcceptClicked );
 
-                connect( &mClient, &ExternalDataFetcher::progressChanged, this, [this]( const QString& msg ) {
-                        updateStatus( msg, false );
-                } );
-                connect( &mClient, &ExternalDataFetcher::finished, this, [this]( const FetchResult& result ) {
-                        mTestBtn->setEnabled( true );
-                        mHasTestedResult = true;
-                        mTestedResult = result;
-                        const QString colsPreview = result.headers.mid( 0, 5 ).join( QStringLiteral( ", " ) )
-                                + ( result.headers.size() > 5 ? QStringLiteral( "..." ) : QString() );
-                        updateStatus(
-                                tr( "Connected: %1 row(s), %2 column(s) (%3)." )
-                                        .arg( result.rows.size() )
-                                        .arg( result.headers.size() )
-                                        .arg( colsPreview ),
-                                false );
-                } );
-                connect( &mClient, &ExternalDataFetcher::failed, this, [this]( const QString& err ) {
-                        mTestBtn->setEnabled( true );
-                        mHasTestedResult = false;
-                        updateStatus( err, true );
-                } );
-                connect( &mClient, &RedashClient::queryInfoLoaded, this, [this]( const RedashQueryInfo& info ) {
-                        if ( mDisplayNameEdit->text().trimmed().isEmpty() && !info.name.isEmpty() )
+                auto wireFetcher = [this]( ExternalDataFetcher* fetcher ) {
+                        connect( fetcher, &ExternalDataFetcher::progressChanged, this, [this]( const QString& msg ) {
+                                updateStatus( msg, false );
+                        } );
+                        connect( fetcher, &ExternalDataFetcher::finished, this, [this]( const FetchResult& result ) {
+                                mTestBtn->setEnabled( true );
+                                mHasTestedResult = true;
+                                mTestedResult = result;
+                                const QString colsPreview = result.headers.mid( 0, 5 ).join( QStringLiteral( ", " ) )
+                                        + ( result.headers.size() > 5 ? QStringLiteral( "..." ) : QString() );
+                                updateStatus(
+                                        tr( "Connected: %1 row(s), %2 column(s) (%3)." )
+                                                .arg( result.rows.size() )
+                                                .arg( result.headers.size() )
+                                                .arg( colsPreview ),
+                                        false );
+                        } );
+                        connect( fetcher, &ExternalDataFetcher::failed, this, [this]( const QString& err ) {
+                                mTestBtn->setEnabled( true );
+                                mHasTestedResult = false;
+                                updateStatus( err, true );
+                        } );
+                };
+                wireFetcher( &mRedashClient );
+                wireFetcher( &mGoogleSheetsClient );
+
+                connect( &mRedashClient, &RedashClient::queryInfoLoaded, this, [this]( const RedashQueryInfo& info ) {
+                        if ( mRedashDisplayNameEdit->text().trimmed().isEmpty() && !info.name.isEmpty() )
                         {
-                                mDisplayNameEdit->setText( info.name );
+                                mRedashDisplayNameEdit->setText( info.name );
                         }
                         if ( mParamsTable->rowCount() == 0 && !info.defaultParameters.isEmpty() )
                         {
@@ -296,14 +262,264 @@ namespace glabels::datasource
                         }
                 } );
 
+                connect( &mGoogleSheetsClient, &GoogleSheetsClient::spreadsheetInfoLoaded, this,
+                         [this]( const GoogleSpreadsheetInfo& info ) {
+                                 mGoogleLoadTabsBtn->setEnabled( true );
+                                 if ( mGoogleDisplayNameEdit->text().trimmed().isEmpty() && !info.title.isEmpty() )
+                                 {
+                                         mGoogleDisplayNameEdit->setText( info.title );
+                                 }
+                                 const QString prev = mGoogleTabCombo->currentText().trimmed();
+                                 mGoogleTabCombo->clear();
+                                 for ( const auto& tab : info.tabs )
+                                 {
+                                         mGoogleTabCombo->addItem( tab.title );
+                                 }
+                                 if ( !prev.isEmpty() )
+                                 {
+                                         mGoogleTabCombo->setCurrentText( prev );
+                                 }
+                                 else if ( !mParsedGoogleGid.isEmpty() )
+                                 {
+                                         for ( const auto& tab : info.tabs )
+                                         {
+                                                 if ( QString::number( tab.sheetId ) == mParsedGoogleGid )
+                                                 {
+                                                         mGoogleTabCombo->setCurrentText( tab.title );
+                                                         break;
+                                                 }
+                                         }
+                                 }
+                                 updateStatus(
+                                         tr( "Loaded \"%1\" (%2 tab(s))." )
+                                                 .arg( info.title.isEmpty() ? info.spreadsheetId : info.title )
+                                                 .arg( info.tabs.size() ),
+                                         false );
+                         } );
+                connect( &mGoogleSheetsClient, &GoogleSheetsClient::spreadsheetInfoFailed, this,
+                         [this]( const QString& err ) {
+                                 mGoogleLoadTabsBtn->setEnabled( true );
+                                 updateStatus( err, true );
+                         } );
+
+                connect( mGoogleAuth, &GoogleAuthManager::signedIn, this, [this]( const QString& email ) {
+                        updateGoogleAccountUi();
+                        updateStatus(
+                                email.isEmpty()
+                                        ? tr( "Signed in to Google." )
+                                        : tr( "Signed in to Google as %1." ).arg( email ),
+                                false );
+                } );
+                connect( mGoogleAuth, &GoogleAuthManager::signInFailed, this, [this]( const QString& err ) {
+                        updateGoogleAccountUi();
+                        updateStatus( err, true );
+                } );
+                connect( mGoogleAuth, &GoogleAuthManager::signedOut, this, [this]() {
+                        updateGoogleAccountUi();
+                        updateStatus( tr( "Signed out of Google." ), false );
+                } );
+                connect( mGoogleAuth, &GoogleAuthManager::spreadsheetPicked, this,
+                         [this]( const QString& id, const QString& title ) {
+                                 mGoogleUrlEdit->setText( id );
+                                 if ( !title.isEmpty() )
+                                 {
+                                         mGoogleDisplayNameEdit->setText( title );
+                                 }
+                                 mParsedGoogleGid.clear();
+                                 mHasTestedResult = false;
+                                 updateStatus( tr( "Selected \"%1\". Loading tabs..." ).arg( title.isEmpty() ? id : title ), false );
+                                 onLoadGoogleTabsClicked();
+                         } );
+                connect( mGoogleAuth, &GoogleAuthManager::pickerFailed, this, [this]( const QString& err ) {
+                        updateStatus( err, true );
+                } );
+
                 onAuthModeChanged();
                 onCredentialTargetChanged();
+                onGoogleAuthModeChanged();
+                updateGoogleAccountUi();
+        }
+
+
+        QWidget* ExternalDataSourceDialog::buildRedashTab()
+        {
+                auto* page = new QWidget( this );
+                auto* layout = new QVBoxLayout( page );
+                layout->setContentsMargins( 10, 12, 10, 10 );
+                layout->setSpacing( 10 );
+
+                auto* form = new QFormLayout();
+                form->setSpacing( 8 );
+
+                mQuickUrlEdit = new QLineEdit( page );
+                mQuickUrlEdit->setPlaceholderText(
+                        tr( "Paste a Redash query or results URL (e.g. https://redash.company.com/queries/42)" ) );
+                form->addRow( tr( "Paste URL:" ), mQuickUrlEdit );
+
+                mServerCombo = new QComboBox( page );
+                mServerCombo->setEditable( true );
+                mServerCombo->addItems( model::Settings::recentRedashServers() );
+                if ( mServerCombo->lineEdit() )
+                {
+                        mServerCombo->lineEdit()->setPlaceholderText( QStringLiteral( "https://redash.example.com" ) );
+                }
+                form->addRow( tr( "Server URL:" ), mServerCombo );
+
+                mQueryIdSpin = new QSpinBox( page );
+                mQueryIdSpin->setRange( 1, 99999999 );
+                mQueryIdSpin->setValue( mInitialSource.queryId > 0 ? mInitialSource.queryId : 1 );
+                form->addRow( tr( "Query ID:" ), mQueryIdSpin );
+
+                mAuthModeCombo = new QComboBox( page );
+                mAuthModeCombo->addItem( tr( "User API key — run fresh query (live)" ), AUTH_USER_FRESH );
+                mAuthModeCombo->addItem( tr( "User API key — allow cached results (5 min)" ), AUTH_USER_CACHED_5M );
+                mAuthModeCombo->addItem( tr( "Query API key — latest cached results" ), AUTH_QUERY_CACHED );
+                form->addRow( tr( "API key type:" ), mAuthModeCombo );
+
+                auto* keyRow = new QHBoxLayout();
+                keyRow->setSpacing( 6 );
+                mApiKeyEdit = new QLineEdit( page );
+                mApiKeyEdit->setEchoMode( QLineEdit::Password );
+                mShowKeyBtn = new QPushButton( tr( "Show" ), page );
+                mShowKeyBtn->setCheckable( true );
+                mShowKeyBtn->setFixedWidth( 64 );
+                keyRow->addWidget( mApiKeyEdit, 1 );
+                keyRow->addWidget( mShowKeyBtn );
+                form->addRow( tr( "API key:" ), keyRow );
+
+                mKeyHintLabel = new QLabel( page );
+                mKeyHintLabel->setWordWrap( true );
+                mKeyHintLabel->setProperty( "role", QStringLiteral( "caption" ) );
+                form->addRow( QString(), mKeyHintLabel );
+
+                mRedashDisplayNameEdit = new QLineEdit( page );
+                mRedashDisplayNameEdit->setPlaceholderText( tr( "(optional — auto-filled on test)" ) );
+                form->addRow( tr( "Label / name:" ), mRedashDisplayNameEdit );
+
+                layout->addLayout( form );
+
+                auto* paramsLabel = new QLabel( tr( "Query parameters (optional):" ), page );
+                layout->addWidget( paramsLabel );
+
+                mParamsTable = new QTableWidget( 0, 2, page );
+                mParamsTable->setHorizontalHeaderLabels( { tr( "Parameter" ), tr( "Value" ) } );
+                mParamsTable->horizontalHeader()->setStretchLastSection( true );
+                mParamsTable->verticalHeader()->setVisible( false );
+                mParamsTable->setSelectionBehavior( QAbstractItemView::SelectRows );
+                mParamsTable->setMaximumHeight( 96 );
+                layout->addWidget( mParamsTable );
+
+                auto* paramBtnRow = new QHBoxLayout();
+                mAddParamBtn = new QPushButton( tr( "Add parameter" ), page );
+                mRemoveParamBtn = new QPushButton( tr( "Remove" ), page );
+                paramBtnRow->addWidget( mAddParamBtn );
+                paramBtnRow->addWidget( mRemoveParamBtn );
+                paramBtnRow->addStretch( 1 );
+                layout->addLayout( paramBtnRow );
+
+                connect( mQuickUrlEdit, &QLineEdit::textChanged, this, &ExternalDataSourceDialog::onQuickUrlChanged );
+                connect( mServerCombo, &QComboBox::currentTextChanged, this, &ExternalDataSourceDialog::onCredentialTargetChanged );
+                connect( mQueryIdSpin, qOverload<int>( &QSpinBox::valueChanged ), this, &ExternalDataSourceDialog::onCredentialTargetChanged );
+                connect( mAuthModeCombo, qOverload<int>( &QComboBox::currentIndexChanged ), this, &ExternalDataSourceDialog::onAuthModeChanged );
+                connect( mShowKeyBtn, &QPushButton::toggled, this, &ExternalDataSourceDialog::onToggleShowKey );
+                connect( mAddParamBtn, &QPushButton::clicked, this, &ExternalDataSourceDialog::onAddParameter );
+                connect( mRemoveParamBtn, &QPushButton::clicked, this, &ExternalDataSourceDialog::onRemoveParameter );
+
+                return page;
+        }
+
+
+        QWidget* ExternalDataSourceDialog::buildGoogleSheetsTab()
+        {
+                auto* page = new QWidget( this );
+                auto* layout = new QVBoxLayout( page );
+                layout->setContentsMargins( 10, 12, 10, 10 );
+                layout->setSpacing( 10 );
+
+                auto* form = new QFormLayout();
+                form->setSpacing( 8 );
+
+                mGoogleAuthModeCombo = new QComboBox( page );
+                mGoogleAuthModeCombo->addItem( tr( "Sign in with Google (private & Workspace sheets)" ), GOOGLE_OAUTH );
+                mGoogleAuthModeCombo->addItem( tr( "Public link (Anyone with the link can view — no login)" ), GOOGLE_PUBLIC_LINK );
+                form->addRow( tr( "Access:" ), mGoogleAuthModeCombo );
+
+                mGoogleAccountBox = new QWidget( page );
+                auto* acctLayout = new QHBoxLayout( mGoogleAccountBox );
+                acctLayout->setContentsMargins( 0, 0, 0, 0 );
+                acctLayout->setSpacing( 6 );
+                mGoogleAccountLabel = new QLabel( mGoogleAccountBox );
+                mGoogleAccountLabel->setWordWrap( true );
+                mGoogleAccountLabel->setProperty( "role", QStringLiteral( "caption" ) );
+                mGoogleSignInBtn = new QPushButton( tr( "Sign in with Google" ), mGoogleAccountBox );
+                mGooglePickBtn = new QPushButton( tr( "Pick a Google Sheet..." ), mGoogleAccountBox );
+                mGoogleSignOutBtn = new QPushButton( tr( "Sign out" ), mGoogleAccountBox );
+                acctLayout->addWidget( mGoogleAccountLabel, 1 );
+                acctLayout->addWidget( mGoogleSignInBtn );
+                acctLayout->addWidget( mGooglePickBtn );
+                acctLayout->addWidget( mGoogleSignOutBtn );
+                form->addRow( tr( "Google account:" ), mGoogleAccountBox );
+
+                mGoogleUrlEdit = new QLineEdit( page );
+                mGoogleUrlEdit->setPlaceholderText(
+                        tr( "Paste Google Sheet URL (https://docs.google.com/spreadsheets/d/...) or spreadsheet ID" ) );
+                form->addRow( tr( "Sheet URL / ID:" ), mGoogleUrlEdit );
+
+                auto* tabRow = new QHBoxLayout();
+                tabRow->setSpacing( 6 );
+                mGoogleTabCombo = new QComboBox( page );
+                mGoogleTabCombo->setEditable( true );
+                if ( mGoogleTabCombo->lineEdit() )
+                {
+                        mGoogleTabCombo->lineEdit()->setPlaceholderText( tr( "(blank = first sheet or #gid from URL)" ) );
+                }
+                mGoogleLoadTabsBtn = new QPushButton( tr( "Load tabs" ), page );
+                tabRow->addWidget( mGoogleTabCombo, 1 );
+                tabRow->addWidget( mGoogleLoadTabsBtn );
+                form->addRow( tr( "Worksheet tab:" ), tabRow );
+
+                mGoogleRangeEdit = new QLineEdit( page );
+                mGoogleRangeEdit->setPlaceholderText( tr( "(optional A1 range, e.g. A1:F — blank = whole tab)" ) );
+                form->addRow( tr( "Cell range:" ), mGoogleRangeEdit );
+
+                mGoogleDisplayNameEdit = new QLineEdit( page );
+                mGoogleDisplayNameEdit->setPlaceholderText( tr( "(optional — auto-filled when picked or loaded)" ) );
+                form->addRow( tr( "Label / name:" ), mGoogleDisplayNameEdit );
+
+                mGoogleHeaderRowCheck = new QCheckBox( tr( "First row contains column headers" ), page );
+                mGoogleHeaderRowCheck->setChecked( true );
+                form->addRow( QString(), mGoogleHeaderRowCheck );
+
+                layout->addLayout( form );
+                layout->addStretch( 1 );
+
+                connect( mGoogleAuthModeCombo, qOverload<int>( &QComboBox::currentIndexChanged ),
+                         this, &ExternalDataSourceDialog::onGoogleAuthModeChanged );
+                connect( mGoogleSignInBtn, &QPushButton::clicked,
+                         this, &ExternalDataSourceDialog::onGoogleSignInClicked );
+                connect( mGoogleSignOutBtn, &QPushButton::clicked,
+                         this, &ExternalDataSourceDialog::onGoogleSignOutClicked );
+                connect( mGooglePickBtn, &QPushButton::clicked,
+                         this, &ExternalDataSourceDialog::onPickGoogleSheetClicked );
+                connect( mGoogleUrlEdit, &QLineEdit::textChanged,
+                         this, &ExternalDataSourceDialog::onGoogleUrlChanged );
+                connect( mGoogleLoadTabsBtn, &QPushButton::clicked,
+                         this, &ExternalDataSourceDialog::onLoadGoogleTabsClicked );
+
+                return page;
         }
 
 
         model::ExternalDataSource ExternalDataSourceDialog::source() const
         {
                 return mResultSource;
+        }
+
+
+        void ExternalDataSourceDialog::onProviderTabChanged( int )
+        {
+                mHasTestedResult = false;
+                updateStatus( QString(), false );
         }
 
 
@@ -336,14 +552,9 @@ namespace glabels::datasource
                 mParamsTable->setEnabled( !isQueryKey );
                 mAddParamBtn->setEnabled( !isQueryKey );
                 mRemoveParamBtn->setEnabled( !isQueryKey );
-                if ( isQueryKey )
-                {
-                        mParamsTable->setToolTip( tr( "Redash requires a User API key for parameterized queries." ) );
-                }
-                else
-                {
-                        mParamsTable->setToolTip( QString() );
-                }
+                mParamsTable->setToolTip( isQueryKey
+                                                  ? tr( "Redash requires a User API key for parameterized queries." )
+                                                  : QString() );
                 onCredentialTargetChanged();
         }
 
@@ -351,6 +562,11 @@ namespace glabels::datasource
         void ExternalDataSourceDialog::onCredentialTargetChanged()
         {
                 mHasTestedResult = false;
+                if ( mProviderTabs->currentIndex() != TAB_REDASH )
+                {
+                        return;
+                }
+
                 const model::ExternalDataSource draft = buildSourceFromForm();
                 const bool hasSaved = draft.isValid() && SecretStore::hasSecret( draft.credentialKey() );
 
@@ -401,37 +617,161 @@ namespace glabels::datasource
         }
 
 
+        void ExternalDataSourceDialog::onGoogleAuthModeChanged()
+        {
+                mHasTestedResult = false;
+                const bool isOAuth = ( mGoogleAuthModeCombo->currentData().toInt() == GOOGLE_OAUTH );
+                mGoogleAccountBox->setVisible( isOAuth );
+                mGoogleLoadTabsBtn->setVisible( isOAuth );
+                updateGoogleAccountUi();
+        }
+
+
+        void ExternalDataSourceDialog::updateGoogleAccountUi()
+        {
+                const bool configured = mGoogleAuth->isConfigured();
+                const bool signedIn = mGoogleAuth->isSignedIn();
+                const QString email = mGoogleAuth->signedInEmail();
+
+                if ( !configured )
+                {
+                        mGoogleAccountLabel->setText(
+                                tr( "OAuth not configured in this build — use Public link mode or set GLABELS_GOOGLE_CLIENT_ID." ) );
+                        mGoogleSignInBtn->setVisible( true );
+                        mGoogleSignInBtn->setEnabled( false );
+                        mGooglePickBtn->setVisible( false );
+                        mGoogleSignOutBtn->setVisible( false );
+                        mGoogleLoadTabsBtn->setEnabled( false );
+                        return;
+                }
+
+                if ( signedIn )
+                {
+                        mGoogleAccountLabel->setText(
+                                email.isEmpty()
+                                        ? tr( "Signed in to Google" )
+                                        : tr( "Signed in as %1" ).arg( email ) );
+                        mGoogleSignInBtn->setVisible( false );
+                        mGooglePickBtn->setVisible( true );
+                        mGooglePickBtn->setEnabled( mGoogleAuth->isPickerConfigured() );
+                        mGooglePickBtn->setToolTip(
+                                mGoogleAuth->isPickerConfigured()
+                                        ? tr( "Choose a Google Sheet from your Google Drive (grants read access via drive.file)." )
+                                        : tr( "Google Picker requires GLABELS_GOOGLE_PICKER_API_KEY." ) );
+                        mGoogleSignOutBtn->setVisible( true );
+                        mGoogleLoadTabsBtn->setEnabled( true );
+                }
+                else
+                {
+                        mGoogleAccountLabel->setText( tr( "Not signed in" ) );
+                        mGoogleSignInBtn->setVisible( true );
+                        mGoogleSignInBtn->setEnabled( true );
+                        mGooglePickBtn->setVisible( false );
+                        mGoogleSignOutBtn->setVisible( false );
+                        mGoogleLoadTabsBtn->setEnabled( false );
+                }
+        }
+
+
+        void ExternalDataSourceDialog::onGoogleSignInClicked()
+        {
+                updateStatus( tr( "Opening your browser for Google Sign-In..." ), false );
+                mGoogleAuth->signIn();
+        }
+
+
+        void ExternalDataSourceDialog::onGoogleSignOutClicked()
+        {
+                mGoogleAuth->signOut();
+        }
+
+
+        void ExternalDataSourceDialog::onPickGoogleSheetClicked()
+        {
+                updateStatus( tr( "Opening Google Sheet Picker in your browser..." ), false );
+                mGoogleAuth->pickSpreadsheet();
+        }
+
+
+        void ExternalDataSourceDialog::onGoogleUrlChanged( const QString& text )
+        {
+                mHasTestedResult = false;
+                const auto parsed = model::ExternalDataSource::parseGoogleSheetsUrl( text );
+                if ( parsed.valid )
+                {
+                        mParsedGoogleGid = parsed.gid;
+                }
+        }
+
+
+        void ExternalDataSourceDialog::onLoadGoogleTabsClicked()
+        {
+                const auto parsed = model::ExternalDataSource::parseGoogleSheetsUrl( mGoogleUrlEdit->text() );
+                if ( !parsed.valid )
+                {
+                        updateStatus( tr( "Paste a valid Google Sheets URL or spreadsheet ID first." ), true );
+                        return;
+                }
+                mGoogleLoadTabsBtn->setEnabled( false );
+                updateStatus( tr( "Loading worksheet tabs from Google Sheets..." ), false );
+                mGoogleSheetsClient.fetchSpreadsheetInfo( parsed.spreadsheetId );
+        }
+
+
         void ExternalDataSourceDialog::onTestConnection()
         {
                 const model::ExternalDataSource draft = buildSourceFromForm();
-                if ( !draft.isValid() )
-                {
-                        updateStatus( tr( "Enter a valid HTTPS Redash server URL (or http://localhost) and query ID." ), true );
-                        return;
-                }
 
-                const QString key = effectiveApiKey( draft );
-                if ( key.isEmpty() )
+                if ( draft.kind == model::ExternalSourceKind::Redash )
                 {
-                        updateStatus( tr( "Enter a Redash API key first." ), true );
-                        return;
+                        if ( !draft.isValid() )
+                        {
+                                updateStatus( tr( "Enter a valid HTTPS Redash server URL (or http://localhost) and query ID." ), true );
+                                return;
+                        }
+
+                        const QString key = effectiveRedashApiKey( draft );
+                        if ( key.isEmpty() )
+                        {
+                                updateStatus( tr( "Enter a Redash API key first." ), true );
+                                return;
+                        }
+
+                        mTestBtn->setEnabled( false );
+                        mHasTestedResult = false;
+                        updateStatus( tr( "Connecting to Redash..." ), false );
+
+                        if ( draft.redashAuthMode == model::RedashAuthMode::UserApiKey )
+                        {
+                                mRedashClient.fetchQueryInfo( draft.serverUrl, draft.queryId, key );
+                        }
+                        mRedashClient.fetch( draft, key );
                 }
-
-                mTestBtn->setEnabled( false );
-                mHasTestedResult = false;
-                updateStatus( tr( "Connecting to Redash..." ), false );
-
-                if ( draft.redashAuthMode == model::RedashAuthMode::UserApiKey )
+                else if ( draft.kind == model::ExternalSourceKind::GoogleSheets )
                 {
-                        mClient.fetchQueryInfo( draft.serverUrl, draft.queryId, key );
+                        if ( !draft.isValid() )
+                        {
+                                updateStatus( tr( "Paste a valid Google Sheets URL or spreadsheet ID first." ), true );
+                                return;
+                        }
+                        if ( draft.googleAuthMode == model::GoogleAuthMode::OAuth && !mGoogleAuth->isSignedIn() )
+                        {
+                                updateStatus( tr( "Sign in with Google first, or switch Access to Public link." ), true );
+                                return;
+                        }
+
+                        mTestBtn->setEnabled( false );
+                        mHasTestedResult = false;
+                        updateStatus( tr( "Connecting to Google Sheets..." ), false );
+                        mGoogleSheetsClient.fetch( draft );
                 }
-                mClient.fetch( draft, key );
         }
 
 
         void ExternalDataSourceDialog::onUnlinkClicked()
         {
-                mClient.cancel();
+                mRedashClient.cancel();
+                mGoogleSheetsClient.cancel();
                 mUnlinked = true;
                 mResultSource = model::ExternalDataSource();
                 accept();
@@ -441,30 +781,31 @@ namespace glabels::datasource
         void ExternalDataSourceDialog::onAcceptClicked()
         {
                 const model::ExternalDataSource draft = buildSourceFromForm();
-                if ( !draft.isValid() )
-                {
-                        QMessageBox::warning(
-                                this,
-                                tr( "Invalid Redash source" ),
-                                tr( "Please enter a valid HTTPS Redash server URL (http://localhost is allowed for local testing) and a positive query ID." ) );
-                        return;
-                }
 
-                const QString typedKey = mApiKeyEdit->text().trimmed();
-                const QString key = effectiveApiKey( draft );
-                if ( key.isEmpty() )
+                if ( draft.kind == model::ExternalSourceKind::Redash )
                 {
-                        QMessageBox::warning(
-                                this,
-                                tr( "API key required" ),
-                                tr( "Please enter a Redash API key. It will be stored in %1." )
-                                        .arg( SecretStore::backendDescription() ) );
-                        return;
-                }
+                        if ( !draft.isValid() )
+                        {
+                                QMessageBox::warning(
+                                        this,
+                                        tr( "Invalid Redash source" ),
+                                        tr( "Please enter a valid HTTPS Redash server URL (http://localhost is allowed for local testing) and a positive query ID." ) );
+                                return;
+                        }
 
-                if ( !typedKey.isEmpty() )
-                {
-                        if ( !SecretStore::store( draft.credentialKey(), typedKey ) )
+                        const QString typedKey = mApiKeyEdit->text().trimmed();
+                        const QString key = effectiveRedashApiKey( draft );
+                        if ( key.isEmpty() )
+                        {
+                                QMessageBox::warning(
+                                        this,
+                                        tr( "API key required" ),
+                                        tr( "Please enter a Redash API key. It will be stored in %1." )
+                                                .arg( SecretStore::backendDescription() ) );
+                                return;
+                        }
+
+                        if ( !typedKey.isEmpty() && !SecretStore::store( draft.credentialKey(), typedKey ) )
                         {
                                 QMessageBox::warning(
                                         this,
@@ -473,11 +814,31 @@ namespace glabels::datasource
                                                 .arg( SecretStore::backendDescription() ) );
                                 return;
                         }
+
+                        model::Settings::addRecentRedashServer( draft.serverUrl );
+                }
+                else if ( draft.kind == model::ExternalSourceKind::GoogleSheets )
+                {
+                        if ( !draft.isValid() )
+                        {
+                                QMessageBox::warning(
+                                        this,
+                                        tr( "Invalid Google Sheet" ),
+                                        tr( "Please pick a Google Sheet or paste a valid Google Sheets URL / spreadsheet ID." ) );
+                                return;
+                        }
+                        if ( draft.googleAuthMode == model::GoogleAuthMode::OAuth && !mGoogleAuth->isSignedIn() )
+                        {
+                                QMessageBox::warning(
+                                        this,
+                                        tr( "Google Sign-In required" ),
+                                        tr( "Please sign in with Google first, or switch Access to Public link for link-shared sheets." ) );
+                                return;
+                        }
                 }
 
-                model::Settings::addRecentRedashServer( draft.serverUrl );
-
-                mClient.cancel();
+                mRedashClient.cancel();
+                mGoogleSheetsClient.cancel();
                 mUnlinked = false;
                 mResultSource = draft;
                 accept();
@@ -487,13 +848,30 @@ namespace glabels::datasource
         model::ExternalDataSource ExternalDataSourceDialog::buildSourceFromForm() const
         {
                 model::ExternalDataSource src;
-                src.kind = model::ExternalSourceKind::Redash;
-                src.serverUrl = model::ExternalDataSource::normalizeServerUrl( mServerCombo->currentText() );
-                src.queryId = mQueryIdSpin->value();
-                src.displayName = mDisplayNameEdit->text().trimmed();
                 src.refreshOnOpen = mRefreshOnOpenCheck->isChecked();
                 src.refreshBeforePrint = mRefreshBeforePrintCheck->isChecked();
                 src.matchKeyField = mMatchKeyCombo->currentData().toString();
+
+                if ( mProviderTabs->currentIndex() == TAB_GOOGLE_SHEETS )
+                {
+                        src.kind = model::ExternalSourceKind::GoogleSheets;
+                        const auto parsed = model::ExternalDataSource::parseGoogleSheetsUrl( mGoogleUrlEdit->text() );
+                        src.spreadsheetId = parsed.valid ? parsed.spreadsheetId : QString();
+                        src.sheetGid = parsed.valid && !parsed.gid.isEmpty() ? parsed.gid : mParsedGoogleGid;
+                        src.sheetName = mGoogleTabCombo->currentText().trimmed();
+                        src.cellRange = mGoogleRangeEdit->text().trimmed();
+                        src.displayName = mGoogleDisplayNameEdit->text().trimmed();
+                        src.hasHeaderRow = mGoogleHeaderRowCheck->isChecked();
+                        src.googleAuthMode = ( mGoogleAuthModeCombo->currentData().toInt() == GOOGLE_PUBLIC_LINK )
+                                ? model::GoogleAuthMode::PublicLink
+                                : model::GoogleAuthMode::OAuth;
+                        return src;
+                }
+
+                src.kind = model::ExternalSourceKind::Redash;
+                src.serverUrl = model::ExternalDataSource::normalizeServerUrl( mServerCombo->currentText() );
+                src.queryId = mQueryIdSpin->value();
+                src.displayName = mRedashDisplayNameEdit->text().trimmed();
 
                 const int authOption = mAuthModeCombo->currentData().toInt();
                 if ( authOption == AUTH_QUERY_CACHED )
@@ -512,7 +890,7 @@ namespace glabels::datasource
         }
 
 
-        QString ExternalDataSourceDialog::effectiveApiKey( const model::ExternalDataSource& src ) const
+        QString ExternalDataSourceDialog::effectiveRedashApiKey( const model::ExternalDataSource& src ) const
         {
                 const QString typed = mApiKeyEdit->text().trimmed();
                 if ( !typed.isEmpty() )

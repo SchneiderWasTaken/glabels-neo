@@ -1253,6 +1253,13 @@ namespace glabels
                 mDataFillRowsGroup->addWidget( fillClear );
 
                 mDataFillLiveGroup = tab->addGroup( tr( "Live data" ), QStringLiteral( "database" ) );
+                auto* fillSheets = new Btn( Btn::Size::Large, Btn::Variant::Standard, mDataFillLiveGroup );
+                fillSheets->setText( tr( "Google Sheets..." ) );
+                fillSheets->setIconName( QStringLiteral( "file-spreadsheet" ) );
+                connect( fillSheets, &QAbstractButton::clicked,
+                         mFillView->linkGoogleSheetsButton, &QAbstractButton::click );
+                mDataFillLiveGroup->addWidget( fillSheets );
+
                 auto* fillRedash = new Btn( Btn::Size::Large, Btn::Variant::Standard, mDataFillLiveGroup );
                 fillRedash->setText( tr( "Redash..." ) );
                 fillRedash->setIconName( QStringLiteral( "database" ) );

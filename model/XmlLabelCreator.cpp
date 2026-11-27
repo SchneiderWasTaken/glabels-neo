@@ -539,6 +539,25 @@ namespace glabels::model
                                 }
                         }
                 }
+                else if ( src.kind == ExternalSourceKind::GoogleSheets )
+                {
+                        XmlUtil::setStringAttr( node, "spreadsheet_id", src.spreadsheetId.trimmed() );
+                        if ( !src.sheetName.trimmed().isEmpty() )
+                        {
+                                XmlUtil::setStringAttr( node, "sheet", src.sheetName.trimmed() );
+                        }
+                        if ( !src.sheetGid.trimmed().isEmpty() )
+                        {
+                                XmlUtil::setStringAttr( node, "gid", src.sheetGid.trimmed() );
+                        }
+                        if ( !src.cellRange.trimmed().isEmpty() )
+                        {
+                                XmlUtil::setStringAttr( node, "range", src.cellRange.trimmed() );
+                        }
+                        XmlUtil::setStringAttr( node, "auth_mode",
+                                                ExternalDataSource::googleAuthModeToString( src.googleAuthMode ) );
+                        XmlUtil::setBoolAttr( node, "header_row", src.hasHeaderRow );
+                }
         }
 
 

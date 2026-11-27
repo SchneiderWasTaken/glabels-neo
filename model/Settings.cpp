@@ -645,6 +645,30 @@ namespace glabels::model
                 mInstance->setValue( "recentRedashServers", list );
                 mInstance->endGroup();
         }
+
+
+        QString Settings::googleAccountEmail()
+        {
+                instance()->beginGroup( "ExternalSources" );
+                const QString email = mInstance->value( "googleAccountEmail" ).toString();
+                mInstance->endGroup();
+                return email;
+        }
+
+
+        void Settings::setGoogleAccountEmail( const QString& email )
+        {
+                instance()->beginGroup( "ExternalSources" );
+                if ( email.trimmed().isEmpty() )
+                {
+                        mInstance->remove( "googleAccountEmail" );
+                }
+                else
+                {
+                        mInstance->setValue( "googleAccountEmail", email.trimmed() );
+                }
+                mInstance->endGroup();
+        }
         // --- end external data sources ---
 
 }

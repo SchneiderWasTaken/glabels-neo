@@ -189,6 +189,9 @@ namespace glabels
                 mainCol->addLayout( headerRow );
 
                 // Inline toolbar row (only visible in standalone glabels-fill kiosk mode)
+                linkGoogleSheetsButton = new QToolButton( this );
+                linkGoogleSheetsButton->setText( tr("Google Sheets...") );
+                linkGoogleSheetsButton->setToolButtonStyle( Qt::ToolButtonTextBesideIcon );
                 linkExternalSourceButton = new QToolButton( this );
                 linkExternalSourceButton->setText( tr("Redash...") );
                 linkExternalSourceButton->setToolButtonStyle( Qt::ToolButtonTextBesideIcon );
@@ -198,8 +201,11 @@ namespace glabels
                 refreshExternalSourceButton->setEnabled( false );
                 const int spacerIdx = toolbarLayout->indexOf( toolbarSpacer );
                 const int insertAt = ( spacerIdx >= 0 ) ? spacerIdx : toolbarLayout->count();
-                toolbarLayout->insertWidget( insertAt, linkExternalSourceButton );
-                toolbarLayout->insertWidget( insertAt + 1, refreshExternalSourceButton );
+                toolbarLayout->insertWidget( insertAt, linkGoogleSheetsButton );
+                toolbarLayout->insertWidget( insertAt + 1, linkExternalSourceButton );
+                toolbarLayout->insertWidget( insertAt + 2, refreshExternalSourceButton );
+                connect( linkGoogleSheetsButton, &QToolButton::clicked,
+                         this, &FillView::onLinkGoogleSheetsClicked );
                 connect( linkExternalSourceButton, &QToolButton::clicked,
                          this, &FillView::onLinkExternalSourceClicked );
                 connect( refreshExternalSourceButton, &QToolButton::clicked,
@@ -248,6 +254,15 @@ namespace glabels
                 connect( &mRedashClient, &datasource::ExternalDataFetcher::finished,
                          this, &FillView::onExternalFetchFinished );
                 connect( &mRedashClient, &datasource::ExternalDataFetcher::failed,
+                         this, &FillView::onExternalFetchFailed );
+
+                connect( &mGoogleSheetsClient, &datasource::ExternalDataFetcher::started,
+                         this, &FillView::onExternalFetchStarted );
+                connect( &mGoogleSheetsClient, &datasource::ExternalDataFetcher::progressChanged,
+                         this, &FillView::onExternalFetchProgress );
+                connect( &mGoogleSheetsClient, &datasource::ExternalDataFetcher::finished,
+                         this, &FillView::onExternalFetchFinished );
+                connect( &mGoogleSheetsClient, &datasource::ExternalDataFetcher::failed,
                          this, &FillView::onExternalFetchFailed );
 
                 // Middle row: jobs table on left, Sheet preview card on workWell on right (s12)
@@ -342,6 +357,7 @@ namespace glabels
                         disconnect( mModel, nullptr, this, nullptr );
                 }
                 mRedashClient.cancel();
+                mGoogleSheetsClient.cancel();
                 mLastExternalSyncAt = QDateTime();
                 mLastExternalRowCount = 0;
                 mLastExternalError.clear();
@@ -378,7 +394,8 @@ namespace glabels
                      && mModel->externalDataSource().refreshOnOpen )
                 {
                         const auto& src = mModel->externalDataSource();
-                        if ( datasource::SecretStore::hasSecret( src.credentialKey() ) )
+                        const QString credKey = src.credentialKey();
+                        if ( credKey.isEmpty() || datasource::SecretStore::hasSecret( credKey ) )
                         {
                                 mExternalAutoLoaded = true;
                                 refreshExternalSource();
@@ -410,6 +427,10 @@ namespace glabels
                 importExcelButton->setVisible( showInline );
                 exportCsvButton->setVisible( showInline );
                 exportExcelButton->setVisible( showInline );
+                if ( linkGoogleSheetsButton )
+                {
+                        linkGoogleSheetsButton->setVisible( showInline );
+                }
                 if ( linkExternalSourceButton )
                 {
                         linkExternalSourceButton->setVisible( showInline );
@@ -1213,25 +1234,7 @@ namespace glabels
         }
 
 
-        void FillView::openExternalSourceDialog()
-        {
-                onLinkExternalSourceClicked();
-        }
-
-
-        void FillView::refreshExternalSource()
-        {
-                onRefreshExternalSourceClicked();
-        }
-
-
-        void FillView::applyExternalFetchResult( const datasource::FetchResult& result )
-        {
-                onExternalFetchFinished( result );
-        }
-
-
-        void FillView::onLinkExternalSourceClicked()
+        void FillView::openExternalSourceDialog( model::ExternalSourceKind preferredKind )
         {
                 if ( !mModel )
                 {
@@ -1241,7 +1244,8 @@ namespace glabels
                 datasource::ExternalDataSourceDialog dlg(
                         mModel->externalDataSource(),
                         mJobsModel.fieldNames(),
-                        this );
+                        this,
+                        preferredKind );
                 if ( dlg.exec() != QDialog::Accepted )
                 {
                         return;
@@ -1268,18 +1272,63 @@ namespace glabels
         }
 
 
-        void FillView::onRefreshExternalSourceClicked()
+        void FillView::refreshExternalSource()
+        {
+                onRefreshExternalSourceClicked();
+        }
+
+
+        void FillView::applyExternalFetchResult( const datasource::FetchResult& result )
+        {
+                onExternalFetchFinished( result );
+        }
+
+
+        datasource::ExternalDataFetcher* FillView::activeFetcher()
         {
                 if ( !mModel || !mModel->externalDataSource().isValid() )
                 {
+                        return nullptr;
+                }
+                switch ( mModel->externalDataSource().kind )
+                {
+                case model::ExternalSourceKind::Redash:
+                        return &mRedashClient;
+                case model::ExternalSourceKind::GoogleSheets:
+                        return &mGoogleSheetsClient;
+                case model::ExternalSourceKind::None:
+                default:
+                        return nullptr;
+                }
+        }
+
+
+        bool FillView::isExternalFetchRunning() const
+        {
+                return mRedashClient.isRunning() || mGoogleSheetsClient.isRunning();
+        }
+
+
+        void FillView::onLinkExternalSourceClicked()
+        {
+                openExternalSourceDialog( model::ExternalSourceKind::Redash );
+        }
+
+
+        void FillView::onLinkGoogleSheetsClicked()
+        {
+                openExternalSourceDialog( model::ExternalSourceKind::GoogleSheets );
+        }
+
+
+        void FillView::onRefreshExternalSourceClicked()
+        {
+                auto* fetcher = activeFetcher();
+                if ( !fetcher || !mModel )
+                {
                         return;
                 }
-
-                const model::ExternalDataSource& src = mModel->externalDataSource();
-                if ( src.kind == model::ExternalSourceKind::Redash )
-                {
-                        mRedashClient.fetch( src );
-                }
+                fetcher->fetch( mModel->externalDataSource() );
         }
 
 
@@ -1290,6 +1339,7 @@ namespace glabels
                         return;
                 }
                 mRedashClient.cancel();
+                mGoogleSheetsClient.cancel();
                 mLastExternalSyncAt = QDateTime();
                 mLastExternalRowCount = 0;
                 mLastExternalError.clear();
@@ -1500,6 +1550,12 @@ namespace glabels
                         return true;
                 }
 
+                auto* fetcher = activeFetcher();
+                if ( !fetcher )
+                {
+                        return true;
+                }
+
                 bool succeeded = false;
                 bool canceled = false;
                 QString errorMsg;
@@ -1513,34 +1569,34 @@ namespace glabels
                 progress.setWindowModality( Qt::WindowModal );
                 progress.setMinimumDuration( 200 );
 
-                auto cFinish = connect( &mRedashClient, &datasource::ExternalDataFetcher::finished, &loop,
+                auto cFinish = connect( fetcher, &datasource::ExternalDataFetcher::finished, &loop,
                                         [&]( const datasource::FetchResult& ) {
                                                 succeeded = true;
                                                 loop.quit();
                                         } );
-                auto cFail = connect( &mRedashClient, &datasource::ExternalDataFetcher::failed, &loop,
+                auto cFail = connect( fetcher, &datasource::ExternalDataFetcher::failed, &loop,
                                       [&]( const QString& err ) {
                                               errorMsg = err;
                                               loop.quit();
                                       } );
-                auto cProg = connect( &mRedashClient, &datasource::ExternalDataFetcher::progressChanged, &progress,
+                auto cProg = connect( fetcher, &datasource::ExternalDataFetcher::progressChanged, &progress,
                                       [&]( const QString& msg ) {
                                               progress.setLabelText( msg );
                                       } );
                 auto cCancel = connect( &progress, &QProgressDialog::canceled, &loop,
                                         [&]() {
                                                 canceled = true;
-                                                mRedashClient.cancel();
+                                                fetcher->cancel();
                                                 loop.quit();
                                         } );
 
-                if ( !mRedashClient.isRunning() )
+                if ( !fetcher->isRunning() )
                 {
                         refreshExternalSource();
                 }
 
-                // refreshExternalSource() may fail synchronously (e.g. missing API key) before loop.exec().
-                if ( mRedashClient.isRunning() )
+                // refreshExternalSource() may fail synchronously (e.g. missing credentials) before loop.exec().
+                if ( fetcher->isRunning() )
                 {
                         loop.exec();
                 }
@@ -1587,7 +1643,7 @@ namespace glabels
         void FillView::updateExternalSourceBanner()
         {
                 const bool hasSource = mModel && mModel->externalDataSource().isValid();
-                const bool running = mRedashClient.isRunning();
+                const bool running = isExternalFetchRunning();
 
                 if ( mExternalBanner )
                 {
@@ -1605,6 +1661,8 @@ namespace glabels
                 if ( hasSource )
                 {
                         const model::ExternalDataSource& src = mModel->externalDataSource();
+                        const QString credKey = src.credentialKey();
+                        const bool missingCred = !credKey.isEmpty() && !datasource::SecretStore::hasSecret( credKey );
                         mExternalTitleLabel->setText( src.summaryText() );
 
                         if ( running )
@@ -1617,10 +1675,12 @@ namespace glabels
                                 mExternalStatusLabel->setText( mLastExternalError );
                                 mExternalStatusLabel->setStyleSheet( QStringLiteral( "color: #d9534f;" ) );
                         }
-                        else if ( !datasource::SecretStore::hasSecret( src.credentialKey() ) )
+                        else if ( missingCred )
                         {
                                 mExternalStatusLabel->setText(
-                                        tr( "API key not set on this computer — click Configure to enter your key." ) );
+                                        src.kind == model::ExternalSourceKind::GoogleSheets
+                                                ? tr( "Not signed in to Google on this computer — click Configure to sign in." )
+                                                : tr( "API key not set on this computer — click Configure to enter your key." ) );
                                 mExternalStatusLabel->setStyleSheet( QString() );
                         }
                         else if ( mLastExternalSyncAt.isValid() )

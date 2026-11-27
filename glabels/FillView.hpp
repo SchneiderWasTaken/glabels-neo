@@ -38,6 +38,7 @@
 
 #include <QDateTime>
 #include <QList>
+#include <QSet>
 #include <QStringList>
 
 
@@ -107,6 +108,12 @@ namespace glabels
         signals:
                 void printAvailabilityChanged( bool canPrint );
                 void externalSourceStateChanged( bool hasSource, bool isRefreshing );
+
+                /// Source name and sync status, for the Data panel.  isError: status is a problem.
+                void externalStatusChanged( const QString& title, const QString& status, bool isError, bool isBusy );
+
+                /// The strip asking for column choices was clicked: show the Data panel.
+                void mapColumnsRequested();
 
 
                 /////////////////////////////////
@@ -180,8 +187,11 @@ namespace glabels
                                  const QStringList& header );
                 void mergeExternalRows( const QList<QMap<QString,QString>>& rows,
                                         const QStringList&                  header,
-                                        const QString&                      matchKeySetting );
-                void ensureColumnVariables( const QStringList& header );
+                                        const QString&                      matchKeySetting,
+                                        bool                                reapply = false );
+                void reapplySourceMapping();
+                void publishFillRows();
+                void updateUnmappedStrip();
                 bool ensureFreshExternalDataBeforePrint();
                 void updateExternalSourceBanner();
                 datasource::ExternalDataFetcher* activeFetcher();
@@ -209,6 +219,12 @@ namespace glabels
                 QPushButton*             mBannerRefreshBtn{ nullptr };
                 QPushButton*             mBannerConfigureBtn{ nullptr };
                 QPushButton*             mBannerUnlinkBtn{ nullptr };
+
+                QFrame*                  mUnmappedStrip{ nullptr };
+                QLabel*                  mUnmappedLabel{ nullptr };
+                QPushButton*             mUnmappedBtn{ nullptr };
+                QMap<QString,QString>    mAppliedColumnMap;
+                QSet<QString>            mBoundFields;
 
                 QDateTime                mLastExternalSyncAt;
                 int                      mLastExternalRowCount{ 0 };

@@ -520,6 +520,17 @@ namespace glabels::model
                 XmlUtil::setBoolAttr( node, "refresh_on_open", src.refreshOnOpen );
                 XmlUtil::setBoolAttr( node, "refresh_before_print", src.refreshBeforePrint );
 
+                for ( auto it = src.columnMap.constBegin(); it != src.columnMap.constEnd(); ++it )
+                {
+                        if ( !it.key().trimmed().isEmpty() )
+                        {
+                                QDomElement colNode = doc.createElement( "Column" );
+                                XmlUtil::setStringAttr( colNode, "field", it.key() );
+                                XmlUtil::setStringAttr( colNode, "source", it.value() );
+                                node.appendChild( colNode );
+                        }
+                }
+
                 if ( src.kind == ExternalSourceKind::Redash )
                 {
                         XmlUtil::setStringAttr( node, "server", ExternalDataSource::normalizeServerUrl( src.serverUrl ) );

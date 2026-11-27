@@ -54,6 +54,28 @@ The Fill page can link directly to a **Google Sheet** or a **Redash** query (**D
 - Credentials (OAuth refresh tokens and Redash API keys) are stored in the OS credential store (Windows Credential Manager, macOS Keychain, or Linux Secret Service) and are **never** written to `.glabels` project files.
 - **Refresh automatically on open** and **Refresh before printing** keep the Fill table up to date while preserving per-row `Qty`, `Print`, and any non-source columns matched by a key field.
 
+### Data in the designer (Google Sheets, Redash)
+
+You can connect a source, choose which column fills each field, and design the label without leaving the **Home** tab.
+
+1. **Home → Data → Google Sheets… / Redash…** connects a source (the same dialog as Data → Fill → Live data).
+2. The **Data** section of the Content panel (right side of the editor) lists the source's **columns**, each with a sample value and a note: *On label*, *Not on label*, or *Fills ${field}*. The `Qty` and `Print` columns control quantity and the Print checkbox and are marked as such.
+3. **Put a column on the label** by dragging it from the panel:
+   - onto an empty part of the label: a new text object `${column}` appears there;
+   - onto a **text** object: the field is added to its text;
+   - onto a **barcode**: its data becomes the field;
+   - onto an **image**: its file name becomes the field.
+
+   The object under the pointer is outlined while you drag. Double-click a column (or press Enter on it) to insert it into the selected object instead. One **Undo** reverses a drop.
+4. **Fields that need a column.** A field the label uses that no column fills (for example `${price}` when the sheet's column is *Unit price*) is listed under **Needs a column** with a drop-down. Choose the column, or **Leave blank**. A column that looks like a match is offered as **Use "Unit price"** but is never applied until you click it. Choices are saved in the `.glabels` file.
+5. **Show row data** (in the Data section) draws row N of the Fill table on the label, with ‹ › to step through rows, so you can design against real values. Turn it off to see `${field}` placeholders again.
+6. Columns are **not** added to the label as variables any more. A column only affects the label when a field uses it.
+7. The Fill page (**Data → Fill**) shows a strip, "N label field(s) have no column", with **Choose columns…** that jumps back to the panel.
+
+How columns are matched to fields, in order: the column you chose, the same name, the same name ignoring case, the same name ignoring spaces, underscores and punctuation (so `${unit_price}` finds *Unit price*). Anything looser is only suggested.
+
+If the sheet has **no header row**, untick *First row is headers* in the connection dialog: the columns are then named 1, 2, 3, ... and the panel shows the first row's value under each, so you can tell them apart.
+
 ### Print
 
 The **Print** button sends the **checked** rows to the printer (or PDF),

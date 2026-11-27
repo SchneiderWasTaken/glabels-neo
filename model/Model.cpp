@@ -415,6 +415,61 @@ namespace glabels::model
         void Model::clearExternalDataSource()
         {
                 setExternalDataSource( ExternalDataSource() );
+                clearSourceData();
+        }
+
+
+        const QStringList& Model::sourceColumns() const
+        {
+                return mSourceColumns;
+        }
+
+
+        const QList<QMap<QString,QString>>& Model::sourceRows() const
+        {
+                return mSourceRows;
+        }
+
+
+        ///
+        /// Remember what the linked source returned.  Not a document change.
+        ///
+        void Model::setSourceData( const QStringList&                  columns,
+                                   const QList<QMap<QString,QString>>& rows )
+        {
+                mSourceColumns = columns;
+                mSourceRows    = rows;
+                emit sourceDataChanged();
+        }
+
+
+        void Model::clearSourceData()
+        {
+                if ( !mSourceColumns.isEmpty() || !mSourceRows.isEmpty() )
+                {
+                        mSourceColumns.clear();
+                        mSourceRows.clear();
+                        emit sourceDataChanged();
+                }
+        }
+
+
+        const QList<QMap<QString,QString>>& Model::fillRows() const
+        {
+                return mFillRows;
+        }
+
+
+        ///
+        /// Remember the Fill table's rows.  Not a document change.
+        ///
+        void Model::setFillRows( const QList<QMap<QString,QString>>& rows )
+        {
+                if ( rows != mFillRows )
+                {
+                        mFillRows = rows;
+                        emit fillRowsChanged();
+                }
         }
 
 

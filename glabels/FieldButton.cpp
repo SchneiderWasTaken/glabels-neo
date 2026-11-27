@@ -45,10 +45,34 @@ namespace glabels
         /// Set Keys
         ///
         void FieldButton::setKeys( const merge::Merge*     merge,
-                                   const model::Variables& variables )
+                                   const model::Variables& variables,
+                                   const QStringList&      sourceColumns )
         {
                 // Clear old keys
                 mMenu.clear();
+
+                // Columns of the linked data source (Google Sheets, Redash)
+                QStringList columns;
+                for ( const QString& c : sourceColumns )
+                {
+                        // Qty and Print columns control the printing; a name with } or : cannot be a ${...} field
+                        if ( !c.trimmed().isEmpty() &&
+                             c.compare( QStringLiteral( "Qty" ),   Qt::CaseInsensitive ) != 0 &&
+                             c.compare( QStringLiteral( "Print" ), Qt::CaseInsensitive ) != 0 &&
+                             !c.contains( QLatin1Char( '}' ) ) && !c.contains( QLatin1Char( ':' ) ) )
+                        {
+                                columns.append( c );
+                        }
+                }
+                if ( !columns.isEmpty() )
+                {
+                        mMenu.addSection( tr("Data columns") );
+                        for ( const QString& key : columns )
+                        {
+                                auto* action = mMenu.addAction( QString( "${%1}" ).arg( key ) );
+                                action->setData( key );
+                        }
+                }
 
                 // Add merge keys, if any
                 mMenu.addSection( tr("Merge fields") );
@@ -76,7 +100,7 @@ namespace glabels
                         action->setEnabled( false );
                 }
 
-                setEnabled( !merge->keys().empty() || !variables.keys().empty() );
+                setEnabled( !merge->keys().empty() || !variables.keys().empty() || !columns.isEmpty() );
         }
 
 

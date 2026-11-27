@@ -935,6 +935,7 @@ namespace glabels::datasource
                 src.refreshOnOpen = mRefreshOnOpenCheck->isChecked();
                 src.refreshBeforePrint = mRefreshBeforePrintCheck->isChecked();
                 src.matchKeyField = mMatchKeyCombo->currentData().toString();
+                src.columnMap = mInitialSource.columnMap;   // mapping is edited in the Data panel, not here
 
                 if ( mProviderTabs->currentIndex() == TAB_GOOGLE_SHEETS )
                 {

@@ -24,6 +24,7 @@
 
 #include "RibbonTypes.hpp"
 
+#include "model/ExternalDataSource.hpp"
 #include "model/Model.hpp"
 
 #include <QLabel>
@@ -31,6 +32,12 @@
 #include <QPushButton>
 #include <QStackedWidget>
 #include <QWidget>
+
+class QCheckBox;
+class QVBoxLayout;
+class QScrollArea;
+class QTimer;
+class QToolButton;
 
 
 namespace glabels::ribbon
@@ -71,9 +78,36 @@ namespace glabels::ribbon
                 /// Switch visible editor section based on current selection.
                 void setSelectionKind( SelectionKind kind );
 
+                /// Source name and sync status from the Fill view (Data section header).
+                void setSourceStatus( const QString& title, const QString& status, bool isError, bool isBusy );
+
+                /// Scroll the Data section into view.
+                void revealDataSection();
+
+                /// MIME type of a dragged data column (payload: the column name, UTF-8).
+                static QString columnMimeType();
+
+                /// Passed to columnChosen() when the person picks "Leave blank".
+                static QString blankColumnToken();
+
         signals:
                 /// Emitted when user double-clicks a field or variable chip row.
                 void fieldActivated( const QString& key );
+
+                /// Connect (or change) the data source.
+                void connectSourceRequested( glabels::model::ExternalSourceKind kind );
+
+                /// Refresh the linked data source.
+                void refreshSourceRequested();
+
+                /// The person chose the column that fills a label field (blankColumnToken() = leave blank).
+                void columnChosen( const QString& field, const QString& column );
+
+                /// "Show row data on the label" toggled.
+                void showRowDataToggled( bool on );
+
+                /// Which Fill row the editor shows.
+                void previewRowChanged( int row );
 
         protected:
                 void paintEvent( QPaintEvent* event ) override;
@@ -81,9 +115,14 @@ namespace glabels::ribbon
         private slots:
                 void refreshFieldsAndVariables();
                 void onThemeChanged();
+                void scheduleDataRefresh();
+                void rebuildDataSection();
 
         private:
                 void syncFieldButtons();
+                void buildDataSection( QWidget* parent, QVBoxLayout* into );
+                void stepPreviewRow( int delta );
+                void updateRowNav();
 
                 model::Model*   mModel{ nullptr };
                 SelectionKind   mSelectionKind{ SelectionKind::None };
@@ -109,6 +148,34 @@ namespace glabels::ribbon
 
                 QWidget*        mVariablesSection{ nullptr };
                 QWidget*        mVariablesListHost{ nullptr };
+
+                // Data section: the linked source, its columns, and the fields that still need one
+                QScrollArea*    mScroll{ nullptr };
+                QWidget*        mDataSection{ nullptr };
+                QLabel*         mDataCaption{ nullptr };
+                QWidget*        mDataEmptyBox{ nullptr };
+                QWidget*        mDataSourceBox{ nullptr };
+                QLabel*         mDataTitleLabel{ nullptr };
+                QLabel*         mDataStatusLabel{ nullptr };
+                QPushButton*    mDataRefreshBtn{ nullptr };
+                QPushButton*    mDataChangeBtn{ nullptr };
+                QWidget*        mRowNavBox{ nullptr };
+                QCheckBox*      mShowRowCheck{ nullptr };
+                QToolButton*    mRowPrevBtn{ nullptr };
+                QToolButton*    mRowNextBtn{ nullptr };
+                QLabel*         mRowLabel{ nullptr };
+                QLabel*         mColumnsHeader{ nullptr };
+                QWidget*        mColumnsHost{ nullptr };
+                QLabel*         mNeedsHeader{ nullptr };
+                QWidget*        mNeedsHost{ nullptr };
+                QTimer*         mDataTimer{ nullptr };
+
+                QString         mSourceTitle;
+                QString         mSourceStatus;
+                bool            mSourceError{ false };
+                bool            mSourceBusy{ false };
+                QString         mDataSignature;
+                int             mPreviewRow{ 0 };
         };
 
 }

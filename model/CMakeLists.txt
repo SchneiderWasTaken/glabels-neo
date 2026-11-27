@@ -20,10 +20,12 @@ configure_file (Config.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/Config.hpp @ONLY)
 set (Model_sources
   Category.cpp
   ColorNode.cpp
+  ColumnMatcher.cpp
   DataCache.cpp
   Db.cpp
   Distance.cpp
   ExternalDataSource.cpp
+  FieldBinding.cpp
   FieldScan.cpp
   FileUtil.cpp
   Frame.cpp

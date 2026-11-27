@@ -31,6 +31,7 @@
 #include "merge/Factory.hpp"
 #include "model/Db.hpp"
 #include "model/ExternalDataSource.hpp"
+#include "model/FieldBinding.hpp"
 #include "model/Model.hpp"
 #include "model/ModelTextObject.hpp"
 #include "model/Settings.hpp"
@@ -737,11 +738,11 @@ void TestGoogleSheetsDataSource::loopbackTimeoutsAndSheetIdValidation()
 }
 
 
-void TestGoogleSheetsDataSource::fillViewSheetColumnsBecomeVariables()
+void TestGoogleSheetsDataSource::fillViewSheetColumnsStayColumns()
 {
         MockGoogleServer server;
         QVERIFY( server.listen( QHostAddress::LocalHost, 0 ) );
-        // Blank row in the middle is skipped; Qty is a control column, not a variable.
+        // Blank row in the middle is skipped; Qty is a control column, not a label field.
         server.csvBody = "SKU,Product Name,Qty\nA-1,Apple,2\n,,\nB-2,Banana,\nC-3,Cherry,1\n";
 
         Model model;
@@ -749,7 +750,7 @@ void TestGoogleSheetsDataSource::fillViewSheetColumnsBecomeVariables()
         QVERIFY( !templates.isEmpty() );
         model.setTmplate( templates.first() );
 
-        // Label already uses ${sku} (different case): no duplicate variable.
+        // Label uses ${sku} (different case from the column) and ${name} (no such column)
         auto* textObj = new ModelTextObject();
         textObj->setText( QStringLiteral( "${sku}" ) );
         model.addObject( textObj );
@@ -769,18 +770,57 @@ void TestGoogleSheetsDataSource::fillViewSheetColumnsBecomeVariables()
         QVERIFY( tableModel != nullptr );
         QTRY_COMPARE_WITH_TIMEOUT( tableModel->rowCount(), 3, 5000 );
 
-        QVERIFY( model.variables().hasVariable( QStringLiteral( "Product Name" ) ) );
+        // The sheet's columns are kept as columns. They do NOT become label variables.
+        QCOMPARE( model.sourceColumns(), QStringList( { "SKU", "Product Name", "Qty" } ) );
+        QCOMPARE( model.sourceRows().size(), 3 );
+        QVERIFY( !model.variables().hasVariable( QStringLiteral( "Product Name" ) ) );
         QVERIFY( !model.variables().hasVariable( QStringLiteral( "SKU" ) ) );
         QVERIFY( !model.variables().hasVariable( QStringLiteral( "Qty" ) ) );
-        QVERIFY( tableModel->fieldNames().contains( QStringLiteral( "Product Name" ) ) );
+        QCOMPARE( tableModel->fieldNames(), QStringList( { "sku" } ) );
 
         // Every filled row is a label, checked to print by default.
         for ( int r = 0; r < 3; ++r )
         {
                 QVERIFY( tableModel->jobAt( r )->doPrint );
         }
-        QCOMPARE( tableModel->jobAt( 0 )->values.value( QStringLiteral( "Product Name" ) ), QStringLiteral( "Apple" ) );
         QCOMPARE( tableModel->jobAt( 0 )->values.value( QStringLiteral( "sku" ) ), QStringLiteral( "A-1" ) );
         QCOMPARE( tableModel->jobAt( 0 )->quantity, 2 );
-        QCOMPARE( tableModel->jobAt( 2 )->values.value( QStringLiteral( "Product Name" ) ), QStringLiteral( "Cherry" ) );
+
+        // The Fill table publishes its rows for the editor's "Show row data"
+        QCOMPARE( model.fillRows().size(), 3 );
+        QCOMPARE( model.fillRows().at( 2 ).value( QStringLiteral( "sku" ) ), QStringLiteral( "C-3" ) );
+
+        // Designing: the label starts using ${name}. No column has that name, so it needs one;
+        // "Product Name" is only suggested, never applied behind the person's back.
+        textObj->setText( QStringLiteral( "${sku}\n${name}" ) );
+        QVERIFY( tableModel->fieldNames().contains( QStringLiteral( "name" ) ) );
+        QCOMPARE( tableModel->jobAt( 0 )->values.value( QStringLiteral( "name" ) ), QString() );
+        {
+                const auto needs = FieldBindings::needingColumn( FieldBindings::compute( model ) );
+                QCOMPARE( needs.size(), 1 );
+                QCOMPARE( needs.first().field, QStringLiteral( "name" ) );
+                QCOMPARE( needs.first().match.kind, ColumnMatch::Kind::Suggested );
+                QCOMPARE( needs.first().match.column, QStringLiteral( "Product Name" ) );
+        }
+
+        // The person edits Qty and unticks a row, then chooses the column for ${name}.
+        QVERIFY( tableModel->setData( tableModel->index( 0, FillJobModel::QUANTITY_COLUMN ), 5, Qt::EditRole ) );
+        QVERIFY( tableModel->setData( tableModel->index( 1, FillJobModel::PRINT_COLUMN ), Qt::Unchecked, Qt::CheckStateRole ) );
+
+        ExternalDataSource mapped = model.externalDataSource();
+        mapped.columnMap.insert( QStringLiteral( "name" ), QStringLiteral( "Product Name" ) );
+        model.setExternalDataSource( mapped );
+
+        // The table fills from the rows we already hold: no second fetch, Qty and Print kept.
+        QCOMPARE( tableModel->jobAt( 0 )->values.value( QStringLiteral( "name" ) ), QStringLiteral( "Apple" ) );
+        QCOMPARE( tableModel->jobAt( 2 )->values.value( QStringLiteral( "name" ) ), QStringLiteral( "Cherry" ) );
+        QCOMPARE( tableModel->jobAt( 0 )->quantity, 5 );
+        QVERIFY( !tableModel->jobAt( 1 )->doPrint );
+        QVERIFY( FieldBindings::needingColumn( FieldBindings::compute( model ) ).isEmpty() );
+
+        // Leaving it blank empties the field again
+        mapped.columnMap.insert( QStringLiteral( "name" ), QString() );
+        model.setExternalDataSource( mapped );
+        QCOMPARE( tableModel->jobAt( 0 )->values.value( QStringLiteral( "name" ) ), QString() );
+        QCOMPARE( tableModel->jobAt( 0 )->quantity, 5 );
 }

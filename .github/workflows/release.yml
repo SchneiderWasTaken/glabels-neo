@@ -1,7 +1,7 @@
 # Build, test, package, smoke-test and publish gLabels Neo.
 #
 #  - push to main          -> rolling "edge" prerelease with the newest build
-#  - push to dev           -> rolling "dev" prerelease: the integration branch for trying changes (never updates itself)
+#  - push to dev           -> a full build and test, kept as run artifacts only: NOT published (see docs/DEV-BUILDS.md)
 #  - push of a v* tag      -> stable release (attached to that tag)
 #  - pull request touching packaging -> dry run: everything except publishing
 #
@@ -48,9 +48,9 @@ on:
   workflow_dispatch:
     inputs:
       publish:
-        description: 'On main: "edge" publishes the edge prerelease (used by the merge automation, whose pushes do not trigger workflows). On dev: "dev" publishes the dev prerelease.'
+        description: 'On main only: "edge" publishes the edge prerelease (used by the merge automation, whose pushes do not trigger workflows)'
         type: choice
-        options: [dry-run, edge, dev]
+        options: [dry-run, edge]
         default: dry-run
 
 # Publishing runs are queued, never cancelled mid-publish; only superseded PR dry runs are cancelled.
@@ -85,7 +85,7 @@ jobs:
             echo "channel=edge" >> "$GITHUB_OUTPUT"
           elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$GITHUB_REF" == "refs/heads/main" && "$PUBLISH" == "edge" ]]; then
             echo "channel=edge" >> "$GITHUB_OUTPUT"
-          elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$GITHUB_REF" == "refs/heads/dev" && "$PUBLISH" == "dev" ]]; then
+          elif [[ "$GITHUB_EVENT_NAME" == "workflow_dispatch" && "$GITHUB_REF" == "refs/heads/dev" ]]; then
             echo "channel=dev" >> "$GITHUB_OUTPUT"
           else
             echo "channel=dry-run" >> "$GITHUB_OUTPUT"
@@ -425,7 +425,8 @@ jobs:
   publish:
     name: Publish (${{ needs.channel.outputs.channel }})
     needs: [channel, linux, windows, macos]
-    if: needs.channel.outputs.channel != 'dry-run'
+    # Dev builds are never published: the repository is public, and a release is a public download.
+    if: needs.channel.outputs.channel != 'dry-run' && needs.channel.outputs.channel != 'dev'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
@@ -457,7 +458,6 @@ jobs:
       # What the in-app updater reads: a small manifest at a fixed URL per channel (see the script).
       # Generated before attestation so that it is covered by the build provenance as well.
       - name: Update manifest
-        if: env.CHANNEL != 'dev'   # dev builds never update themselves, so there is nothing for an updater to read
         run: |
           if [ "$CHANNEL" = "edge" ]; then tag=edge; else tag="$GITHUB_REF_NAME"; fi
           # Clients order edge builds by the commit time and never move to an older one.
@@ -478,13 +478,6 @@ jobs:
             {
               echo "**Edge build** of commit \`${GITHUB_SHA::7}\` - the newest build of the \`main\` branch."
               echo "It passed all tests, but it is not a stable release. For a stable version use the latest release."
-              echo
-            } > notes.md
-          elif [ "$CHANNEL" = "dev" ]; then
-            tag="$GITHUB_SHA"
-            {
-              echo "**Dev build** of commit \`${GITHUB_SHA::7}\` - the newest build of the \`dev\` branch."
-              echo "It is made to try changes before they are released. It may be unstable, shows \"(dev)\" in the title bar and does not update itself."
               echo
             } > notes.md
           else
@@ -537,42 +530,6 @@ jobs:
           fi
           gh release upload edge dist/glabels-neo-update-manifest.json --clobber
 
-      # The dev release works like the edge one: one rolling prerelease named "dev", updated in place. It has no
-      # update manifest, so no installed copy ever updates itself to (or from) a dev build.
-      - name: Publish dev release
-        if: env.CHANNEL == 'dev'
-        run: |
-          set -euo pipefail
-          # Do not let an older build replace a newer one (two quick pushes can finish out of order).
-          tip="$(gh api "repos/${GITHUB_REPOSITORY}/commits/dev" --jq .sha)"
-          if [ "$tip" != "$GITHUB_SHA" ]; then
-            newer="$(gh api "repos/${GITHUB_REPOSITORY}/compare/${GITHUB_SHA}...${tip}" \
-              --jq '[.files[].filename | select(test("^(docs|brand)/|^README[.]md$|^SECURITY[.]md$|^[.]github/(ISSUE_TEMPLATE/|PULL_REQUEST_TEMPLATE[.]md$|CODEOWNERS$|dependabot[.]yml$)") | not)] | length')"
-            if [ "$newer" -gt 0 ]; then
-              echo "dev build of ${GITHUB_SHA::7} is superseded by ${tip::7}; not publishing it"
-              exit 0
-            fi
-          fi
-          packages=()
-          for f in dist/*; do
-            packages+=("$f")
-          done
-          if gh release view dev >/dev/null 2>&1; then
-            gh api --method PATCH "repos/${GITHUB_REPOSITORY}/git/refs/tags/dev" \
-              -f sha="$GITHUB_SHA" -F force=true >/dev/null
-            gh release edit dev \
-              --prerelease \
-              --title "Dev build (${GITHUB_SHA::7})" \
-              --notes-file notes.md
-            gh release upload dev "${packages[@]}" --clobber
-          else
-            gh release create dev "${packages[@]}" \
-              --prerelease \
-              --target "$GITHUB_SHA" \
-              --title "Dev build (${GITHUB_SHA::7})" \
-              --notes-file notes.md
-          fi
-
       - name: Publish stable release
         if: env.CHANNEL == 'stable'
         run: |
@@ -588,3 +545,30 @@ jobs:
             --notes-file notes.md
           # Last, so that the manifest found through "latest" always has its packages in place.
           gh release upload "$GITHUB_REF_NAME" dist/glabels-neo-update-manifest.json
+
+  # ---------------------------------------------------------------------- dev
+  # A dev build is only kept as this run's artifacts (7 days): the repository is public, so a release would be a
+  # public download of a build that carries the Google credentials. Nothing is published, no manifest is written.
+  dev-summary:
+    name: Dev build (not published)
+    needs: [channel, linux, windows, macos]
+    if: needs.channel.outputs.channel == 'dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Say where the packages are
+        env:
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          {
+            echo "### Dev build of \`${GITHUB_SHA::7}\`"
+            echo
+            echo "Built and tested on all three platforms. **Not published.** Download the package for your system from"
+            echo "the **Artifacts** section at the bottom of [this run](${RUN_URL}) (sign in to GitHub; kept for 7 days):"
+            echo
+            echo "* \`pkg-windows\` - Windows (zip)"
+            echo "* \`pkg-macos\` - macOS (dmg)"
+            echo "* \`pkg-linux\` - Linux (tar.gz)"
+            echo
+            echo "The build shows \"(dev)\" in the title bar and in About, and does not update itself."
+          } >> "$GITHUB_STEP_SUMMARY"

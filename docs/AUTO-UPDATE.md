@@ -109,7 +109,7 @@ On macOS both applications of the disk image (`glabels-qt.app`, `glabels-fill.ap
   `GLABELS_UPDATE_CHANNEL=auto|stable|edge|off`). `auto`: a build of an exact release tag follows *stable*; the
   push-to-`main` run of the release workflow follows *edge*; everything else (your own builds, pull
   requests) never updates itself. `GLABELS_UPDATE_REPO` sets the repository (default: this one). Builds of
-  the `dev` branch are a separate flavor that never updates itself and publishes no manifest
+  the `dev` branch are a separate flavor that never updates itself and are not published
   (see `docs/DEV-BUILDS.md`).
 - **A package must contain** the updater next to the main program (`bin/glabels-updater[.exe]`, or in
   `glabels-qt.app/Contents/MacOS`) and, for the smoke test, `glabelsneo` (Windows `bin/`, Linux package

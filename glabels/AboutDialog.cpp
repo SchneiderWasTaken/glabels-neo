@@ -62,9 +62,8 @@ namespace glabels
                 }
                 else if ( model::Version::IS_DEV_BUILD )
                 {
-                        // Builds of the dev branch: a rolling prerelease named "dev"
-                        release = "<a href='" + releasesUrl + "tag/dev'>" +
-                                  tr( "dev" ).toHtmlEscaped() + " " + update::Config::COMMIT.left( 7 ).toHtmlEscaped() + "</a>";
+                        // Builds of the dev branch are not published, so there is no release page to link to
+                        release = tr( "dev" ).toHtmlEscaped() + " " + update::Config::COMMIT.left( 7 ).toHtmlEscaped();
                 }
                 else if ( update::Config::CHANNEL == "edge" )
                 {

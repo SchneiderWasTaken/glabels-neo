@@ -60,6 +60,12 @@ namespace glabels
                         release = "<a href='" + releasesUrl + "tag/" + QString::fromLatin1( QUrl::toPercentEncoding( update::Config::TAG ) ) + "'>" +
                                   update::Config::TAG.toHtmlEscaped() + "</a>";
                 }
+                else if ( model::Version::IS_DEV_BUILD )
+                {
+                        // Builds of the dev branch: a rolling prerelease named "dev"
+                        release = "<a href='" + releasesUrl + "tag/dev'>" +
+                                  tr( "dev" ).toHtmlEscaped() + " " + update::Config::COMMIT.left( 7 ).toHtmlEscaped() + "</a>";
+                }
                 else if ( update::Config::CHANNEL == "edge" )
                 {
                         release = "<a href='" + releasesUrl + "tag/edge'>" +
@@ -111,9 +117,20 @@ namespace glabels
 
                 QString forkCopyright = "Copyright &copy; 2026 gLabels Neo contributors. This is a modified version of gLabels (see docs/CHANGES-FROM-UPSTREAM.md).";
 
+                // Builds of the dev branch say so in the heading and carry a short warning.
+                QString devNotice;
+                if ( model::Version::IS_DEV_BUILD )
+                {
+                        productName += " <span style='font-size:13px; font-weight:700;'>(" + tr( "dev" ).toHtmlEscaped() + ")</span>";
+                        devNotice = "<p align='center'><b>" + tr( "Development build" ).toHtmlEscaped() + "</b><br/>" +
+                                    tr( "Made from the dev branch to try changes before they are released. It may be unstable and does not update itself." ).toHtmlEscaped() +
+                                    "</p>";
+                }
+
                 QString markup =
                         "<p align='center'>" + productName + "</p>" +
                         "<p align='center'>" + forkLine + "</p>" +
+                        devNotice +
                         "<p align='center'>" + description + "</p>" +
                         "<p align='center'>" + copyright + "<br/>" + forkCopyright + "</p>" +
                         "<p align='center'>" + attribution + "<br/>" + notAffiliated + "</p>" +

@@ -101,6 +101,29 @@ endif ()
 
 set(LONG_VERSION_STRING "${VERSION_STRING} (${COMMIT_HASH} ${COMMIT_DATE})")
 
+# Build flavor: "dev" marks builds of the dev branch (and local builds that ask for it with
+# -DGLABELS_BUILD_FLAVOR=dev or the GLABELS_BUILD_FLAVOR environment variable): "(dev)" in the title
+# bar, a development notice in About, and no self-update. Anything else is "release".
+set (GLABELS_BUILD_FLAVOR "auto" CACHE STRING "Build flavor: auto, dev or release")
+set_property (CACHE GLABELS_BUILD_FLAVOR PROPERTY STRINGS auto dev release)
+set (BUILD_FLAVOR "${GLABELS_BUILD_FLAVOR}")
+if (BUILD_FLAVOR STREQUAL "auto")
+  if ("$ENV{GLABELS_BUILD_FLAVOR}" STREQUAL "dev")
+    set (BUILD_FLAVOR "dev")
+  elseif ("$ENV{GITHUB_ACTIONS}" STREQUAL "true" AND "$ENV{GITHUB_REF}" STREQUAL "refs/heads/dev" AND
+          ("$ENV{GITHUB_EVENT_NAME}" STREQUAL "push" OR "$ENV{GITHUB_EVENT_NAME}" STREQUAL "workflow_dispatch"))
+    set (BUILD_FLAVOR "dev")
+  else ()
+    set (BUILD_FLAVOR "release")
+  endif ()
+endif ()
+if (BUILD_FLAVOR STREQUAL "dev")
+  set (IS_DEV_BUILD "true")
+else ()
+  set (IS_DEV_BUILD "false")
+endif ()
+message (STATUS "Build flavor ........... " "${BUILD_FLAVOR}")
+
 # Which release channel this build follows for self-update (stable / edge / none)
 include (cmake/UpdateChannel.cmake)
 

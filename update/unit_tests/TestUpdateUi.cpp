@@ -342,6 +342,14 @@ void TestUpdateUi::aboutDialogShowsReleaseVersionAndAttribution()
                 QVERIFY( text.contains( update::Config::TAG ) );
                 QVERIFY( text.contains( "https://github.com/" + update::Config::REPO + "/releases/tag/" ) );
         }
+        else if ( model::Version::IS_DEV_BUILD )
+        {
+                // built from the dev branch: says so, links to the rolling "dev" prerelease, never updates itself
+                QVERIFY( text.contains( "/releases/tag/dev" ) );
+                QVERIFY( text.contains( update::Config::COMMIT.left( 7 ) ) );
+                QVERIFY( text.contains( "Development build" ) );
+                QVERIFY( update::Config::CHANNEL.isEmpty() );
+        }
         else if ( update::Config::CHANNEL == "edge" )
         {
                 QVERIFY( text.contains( "/releases/tag/edge" ) );
@@ -351,4 +359,7 @@ void TestUpdateUi::aboutDialogShowsReleaseVersionAndAttribution()
         {
                 QVERIFY( text.contains( "development build" ) );        // not claimed to be a GitHub release
         }
+
+        // only dev builds carry the development notice
+        QCOMPARE( text.contains( "Development build" ), model::Version::IS_DEV_BUILD );
 }

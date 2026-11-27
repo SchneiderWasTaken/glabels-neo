@@ -40,6 +40,7 @@
 #include <QCryptographicHash>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QRegularExpression>
 #include <QSignalSpy>
 #include <QTcpServer>
 #include <QTcpSocket>
@@ -247,7 +248,13 @@ namespace
                 }
         };
 
-        void sendLocalHttpGet( quint16 port, const QString& pathAndQuery )
+        // GET from a loopback listener; reads the whole response (the server closes
+        // the connection) and checks the status code.
+        void sendLocalHttpGet( quint16           port,
+                               const QString&    pathAndQuery,
+                               QByteArray*       respOut = nullptr,
+                               const QByteArray& host = "127.0.0.1",
+                               int               expectStatus = 200 )
         {
                 QTcpSocket sock;
                 QByteArray resp;
@@ -257,16 +264,12 @@ namespace
                 QObject::connect( &sock, &QTcpSocket::connected, &sock, [&]() {
                         connected = true;
                         const QByteArray req = "GET " + pathAndQuery.toUtf8()
-                                + " HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n";
+                                + " HTTP/1.1\r\nHost: " + host + "\r\nConnection: close\r\n\r\n";
                         sock.write( req );
                         sock.flush();
                 } );
                 QObject::connect( &sock, &QTcpSocket::readyRead, &sock, [&]() {
                         resp.append( sock.readAll() );
-                        if ( resp.contains( "\r\n\r\n" ) )
-                        {
-                                done = true;
-                        }
                 } );
                 QObject::connect( &sock, &QTcpSocket::disconnected, &sock, [&]() {
                         resp.append( sock.readAll() );
@@ -275,7 +278,11 @@ namespace
 
                 sock.connectToHost( QHostAddress::LocalHost, port );
                 QTRY_VERIFY_WITH_TIMEOUT( connected && done, 5000 );
-                QVERIFY( resp.startsWith( "HTTP/1.1 200" ) );
+                if ( respOut )
+                {
+                        *respOut = resp;
+                }
+                QVERIFY2( resp.startsWith( "HTTP/1.1 " + QByteArray::number( expectStatus ) ), resp.left( 60 ).constData() );
         }
 
 }
@@ -416,7 +423,6 @@ void TestGoogleSheetsDataSource::oauthSignInRefreshAndPickerFlow()
         auth.setClientCredentialsForTests(
                 QStringLiteral( "1234567890-abc.apps.googleusercontent.com" ),
                 QStringLiteral( "desktop-secret" ),
-                QStringLiteral( "https://example.github.io/glabels-neo/picker/" ),
                 QStringLiteral( "picker-api-key-1" ) );
         auth.setEndpointsForTests(
                 server.baseUrl() + QStringLiteral( "/auth" ),
@@ -447,9 +453,18 @@ void TestGoogleSheetsDataSource::oauthSignInRefreshAndPickerFlow()
         const QUrl redirectUri( authQuery.queryItemValue( QStringLiteral( "redirect_uri" ), QUrl::FullyDecoded ) );
         server.expectedChallenge = authQuery.queryItemValue( QStringLiteral( "code_challenge" ), QUrl::FullyDecoded );
 
+        const quint16 cbPort = static_cast<quint16>( redirectUri.port() );
+
+        // Stray requests (wrong state, a stray error, a rebinding Host) are refused
+        // but must not abort the real sign-in.
+        sendLocalHttpGet( cbPort, QStringLiteral( "/callback?code=evil&state=wrong" ), nullptr, "127.0.0.1", 400 );
+        sendLocalHttpGet( cbPort, QStringLiteral( "/callback?error=access_denied" ), nullptr, "127.0.0.1", 400 );
+        sendLocalHttpGet( cbPort, QStringLiteral( "/callback?code=x&state=%1" ).arg( state ), nullptr,
+                          "evil.example:" + QByteArray::number( cbPort ), 400 );
+        QCOMPARE( failedSpy.count(), 0 );
+
         // Simulate browser redirect back to local loopback server
-        sendLocalHttpGet( static_cast<quint16>( redirectUri.port() ),
-                          QStringLiteral( "/callback?code=auth-code-123&state=%1" ).arg( state ) );
+        sendLocalHttpGet( cbPort, QStringLiteral( "/callback?code=auth-code-123&state=%1" ).arg( state ) );
 
         QTRY_COMPARE_WITH_TIMEOUT( signedInSpy.count(), 1, 5000 );
         QCOMPARE( failedSpy.count(), 0 );
@@ -481,16 +496,42 @@ void TestGoogleSheetsDataSource::oauthSignInRefreshAndPickerFlow()
         auth.pickSpreadsheet();
         QTRY_VERIFY_WITH_TIMEOUT( capturedPickerUrl.isValid(), 5000 );
 
-        // Access token is in the URL fragment, NEVER the query string
-        QVERIFY( capturedPickerUrl.query().isEmpty() );
-        const QUrlQuery frag( capturedPickerUrl.fragment() );
-        QCOMPARE( frag.queryItemValue( QStringLiteral( "access_token" ), QUrl::FullyDecoded ),
-                  QStringLiteral( "access-token-refreshed" ) );
-        QCOMPARE( frag.queryItemValue( QStringLiteral( "app_id" ) ), QStringLiteral( "1234567890" ) );
-        const QUrl pickerCb( frag.queryItemValue( QStringLiteral( "callback" ), QUrl::FullyDecoded ) );
-        const QString pickerState = frag.queryItemValue( QStringLiteral( "state" ), QUrl::FullyDecoded );
+        // The browser opens our own 127.0.0.1 page.  The access token is in no
+        // part of the URL, only a one-time code.
+        QCOMPARE( capturedPickerUrl.host(), QStringLiteral( "127.0.0.1" ) );
+        QCOMPARE( capturedPickerUrl.path(), QStringLiteral( "/picker" ) );
+        QVERIFY( !capturedPickerUrl.toString().contains( QStringLiteral( "access-token" ) ) );
+        QVERIFY( capturedPickerUrl.fragment().isEmpty() );
+        const quint16 pickerPort = static_cast<quint16>( capturedPickerUrl.port() );
+        const QString pathAndQuery = capturedPickerUrl.path() + QLatin1Char( '?' ) + capturedPickerUrl.query();
 
-        sendLocalHttpGet( static_cast<quint16>( pickerCb.port() ),
+        // Wrong code and a DNS-rebinding Host are refused without using up the page.
+        sendLocalHttpGet( pickerPort, QStringLiteral( "/picker?n=guess" ), nullptr, "127.0.0.1", 404 );
+        sendLocalHttpGet( pickerPort, pathAndQuery, nullptr, "attacker.example:" + QByteArray::number( pickerPort ), 400 );
+
+        QByteArray page;
+        sendLocalHttpGet( pickerPort, pathAndQuery, &page, "127.0.0.1:" + QByteArray::number( pickerPort ) );
+        QVERIFY( page.contains( "Cache-Control: no-store" ) );
+        QVERIFY( page.contains( "frame-ancestors 'none'" ) );
+        QVERIFY( page.contains( "\"token\":\"access-token-refreshed\"" ) );
+        QVERIFY( page.contains( "\"appId\":\"1234567890\"" ) );
+        QVERIFY( page.contains( "\"apiKey\":\"picker-api-key-1\"" ) );
+
+        // One time only: a second load (or another local process) gets nothing.
+        QByteArray second;
+        sendLocalHttpGet( pickerPort, pathAndQuery, &second, "127.0.0.1", 410 );
+        QVERIFY( !second.contains( "access-token-refreshed" ) );
+
+        static const QRegularExpression stateRx( QStringLiteral( "\"state\":\"([A-Za-z0-9_-]+)\"" ) );
+        const QString pickerState = stateRx.match( QString::fromUtf8( page ) ).captured( 1 );
+        QVERIFY( !pickerState.isEmpty() );
+
+        // A forged result with the wrong state is refused; the picker stays open.
+        QSignalSpy pickerFailedSpy( &auth, &GoogleAuthManager::pickerFailed );
+        sendLocalHttpGet( pickerPort, QStringLiteral( "/picked?id=evil&state=wrong" ), nullptr, "127.0.0.1", 400 );
+        QCOMPARE( pickerFailedSpy.count(), 0 );
+
+        sendLocalHttpGet( pickerPort,
                           QStringLiteral( "/picked?id=sheet123&name=Warehouse%20Labels&state=%1" ).arg( pickerState ) );
 
         QTRY_COMPARE_WITH_TIMEOUT( pickedSpy.count(), 1, 5000 );
@@ -642,6 +683,57 @@ void TestGoogleSheetsDataSource::fillViewGoogleSheetsEndToEndRefresh()
         QCOMPARE( tableModel->jobAt( 0 )->values.value( QStringLiteral( "Name" ) ), QStringLiteral( "Honeycrisp Apple" ) );
         QCOMPARE( tableModel->jobAt( 0 )->quantity, 4 );
         QCOMPARE( tableModel->jobAt( 0 )->values.value( QStringLiteral( "Lot" ) ), QStringLiteral( "LOT-9" ) );
+}
+
+
+void TestGoogleSheetsDataSource::loopbackTimeoutsAndSheetIdValidation()
+{
+        GoogleAuthManager auth;
+        auth.setClientCredentialsForTests( QStringLiteral( "1234567890-abc.apps.googleusercontent.com" ),
+                                           QStringLiteral( "desktop-secret" ),
+                                           QStringLiteral( "picker-api-key-1" ) );
+        auth.setLoopbackTimeoutForTests( 200 );
+
+        QUrl opened;
+        auth.setUrlOpenerForTests( [&]( const QUrl& u ) {
+                opened = u;
+                return true;
+        } );
+
+        // A sign-in nobody finishes closes its listener and reports a timeout.
+        QSignalSpy failedSpy( &auth, &GoogleAuthManager::signInFailed );
+        auth.signIn();
+        const QUrl redirectUri( QUrlQuery( opened ).queryItemValue( QStringLiteral( "redirect_uri" ), QUrl::FullyDecoded ) );
+        QVERIFY( redirectUri.port() > 0 );
+        QTRY_COMPARE_WITH_TIMEOUT( failedSpy.count(), 1, 5000 );
+        QVERIFY( failedSpy.at( 0 ).at( 0 ).toString().contains( QStringLiteral( "timed out" ) ) );
+
+        // A late callback with the old state cannot complete sign-in.  (Whether
+        // the port refuses at once or still accepts briefly varies by OS.)
+        QSignalSpy signedInSpy( &auth, &GoogleAuthManager::signedIn );
+        const QString oldState = QUrlQuery( opened ).queryItemValue( QStringLiteral( "state" ), QUrl::FullyDecoded );
+        QTcpSocket probe;
+        probe.connectToHost( QHostAddress::LocalHost, static_cast<quint16>( redirectUri.port() ) );
+        if ( probe.waitForConnected( 1000 ) )
+        {
+                probe.write( "GET /callback?code=late&state=" + oldState.toUtf8()
+                             + " HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n" );
+                probe.flush();
+                probe.waitForReadyRead( 1000 );
+                QVERIFY( !probe.readAll().startsWith( "HTTP/1.1 200" ) );
+        }
+        QTest::qWait( 200 );
+        QCOMPARE( signedInSpy.count(), 0 );
+
+        // Only Google's ID characters are accepted (no "../" into URL paths).
+        ExternalDataSource src;
+        src.kind = ExternalSourceKind::GoogleSheets;
+        src.spreadsheetId = QStringLiteral( "1AbC-def_GHIjkl0123456789" );
+        QVERIFY( src.isValid() );
+        src.spreadsheetId = QStringLiteral( "../../drive/v3/files" );
+        QVERIFY( !src.isValid() );
+        src.spreadsheetId = QStringLiteral( "abc?x=1" );
+        QVERIFY( !src.isValid() );
 }
 
 

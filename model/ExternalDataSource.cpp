@@ -43,7 +43,12 @@ namespace glabels::model
                         return isAllowedServerUrl( normalizeServerUrl( serverUrl ) ) && queryId > 0;
 
                 case ExternalSourceKind::GoogleSheets:
-                        return !spreadsheetId.trimmed().isEmpty();
+                {
+                        // Google IDs use only these characters.  Anything else (e.g.
+                        // "../") from a hand-edited .glabels file must not reach a URL path.
+                        static const QRegularExpression idRx( QStringLiteral( "^[A-Za-z0-9_-]+$" ) );
+                        return idRx.match( spreadsheetId.trimmed() ).hasMatch();
+                }
 
                 case ExternalSourceKind::None:
                 default:

@@ -108,7 +108,6 @@ jobs:
           REPORT_ENDPOINT: ${{ vars.REPORT_ENDPOINT }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          GOOGLE_PICKER_URL: ${{ vars.GOOGLE_PICKER_URL }}
           GOOGLE_PICKER_API_KEY: ${{ vars.GOOGLE_PICKER_API_KEY }}
         run: >
           cmake -B build -G Ninja
@@ -116,7 +115,6 @@ jobs:
           "-DGLABELS_REPORT_ENDPOINT=$REPORT_ENDPOINT"
           "-DGLABELS_GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID"
           "-DGLABELS_GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET"
-          "-DGLABELS_GOOGLE_PICKER_URL=${GOOGLE_PICKER_URL:-https://schneiderwastaken.github.io/glabels-neo/picker/}"
           "-DGLABELS_GOOGLE_PICKER_API_KEY=$GOOGLE_PICKER_API_KEY"
           -DCMAKE_C_COMPILER_LAUNCHER=ccache
           -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
@@ -241,7 +239,6 @@ jobs:
           REPORT_ENDPOINT: ${{ vars.REPORT_ENDPOINT }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          GOOGLE_PICKER_URL: ${{ vars.GOOGLE_PICKER_URL }}
           GOOGLE_PICKER_API_KEY: ${{ vars.GOOGLE_PICKER_API_KEY }}
         run: >
           cmake -B build
@@ -249,7 +246,6 @@ jobs:
           "-DGLABELS_REPORT_ENDPOINT=$env:REPORT_ENDPOINT"
           "-DGLABELS_GOOGLE_CLIENT_ID=$env:GOOGLE_CLIENT_ID"
           "-DGLABELS_GOOGLE_CLIENT_SECRET=$env:GOOGLE_CLIENT_SECRET"
-          "-DGLABELS_GOOGLE_PICKER_URL=$(if ($env:GOOGLE_PICKER_URL) { $env:GOOGLE_PICKER_URL } else { 'https://schneiderwastaken.github.io/glabels-neo/picker/' })"
           "-DGLABELS_GOOGLE_PICKER_API_KEY=$env:GOOGLE_PICKER_API_KEY"
           "-DCMAKE_TOOLCHAIN_FILE=${{ env.TOOLCHAIN_FILE }}"
 
@@ -350,7 +346,6 @@ jobs:
           REPORT_ENDPOINT: ${{ vars.REPORT_ENDPOINT }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          GOOGLE_PICKER_URL: ${{ vars.GOOGLE_PICKER_URL }}
           GOOGLE_PICKER_API_KEY: ${{ vars.GOOGLE_PICKER_API_KEY }}
         run: >
           cmake -B build -G Ninja
@@ -358,7 +353,6 @@ jobs:
           "-DGLABELS_REPORT_ENDPOINT=$REPORT_ENDPOINT"
           "-DGLABELS_GOOGLE_CLIENT_ID=$GOOGLE_CLIENT_ID"
           "-DGLABELS_GOOGLE_CLIENT_SECRET=$GOOGLE_CLIENT_SECRET"
-          "-DGLABELS_GOOGLE_PICKER_URL=${GOOGLE_PICKER_URL:-https://schneiderwastaken.github.io/glabels-neo/picker/}"
           "-DGLABELS_GOOGLE_PICKER_API_KEY=$GOOGLE_PICKER_API_KEY"
           -DCMAKE_C_COMPILER_LAUNCHER=ccache
           -DCMAKE_CXX_COMPILER_LAUNCHER=ccache

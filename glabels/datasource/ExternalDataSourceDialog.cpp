@@ -547,6 +547,16 @@ namespace glabels::datasource
         }
 
 
+        ExternalDataSourceDialog::~ExternalDataSourceDialog()
+        {
+                if ( mGoogleAuth )
+                {
+                        mGoogleAuth->cancelSignIn();
+                        mGoogleAuth->cancelPicker();
+                }
+        }
+
+
         model::ExternalDataSource ExternalDataSourceDialog::source() const
         {
                 return mResultSource;

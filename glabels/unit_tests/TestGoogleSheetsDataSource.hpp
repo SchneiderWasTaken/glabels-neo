@@ -38,6 +38,7 @@ private slots:
         void xmlRoundTripWithoutSecrets();
         void parseSheetsValuesJsonAndCsv();
         void oauthSignInRefreshAndPickerFlow();
+        void loopbackTimeoutsAndSheetIdValidation();
         void sheetsApiV4FetchAndRetry401();
         void publicLinkCsvFetchAndPrivateDetection();
         void fillViewGoogleSheetsEndToEndRefresh();

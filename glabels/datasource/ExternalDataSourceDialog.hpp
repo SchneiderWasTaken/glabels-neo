@@ -63,6 +63,9 @@ namespace glabels::datasource
                         model::ExternalSourceKind        preferredKind = model::ExternalSourceKind::Redash,
                         GoogleAuthManager*               googleAuth = nullptr );
 
+                /// Stops any sign-in or picker still waiting on 127.0.0.1.
+                ~ExternalDataSourceDialog() override;
+
                 model::ExternalDataSource source() const;
                 bool wasUnlinked() const { return mUnlinked; }
 

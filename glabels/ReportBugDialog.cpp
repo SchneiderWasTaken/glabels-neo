@@ -178,6 +178,8 @@ namespace glabels
                 mProgress->setVisible( false );
                 layout->addWidget( mProgress );
 
+                layout->addSpacing( 14 );
+
                 auto* buttons = new QDialogButtonBox( this );
                 mSendButton = buttons->addButton( tr( "&Send report" ), QDialogButtonBox::AcceptRole );
                 mSendButton->setDefault( true );

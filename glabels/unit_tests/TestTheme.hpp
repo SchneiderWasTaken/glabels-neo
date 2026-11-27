@@ -52,6 +52,7 @@ private slots:
         void iconFollowsThemeSwitch();
 
         void dialogFooterIsPainted();
+        void dialogFooterNeverOverlapsContent();
         void groupBoxIsACard();
 
         void schemeRegistry();

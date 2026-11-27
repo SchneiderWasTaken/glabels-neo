@@ -47,6 +47,7 @@ namespace glabels
                 : QDialog(parent)
         {
                 setupUi( this );
+                buttonBox->setContentsMargins( 0, 18, 0, 0 );
 
 
                 auto units = model::Settings::units();

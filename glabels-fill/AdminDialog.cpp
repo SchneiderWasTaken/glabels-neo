@@ -72,6 +72,7 @@ namespace glabels
                 layout->addWidget( mPinEdit );
 
                 auto* btnRow = new QHBoxLayout();
+                btnRow->setContentsMargins( 0, 18, 0, 0 );
                 auto* okBtn = new QPushButton( tr("Unlock"), this );
                 auto* cancelBtn = new QPushButton( tr("Cancel"), this );
                 btnRow->addWidget( okBtn );
@@ -124,6 +125,7 @@ namespace glabels
 
                 // Buttons
                 auto* btnRow = new QHBoxLayout();
+                btnRow->setContentsMargins( 0, 18, 0, 0 );
                 auto* okBtn = new QPushButton( tr("Save"), this );
                 auto* cancelBtn = new QPushButton( tr("Cancel"), this );
                 btnRow->addStretch();
@@ -194,6 +196,7 @@ namespace glabels
                 auto* combo = new QComboBox( &dlg );
                 combo->addItems( printers );
                 l->addWidget( combo );
+                l->addSpacing( 18 );
                 auto* ok = new QPushButton( tr("OK"), &dlg );
                 l->addWidget( ok );
                 connect( ok, &QPushButton::clicked, &dlg, &QDialog::accept );

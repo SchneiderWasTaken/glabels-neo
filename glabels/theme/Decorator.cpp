@@ -117,6 +117,64 @@ namespace
                 }
                 return false;
         }
+
+
+        ///
+        /// Lowest bottom edge (in dialog coordinates) of any visible widget that sits
+        /// strictly above the footer button row.  Recurses only through ancestors of the
+        /// footer buttons (e.g. QDialogButtonBox) so scrolled descendants inside content
+        /// containers cannot skew the measurement.
+        ///
+        int maxContentBottom( const QWidget*                    parent,
+                              const QDialog*                    dialog,
+                              const QList<const QPushButton*>&  footerButtons,
+                              int                               buttonTop )
+        {
+                int maxBottom = -1;
+
+                for ( QObject* child : parent->children() )
+                {
+                        const auto* widget = qobject_cast<const QWidget*>( child );
+                        if ( !widget || !widget->isVisibleTo( dialog ) )
+                        {
+                                continue;
+                        }
+
+                        bool isFooterBtn = false;
+                        bool holdsFooterBtn = false;
+                        for ( const QPushButton* btn : footerButtons )
+                        {
+                                if ( widget == btn )
+                                {
+                                        isFooterBtn = true;
+                                        break;
+                                }
+                                if ( widget->isAncestorOf( btn ) )
+                                {
+                                        holdsFooterBtn = true;
+                                }
+                        }
+
+                        if ( isFooterBtn )
+                        {
+                                continue;
+                        }
+                        if ( holdsFooterBtn )
+                        {
+                                maxBottom = qMax( maxBottom, maxContentBottom( widget, dialog, footerButtons, buttonTop ) );
+                                continue;
+                        }
+
+                        const QPoint origin = widget->mapTo( dialog, QPoint( 0, 0 ) );
+                        const int bottom = origin.y() + widget->height();
+                        if ( origin.y() < buttonTop && bottom <= buttonTop )
+                        {
+                                maxBottom = qMax( maxBottom, bottom );
+                        }
+                }
+
+                return maxBottom;
+        }
 }
 
 
@@ -237,7 +295,8 @@ namespace glabels::theme
                 }
 
                 const int height = dialog->height();
-                int top = -1;
+                int buttonTop = -1;
+                QList<const QPushButton*> footerButtons;
 
                 const auto buttons = dialog->findChildren<QPushButton*>();
                 for ( const QPushButton* button : buttons )
@@ -254,14 +313,28 @@ namespace glabels::theme
                                 continue;
                         }
 
-                        top = ( top < 0 ) ? origin.y() : qMin( top, origin.y() );
+                        footerButtons.append( button );
+                        buttonTop = ( buttonTop < 0 ) ? origin.y() : qMin( buttonTop, origin.y() );
                 }
 
-                if ( top < 0 )
+                if ( buttonTop < 0 )
                 {
                         return -1;
                 }
-                return qMax( 0, top - footerPad );
+
+                // Never paint the footer band behind content sitting above the buttons:
+                // when the gap is smaller than 2 * footerPad, centre the divider in the gap.
+                const int contentBottom = maxContentBottom( dialog, dialog, footerButtons, buttonTop );
+                if ( contentBottom >= 0 )
+                {
+                        const int gap = buttonTop - contentBottom;
+                        if ( gap < 2 * footerPad )
+                        {
+                                return qMax( 0, contentBottom + gap / 2 );
+                        }
+                }
+
+                return qMax( 0, buttonTop - footerPad );
         }
 
 

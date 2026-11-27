@@ -33,6 +33,7 @@
 #include <QDialog>
 #include <QDialogButtonBox>
 #include <QFile>
+#include <QFrame>
 #include <QGroupBox>
 #include <QLabel>
 #include <QLineEdit>
@@ -750,6 +751,43 @@ void TestTheme::dialogFooterIsPainted()
         // Opt-out
         dialog.setProperty( "plainFooter", true );
         QCOMPARE( Decorator::footerTop( &dialog ), -1 );
+}
+
+
+void TestTheme::dialogFooterNeverOverlapsContent()
+{
+        Theme::instance().setMode( Mode::Light );
+        Theme::instance().applyToApplication();
+        const Palette& p = Theme::instance().palette();
+
+        // A tightly packed dialog whose content sits only 6 px above the button row
+        // (Qt's default layout spacing): the footer hairline must still sit below the
+        // content widget, never painted behind it.
+        QDialog tight;
+        auto* layout = new QVBoxLayout( &tight );
+        layout->setSpacing( 6 );
+        auto* content = new QFrame( &tight );
+        content->setSizePolicy( QSizePolicy::Expanding, QSizePolicy::Expanding );
+        auto* buttons = new QDialogButtonBox( QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &tight );
+        layout->addWidget( content, 1 );
+        layout->addWidget( buttons );
+        tight.resize( 400, 240 );
+        tight.show();
+        QVERIFY( QTest::qWaitForWindowExposed( &tight ) );
+
+        const int contentBottom = content->mapTo( &tight, QPoint( 0, 0 ) ).y() + content->height();
+        const int buttonTop = buttons->findChild<QPushButton*>()->mapTo( &tight, QPoint( 0, 0 ) ).y();
+        const int top = Decorator::footerTop( &tight );
+        QVERIFY2( top >= contentBottom,
+                  qPrintable( QString( "footerTop %1 overlapped contentBottom %2" ).arg( top ).arg( contentBottom ) ) );
+        QVERIFY2( top <= buttonTop,
+                  qPrintable( QString( "footerTop %1 went below buttonTop %2" ).arg( top ).arg( buttonTop ) ) );
+
+        QImage image = tight.grab().toImage();
+        QVERIFY2( near( image.pixelColor( 4, top ), p.line ),
+                  qPrintable( image.pixelColor( 4, top ).name() ) );
+        QVERIFY2( near( image.pixelColor( 4, tight.height() - 3 ), p.chrome ),
+                  qPrintable( image.pixelColor( 4, tight.height() - 3 ).name() ) );
 }
 
 

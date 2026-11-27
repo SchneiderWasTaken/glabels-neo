@@ -472,6 +472,9 @@
    </item>
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout">
+     <property name="topMargin">
+      <number>18</number>
+     </property>
      <item>
       <widget class="QPushButton" name="viewModeButton">
        <property name="text">

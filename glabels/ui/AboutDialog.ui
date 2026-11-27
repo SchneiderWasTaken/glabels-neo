@@ -86,6 +86,9 @@
    </item>
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout">
+     <property name="topMargin">
+      <number>18</number>
+     </property>
      <item>
       <widget class="QPushButton" name="licenseButton">
        <property name="text">

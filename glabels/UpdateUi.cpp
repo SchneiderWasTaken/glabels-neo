@@ -209,6 +209,8 @@ namespace glabels
 
         void UpdateUi::onConsentRequired()
         {
+                // TODO(installer): an installer should ask this same question during setup and store the answer
+                // (see "Planned: a Windows installer" in docs/AUTO-UPDATE.md); this dialog then never appears.
                 if ( mConsent && mConsent->isVisible() )
                 {
                         return;   // already asking

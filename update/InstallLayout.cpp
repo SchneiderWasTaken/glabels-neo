@@ -202,6 +202,7 @@ namespace glabels::update
                 {
                         if ( !canReplaceIn( QFileInfo( u.installed ).absoluteDir().absolutePath() ) )
                         {
+                                // TODO(installer): per-machine installs land here; see "Planned: a Windows installer" in docs/AUTO-UPDATE.md
                                 return tr( QT_TRANSLATE_NOOP( "InstallLayout", "The program is installed in a location that cannot be modified without administrator rights. Move it to a folder you own to enable automatic updates." ) );
                         }
                 }

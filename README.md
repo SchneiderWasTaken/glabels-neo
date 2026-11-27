@@ -52,7 +52,7 @@ any time in Edit > Preferences > Updates, or look once with Help > Check for Upd
 downloads in the background (in any folder you can write to) and swaps the new version in when you close it,
 so the next start is already current. See [Automatic updates](docs/AUTO-UPDATE.md).
 
-> Installers, AppImage/Flatpak, package-manager support (winget, Homebrew, Scoop)
+> A Windows installer (to do, see [Automatic updates](docs/AUTO-UPDATE.md#planned-a-windows-installer-tabled-to-do)), AppImage/Flatpak, package-manager support (winget, Homebrew, Scoop)
 > and automatic release builds on every merge are in progress - see the
 > [roadmap](docs/ROADMAP.md).
 

@@ -137,3 +137,18 @@ On macOS both applications of the disk image (`glabels-qt.app`, `glabels-fill.ap
   at the first check, so after you have agreed to checking or asked for one, never before.
 - Installs in folders that need administrator rights are not offered updates at all (no "download it yourself" notice yet).
 - Failed background checks are quiet and retried; the log has the reason.
+
+## Planned: a Windows installer (tabled, to do)
+
+An installer is planned. Nothing in it is built yet; these are the points the update design leaves open for it.
+
+- [ ] **Opt-in during setup.** The installer should ask the same question as the first-run dialog (check for
+  updates; separately, install them without asking), both unticked by default, and write the answer to the settings
+  the program reads (`UpdateSettings::setAutoCheck`, `setConsentAsked`, `setAutoInstall`) so the program does not
+  ask again. Updates stay pull-only: the installer must not register a service or scheduled task that checks on its own.
+- [ ] **Per-machine installs** (`C:\Program Files`) are refused today because the program cannot replace itself
+  there. Either install per user by default, or add a notify-only mode that tells the user and opens the release page.
+- [ ] **Installer packages** need a manifest entry and a platform key of their own in
+  `scripts/make-update-manifest.sh` and `update/UpdateManifest.cpp` if they are to be updated in place.
+- [ ] **Uninstall** must remove the update data (`%LOCALAPPDATA%\glabels.org\glabels-qt\updates`) and any staged
+  `.<name>.update` folder.

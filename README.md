@@ -130,6 +130,36 @@ Try it with the sample files in [docs/assets/samples](docs/assets/samples): open
 `shipping-label-merge.glabels`, go to **Data > Fill** and import `shipping-orders.csv`.
 
 
+## Print from the command line, or from your own software
+
+`glabelsneo` prints any label file from a terminal or a script, one label or thousands, with no window
+and no prompts unless you ask for them. It is built so other programs can drive it: JSON in, one JSON
+result out, stable exit codes.
+
+```sh
+# one label: name each field the label uses
+glabelsneo print price-tag.glabels --printer default -F price=29.99 -F "name=Blue Jeans"
+
+# a batch from JSON, JSON Lines or CSV, checked first, then printed
+glabelsneo print tags.glabels --printer "Brother QL-800" --data items.json --dry-run
+glabelsneo print tags.glabels --printer "Brother QL-800" --data items.json
+
+# or be asked for the values
+glabelsneo print price-tag.glabels --printer default -i
+
+# many jobs in one JSON document, with a machine-readable result
+glabelsneo print --job orders.json --format json
+
+# no printer needed to see what a label will look like
+glabelsneo print price-tag.glabels -F price=29.99 -F "name=Blue Jeans" -o preview.png
+```
+
+`glabelsneo inspect file.glabels` lists the fields a label expects, and `glabelsneo printers` lists what is
+installed. Zebra printers are driven with ZPL automatically. Everything is checked before anything is sent,
+so a bad record in a big batch cannot waste half a roll of labels. The full reference is the
+[manual page](user-docs/man/glabelsneo.rst); the design notes are in [docs/CLI-SPEC.md](docs/CLI-SPEC.md).
+
+
 ## What gLabels Neo adds to gLabels
 
 Everything in gLabels is preserved.  Neo adds:

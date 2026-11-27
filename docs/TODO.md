@@ -1,7 +1,7 @@
 To Do List for gLabels 4.0 -- 2019-10-07
 ========================================
 
-- [x] Expose user variables to glabels-batch
+- [x] Expose user variables to glabels-batch (now `glabelsneo print --var`)
 
   There should be a way to set initial values of user variables from the glabels-batch
   command line.  Possibly even create them on the fly.

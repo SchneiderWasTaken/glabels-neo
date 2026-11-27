@@ -3,6 +3,7 @@ add_custom_target (user-docs DEPENDS manpages)
 set (man_sources
   man/glabels-qt.rst
   man/glabels-batch-qt.rst
+  man/glabelsneo.rst
 )
 
 #=======================================

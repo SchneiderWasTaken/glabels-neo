@@ -5,6 +5,7 @@ gLabels Manpages
    :maxdepth: 1
 
    glabels-qt
+   glabelsneo
    glabels-batch-qt
 
 

@@ -9,6 +9,12 @@ SYNOPSIS
 DESCRIPTION
 -----------
 
+.. warning::
+
+   :program:`glabels-batch-qt` is **deprecated** and will be removed in a future release.  Use
+   :manpage:`glabelsneo(1)` (``glabelsneo print``) instead.  It is still shipped for one release
+   because the self-updater of installed copies depends on it.
+
 :program:`glabels-batch-qt` is a utility for printing a glabels project file
 from the command line.  This command takes exactly one project file, FILE.  If FILE
 is "-", it expects an XML glabels project to be provided on standard input.

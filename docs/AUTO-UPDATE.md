@@ -110,8 +110,14 @@ On macOS both applications of the disk image (`glabels-qt.app`, `glabels-fill.ap
   push-to-`main` run of the release workflow follows *edge*; everything else (your own builds, pull
   requests) never updates itself. `GLABELS_UPDATE_REPO` sets the repository (default: this one).
 - **A package must contain** the updater next to the main program (`bin/glabels-updater[.exe]`, or in
-  `glabels-qt.app/Contents/MacOS`) and, for the smoke test, `glabels-batch-qt` (Windows `bin/`, Linux package
+  `glabels-qt.app/Contents/MacOS`) and, for the smoke test, `glabelsneo` (Windows `bin/`, Linux package
   root; macOS uses the app itself). The CMake install rules and the packaging scripts already arrange this.
+- **`glabels-batch-qt` must keep shipping for one more release.** Copies installed before the command line tool
+  was renamed (v1.5.x) run an updater that requires `glabels-batch-qt` in every package and smoke-tests the new version
+  with `glabels-batch-qt --Version`.  A package without it is rejected as incomplete, which would strand those installs.
+  The release that introduces `glabelsneo` therefore ships both; once installs have updated through it, remove the
+  legacy target (`glabelsneo/CMakeLists.txt`), its launcher (`scripts/package-linux.sh`) and the checks in
+  `.github/workflows/release.yml`.  See `docs/CLI-SPEC.md`.
 - **Changing the manifest** means changing `scripts/make-update-manifest.sh` and `update/UpdateManifest.cpp`
   together; `TestUpdateManifest` runs the script and parses its output.
 - **Trust.** Integrity comes from TLS to `github.com` plus the SHA-256 in the manifest, which stops corruption

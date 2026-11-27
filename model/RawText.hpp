@@ -53,6 +53,7 @@ namespace glabels::model
                 QString expand( const merge::Record& record, const Variables& variables ) const;
                 bool hasPlaceHolders() const;
                 bool isEmpty() const;
+                QList<SubstitutionField> fields() const;
 
 
                 /////////////////////////////////

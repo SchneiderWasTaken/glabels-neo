@@ -94,6 +94,7 @@ EOF
 }
 make_launcher glabels-neo       glabels-qt
 make_launcher glabels-fill      glabels-fill
+make_launcher glabelsneo       glabelsneo
 make_launcher glabels-batch-qt  glabels-batch-qt
 
 #--- License files ----------------------------------------------------------

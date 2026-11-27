@@ -109,6 +109,25 @@ namespace glabels::model
 
 
         ///
+        /// All substitution fields, in order of appearance (a field used twice appears twice)
+        ///
+        QList<SubstitutionField> RawText::fields() const
+        {
+                QList<SubstitutionField> list;
+
+                for ( const Token& token : mTokens )
+                {
+                        if ( token.isField )
+                        {
+                                list.append( token.field );
+                        }
+                }
+
+                return list;
+        }
+
+
+        ///
         /// Tokenize string
         ///
         void RawText::tokenize()

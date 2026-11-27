@@ -130,7 +130,7 @@ is in model/ or is otherwise testable.`;
 
 const baseRules = `Rules:
 - Make the smallest change that fixes the problem. Do not refactor, rename, reformat or "improve" other code.
-- You may only change files under glabels/, model/, glbarcode/, glabels-batch/, glabels-fill/, backends/,
+- You may only change files under glabels/, model/, glbarcode/, glabelsneo/, printing/, glabels-fill/, backends/,
   templates/, translations/, test-data/, user-docs/ or docs/. NEVER change CMakeLists.txt, *.cmake, scripts,
   .github, packaging, licenses, or any dotfile.
 - Do not add network access, process execution, dynamic library loading, environment-variable reads or URLs.

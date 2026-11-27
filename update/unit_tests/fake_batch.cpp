@@ -21,7 +21,7 @@
 //
 // Stands in for the new version of the program in the update tests.
 //
-//   --Version   answers the way glabels-batch-qt does (the updater's smoke test)
+//   --Version   answers the way glabelsneo does (the updater's smoke test)
 //   otherwise   records that it was started, and with which arguments, in started.txt next to itself
 //
 

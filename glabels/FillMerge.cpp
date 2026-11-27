@@ -26,28 +26,15 @@
 namespace glabels
 {
 
-
         FillMerge::FillMerge()
-                : Merge()
+                : MemoryMerge( "Fill" )
         {
-                mId = "Fill";
         }
 
 
         FillMerge::FillMerge( const FillMerge* other )
-                : Merge( other ),
-                  mKeys( other->mKeys ),
-                  mRecords( other->mRecords )
+                : MemoryMerge( other )
         {
-        }
-
-
-        void FillMerge::setRecords( const QStringList& keys, const QList<merge::Record>& records )
-        {
-                mKeys = keys;
-                mRecords = records;
-                // Trigger the open/read/close loop to populate Merge::mRecordList.
-                setSource( QString() );
         }
 
 
@@ -56,38 +43,4 @@ namespace glabels
                 return new FillMerge( this );
         }
 
-
-        QStringList FillMerge::keys() const
-        {
-                return mKeys;
-        }
-
-
-        QString FillMerge::primaryKey() const
-        {
-                return mKeys.isEmpty() ? QString() : mKeys.first();
-        }
-
-
-        void FillMerge::open()
-        {
-                mIndex = 0;
-        }
-
-
-        void FillMerge::close()
-        {
-        }
-
-
-        merge::Record FillMerge::readNextRecord()
-        {
-                if ( mIndex < mRecords.size() )
-                {
-                        return mRecords.at( mIndex++ );
-                }
-                return merge::Record();
-        }
-
-
-} // namespace glabels
+}

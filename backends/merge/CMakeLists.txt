@@ -17,10 +17,15 @@ set (merge_sources
   TextColonKeys.cpp
   TextSemicolon.cpp
   TextSemicolonKeys.cpp
+  MemoryMerge.cpp
+  JsonRecords.cpp
+  JsonMerge.cpp
 )
 
 set (merge_qobject_headers
   Merge.hpp
+  MemoryMerge.hpp
+  JsonMerge.hpp
 )
 
 qt6_wrap_cpp (merge_moc_sources ${merge_qobject_headers})

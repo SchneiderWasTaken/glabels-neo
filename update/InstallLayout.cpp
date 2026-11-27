@@ -168,7 +168,7 @@ namespace glabels::update
                         const QString exeSuffix = ( os == Os::Windows ) ? ".exe" : "";
                         layout.helperRel = "bin/glabels-updater" + exeSuffix;
                         layout.mainRel   = "bin/" + exe.fileName();
-                        layout.smokeRel  = ( os == Os::Windows ) ? "bin/glabels-batch-qt.exe" : "glabels-batch-qt";
+                        layout.smokeRel  = ( os == Os::Windows ) ? "bin/glabelsneo.exe" : "glabelsneo";
 
                         layout.units.append( makeUnit( root.absolutePath() ) );
                         layout.helperPath = root.absoluteFilePath( layout.helperRel );

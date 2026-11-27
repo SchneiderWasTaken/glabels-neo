@@ -23,24 +23,22 @@
 #define FillMerge_hpp
 
 
-#include "merge/Merge.hpp"
-#include "merge/Record.hpp"
-
-#include <QStringList>
+#include "merge/MemoryMerge.hpp"
 
 
 namespace glabels
 {
 
-
         ///
         /// In-memory merge backend used by the Fill page.
         ///
-        /// Holds a list of records (built from the fill-jobs table) and serves
-        /// them to Merge::setSource()'s read loop.  Not registered in the
-        /// merge::Factory -- instantiated directly by FillView.
+        /// Holds a list of records (built from the fill-jobs table) and serves them to
+        /// Merge::setSource()'s read loop.  The record handling lives in merge::MemoryMerge,
+        /// which the glabelsneo command line tool shares; this subclass only gives the Fill
+        /// page's merge its own identity so FillView can recognise it.  Not registered in
+        /// the merge::Factory -- instantiated directly by FillView.
         ///
-        class FillMerge : public merge::Merge
+        class FillMerge : public merge::MemoryMerge
         {
                 Q_OBJECT
 
@@ -55,42 +53,11 @@ namespace glabels
 
 
                 /////////////////////////////////
-                // Records
-                /////////////////////////////////
-        public:
-                // Replace the in-memory record set and re-run the read loop so
-                // that Merge::recordList() / selectedRecords() reflect them.
-                void setRecords( const QStringList& keys, const QList<merge::Record>& records );
-
-
-                /////////////////////////////////
                 // Object duplication
                 /////////////////////////////////
         public:
                 FillMerge* clone() const override;
-
-
-                /////////////////////////////////
-                // Implementation of virtual methods
-                /////////////////////////////////
-        public:
-                QStringList keys() const override;
-                QString primaryKey() const override;
-        protected:
-                void open() override;
-                void close() override;
-                merge::Record readNextRecord() override;
-
-
-                /////////////////////////////////
-                // Private Data
-                /////////////////////////////////
-        private:
-                QStringList            mKeys;
-                QList<merge::Record>   mRecords;
-                int                    mIndex{ 0 };
         };
-
 
 }
 

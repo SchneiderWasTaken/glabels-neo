@@ -31,7 +31,7 @@ export function parseLevel(value) {
 
 // Paths an agent may change.  Anything else is out of scope and blocks auto-merge.
 const AGENT_ALLOWED = [
-  /^glabels\//, /^model\//, /^glbarcode\//, /^glabels-batch\//, /^glabels-fill\//, /^backends\//,
+  /^glabels\//, /^model\//, /^glbarcode\//, /^glabelsneo\//, /^printing\//, /^glabels-fill\//, /^backends\//,
   /^templates\//, /^translations\//, /^test-data\//, /^user-docs\//, /^docs\//,
 ];
 

@@ -30,7 +30,7 @@ if (Qt6Test_FOUND)
   #=======================================
   # Test UpdateService against a local web server: check, download, verify, unpack, smoke test
   #=======================================
-  add_executable (FakeGlabelsBatch fake_batch.cpp)    # stands in for glabels-batch-qt (answers --Version)
+  add_executable (FakeGlabelsBatch fake_batch.cpp)    # stands in for glabelsneo (answers --Version)
   target_compile_features (FakeGlabelsBatch PRIVATE cxx_std_20)    # uses std::filesystem; links nothing that sets the standard
   qt6_wrap_cpp (TestUpdateService_moc_sources TestUpdateService.hpp)
   add_executable (TestUpdateService TestUpdateService.cpp ${TestUpdateService_moc_sources})

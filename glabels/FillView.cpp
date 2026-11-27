@@ -28,6 +28,8 @@
 #include "datasource/ExternalDataSourceDialog.hpp"
 #include "datasource/SecretStore.hpp"
 
+#include "model/ColumnMatcher.hpp"
+#include "model/FieldBinding.hpp"
 #include "model/Model.hpp"
 #include "model/ModelTextObject.hpp"
 #include "model/Settings.hpp"
@@ -240,6 +242,23 @@ namespace glabels
                 mExternalBanner->hide();
                 mainCol->addWidget( mExternalBanner );
 
+                // Strip shown when the linked source has columns but some label fields have none.
+                // The choice itself is made in the Data panel of the Home tab, next to the label.
+                mUnmappedStrip = new QFrame( this );
+                mUnmappedStrip->setProperty( "role", QStringLiteral( "card" ) );
+                mUnmappedStrip->setFrameShape( QFrame::StyledPanel );
+                auto* stripLayout = new QHBoxLayout( mUnmappedStrip );
+                stripLayout->setContentsMargins( 12, 8, 12, 8 );
+                stripLayout->setSpacing( 10 );
+                mUnmappedLabel = new QLabel( mUnmappedStrip );
+                mUnmappedLabel->setWordWrap( true );
+                mUnmappedBtn = new QPushButton( tr("Choose columns..."), mUnmappedStrip );
+                stripLayout->addWidget( mUnmappedLabel, 1 );
+                stripLayout->addWidget( mUnmappedBtn );
+                mUnmappedStrip->hide();
+                mainCol->addWidget( mUnmappedStrip );
+                connect( mUnmappedBtn, &QPushButton::clicked, this, &FillView::mapColumnsRequested );
+
                 connect( mBannerRefreshBtn, &QPushButton::clicked,
                          this, &FillView::onRefreshExternalSourceClicked );
                 connect( mBannerConfigureBtn, &QPushButton::clicked,
@@ -362,6 +381,8 @@ namespace glabels
                 mLastExternalRowCount = 0;
                 mLastExternalError.clear();
                 mExternalAutoLoaded = false;
+                mAppliedColumnMap.clear();
+                mBoundFields.clear();
 
                 mModel = model;
                 mRenderer.setModel( mModel );
@@ -609,7 +630,78 @@ namespace glabels
                         // Re-apply locked fields after the model reset so the
                         // view re-queries flags() with the correct lock state.
                         mJobsModel.setLockedFields( mKioskLockedFields );
+
+                        // A field the label just started using may be fed by a column we already hold.
+                        reapplySourceMapping();
                 }
+        }
+
+
+        ///
+        /// Fill the table's fields again from the rows the linked source last returned, using the
+        /// column map.  Qty, Print and hand-typed values stay.
+        ///
+        void FillView::reapplySourceMapping()
+        {
+                if ( !mModel || !mModel->externalDataSource().isValid() || mModel->sourceRows().isEmpty() )
+                {
+                        return;
+                }
+                mAppliedColumnMap = mModel->externalDataSource().columnMap;
+                mergeExternalRows( mModel->sourceRows(),
+                                   mModel->sourceColumns(),
+                                   mModel->externalDataSource().matchKeyField,
+                                   true );
+        }
+
+
+        ///
+        /// Tell the model what the table holds, so the editor can show a row on the label.
+        ///
+        void FillView::publishFillRows()
+        {
+                if ( !mModel )
+                {
+                        return;
+                }
+                QList<QMap<QString,QString>> rows;
+                rows.reserve( mJobsModel.jobs().size() );
+                for ( const auto& job : mJobsModel.jobs() )
+                {
+                        rows.append( job.values );
+                }
+                mModel->setFillRows( rows );
+        }
+
+
+        ///
+        /// Show or hide the strip that asks for column choices.
+        ///
+        void FillView::updateUnmappedStrip()
+        {
+                if ( !mUnmappedStrip )
+                {
+                        return;
+                }
+
+                QStringList names;
+                if ( mModel && mModel->externalDataSource().isValid() && !mModel->sourceColumns().isEmpty() )
+                {
+                        for ( const auto& b : model::FieldBindings::needingColumn( model::FieldBindings::compute( *mModel ) ) )
+                        {
+                                names.append( b.field );
+                        }
+                }
+
+                // The kiosk operator cannot fix a mapping; the person who built the label does that.
+                const bool show = mRibbonHosted && !names.isEmpty();
+                if ( show )
+                {
+                        mUnmappedLabel->setText(
+                                tr( "%n label field(s) have no column: %1", nullptr, names.size() )
+                                        .arg( names.join( QStringLiteral( ", " ) ) ) );
+                }
+                mUnmappedStrip->setVisible( show );
         }
 
 
@@ -643,6 +735,8 @@ namespace glabels
                 mRenderer.setNCopies( 1 );
 
                 updateView();
+                publishFillRows();
+                updateUnmappedStrip();
 
                 mBlocked = false;
         }
@@ -1077,29 +1171,8 @@ namespace glabels
         ///
         QStringList FillView::collectFieldNames() const
         {
-                QSet<QString> names;
-                if ( mModel )
-                {
-                        for ( const auto& var : mModel->constVariables() )
-                        {
-                                names.insert( var.name() );
-                        }
-                        for ( auto* obj : mModel->objectList() )
-                        {
-                                auto* textObj = dynamic_cast<model::ModelTextObject*>( obj );
-                                if ( textObj )
-                                {
-                                        auto it = fieldTokenRegex.globalMatch( textObj->text() );
-                                        while ( it.hasNext() )
-                                        {
-                                                names.insert( it.next().captured(1).trimmed() );
-                                        }
-                                }
-                        }
-                }
-                QStringList list = names.values();
-                list.sort();
-                return list;
+                // Variables plus every ${...} the label uses: text, barcode data, image names, colors.
+                return mModel ? model::FieldBindings::fieldNames( *mModel ) : QStringList();
         }
 
 
@@ -1351,6 +1424,13 @@ namespace glabels
         void FillView::onExternalSourceChanged()
         {
                 updateExternalSourceBanner();
+
+                // A column choice changed (in the Data panel, or by undo): fill the table again.
+                if ( mModel && mModel->externalDataSource().columnMap != mAppliedColumnMap )
+                {
+                        reapplySourceMapping();
+                }
+                updateUnmappedStrip();
         }
 
 
@@ -1377,16 +1457,19 @@ namespace glabels
                 mLastExternalRowCount = result.rows.size();
                 mLastExternalError.clear();
 
-                // Google Sheets: every column is a label variable, so the
-                // Insert Field drop-downs list the sheet's columns and the
-                // Fill table shows them all, even before the label uses them.
-                if ( mModel && mModel->externalDataSource().kind == model::ExternalSourceKind::GoogleSheets )
+                if ( !mModel )
                 {
-                        ensureColumnVariables( result.headers );
+                        updateExternalSourceBanner();
+                        return;
                 }
 
-                const QString matchKeySetting = mModel ? mModel->externalDataSource().matchKeyField : QString();
-                mergeExternalRows( result.rows, result.headers, matchKeySetting );
+                // Keep the columns and rows: the Data panel lists the columns, and choosing a different
+                // column for a field fills the table again without asking the source a second time.
+                // Columns are NOT turned into label variables; the person decides what each one feeds.
+                mModel->setSourceData( result.headers, result.rows );
+
+                mAppliedColumnMap = mModel->externalDataSource().columnMap;
+                mergeExternalRows( result.rows, result.headers, mModel->externalDataSource().matchKeyField );
                 updateExternalSourceBanner();
         }
 
@@ -1398,84 +1481,33 @@ namespace glabels
         }
 
 
-        ///
-        /// Add a blank string variable for each source column the label does not
-        /// already know (case-insensitively).  Qty and Print stay control columns.
-        /// The row's value wins over the variable's blank initial value when merging.
-        ///
-        void FillView::ensureColumnVariables( const QStringList& header )
-        {
-                if ( !mModel )
-                {
-                        return;
-                }
-
-                QStringList known = collectFieldNames();
-                QList<model::Variable> toAdd;
-                for ( const QString& raw : header )
-                {
-                        const QString name = raw.trimmed();
-                        if ( name.isEmpty()
-                             || name.compare( QStringLiteral( "Qty" ), Qt::CaseInsensitive ) == 0
-                             || name.compare( QStringLiteral( "Print" ), Qt::CaseInsensitive ) == 0
-                             || name.contains( QLatin1Char( '}' ) )
-                             || name.contains( QLatin1Char( ':' ) ) )
-                        {
-                                continue; // control column, or a name ${...} cannot reference
-                        }
-                        if ( known.contains( name, Qt::CaseInsensitive ) )
-                        {
-                                continue;
-                        }
-                        known.append( name );
-                        toAdd.append( model::Variable( model::Variable::Type::STRING, name, QString() ) );
-                }
-
-                if ( toAdd.isEmpty() )
-                {
-                        return;
-                }
-
-                // Each add emits Model::changed (and so onModelChanged); block our
-                // form refresh until all are in, then rebuild once.
-                const bool wasBlocked = mBlocked;
-                mBlocked = true;
-                for ( const auto& v : toAdd )
-                {
-                        mModel->variables().addVariable( v );
-                }
-                mBlocked = wasBlocked;
-                refreshFields();
-        }
-
-
         void FillView::mergeExternalRows( const QList<QMap<QString,QString>>& rows,
                                           const QStringList&                  header,
-                                          const QString&                      matchKeySetting )
+                                          const QString&                      matchKeySetting,
+                                          bool                                reapply )
         {
                 const QStringList labelFields = mJobsModel.fieldNames();
 
-                // Map each label field to its matching source column name (exact match
-                // first, then case-insensitive fallback so SQL snake_case matches ${SKU}).
+                // Map each label field to the source column that fills it: the column the person
+                // chose (columnMap), else the same name, ignoring case, spaces and punctuation, so
+                // SQL snake_case matches ${SKU}.  Looser matches are only suggested in the Data
+                // panel and never applied here.
+                const QMap<QString,QString> columnMap = mModel ? mModel->externalDataSource().columnMap
+                                                               : QMap<QString,QString>();
                 QMap<QString,QString> fieldToHeader;
                 for ( const QString& field : labelFields )
                 {
-                        if ( header.contains( field ) )
+                        const model::ColumnMatch m = model::ColumnMatcher::match( field, header, columnMap );
+                        if ( m.isApplied() )
                         {
-                                fieldToHeader.insert( field, field );
-                        }
-                        else
-                        {
-                                for ( const QString& h : header )
-                                {
-                                        if ( h.compare( field, Qt::CaseInsensitive ) == 0 )
-                                        {
-                                                fieldToHeader.insert( field, h );
-                                                break;
-                                        }
-                                }
+                                fieldToHeader.insert( field, m.column );
                         }
                 }
+
+                // Fields we filled last time but no longer fill must be emptied; fields the person
+                // types by hand (never filled from the source) are left alone.
+                const QSet<QString> previouslyBound = mBoundFields;
+                mBoundFields = QSet<QString>( fieldToHeader.keyBegin(), fieldToHeader.keyEnd() );
 
                 // Special optional Qty / Print columns from the query
                 QString qtyHeader;
@@ -1534,14 +1566,25 @@ namespace glabels
                         }
                 }
 
+                // Same rows, new mapping: keep each row's Qty, Print and typed values by position.
+                const QList<FillJob> existingJobs = mJobsModel.jobs();
+                const bool keepByPosition = reapply && existingJobs.size() == rows.size();
+
                 QList<FillJob> mergedJobs;
                 mergedJobs.reserve( rows.size() );
+                int rowIndex = -1;
                 for ( const auto& row : rows )
                 {
+                        ++rowIndex;
                         FillJob job;
                         bool matchedExisting = false;
 
-                        if ( !matchField.isEmpty() )
+                        if ( keepByPosition )
+                        {
+                                job = existingJobs.at( rowIndex );
+                                matchedExisting = true;
+                        }
+                        else if ( !matchField.isEmpty() )
                         {
                                 const QString incomingKey = row.value( fieldToHeader.value( matchField ) );
                                 auto it = existingByKey.find( incomingKey );
@@ -1576,7 +1619,7 @@ namespace glabels
                                 {
                                         job.values.insert( field, row.value( fieldToHeader.value( field ) ) );
                                 }
-                                else if ( !job.values.contains( field ) )
+                                else if ( !job.values.contains( field ) || previouslyBound.contains( field ) )
                                 {
                                         job.values.insert( field, QString() );
                                 }
@@ -1761,6 +1804,18 @@ namespace glabels
                 }
 
                 emit externalSourceStateChanged( hasSource, running );
+
+                bool problem = false;
+                if ( hasSource && !running )
+                {
+                        const QString credKey = mModel->externalDataSource().credentialKey();
+                        problem = !mLastExternalError.isEmpty() ||
+                                  ( !credKey.isEmpty() && !datasource::SecretStore::hasSecret( credKey ) );
+                }
+                emit externalStatusChanged( hasSource ? mExternalTitleLabel->text() : QString(),
+                                            hasSource ? mExternalStatusLabel->text() : QString(),
+                                            problem,
+                                            running );
         }
 
 

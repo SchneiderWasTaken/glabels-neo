@@ -32,9 +32,11 @@
 
 #include <QDir>
 #include <QList>
+#include <QMap>
 #include <QMimeData>
 #include <QObject>
 #include <QPainter>
+#include <QStringList>
 
 
 namespace glabels::model
@@ -84,6 +86,8 @@ namespace glabels::model
                 void mergeSourceChanged();
                 void mergeSelectionChanged();
                 void externalDataSourceChanged();
+                void sourceDataChanged();
+                void fillRowsChanged();
 
 
                 /////////////////////////////////
@@ -123,6 +127,19 @@ namespace glabels::model
                 const ExternalDataSource& externalDataSource() const;
                 void setExternalDataSource( const ExternalDataSource& source );
                 void clearExternalDataSource();
+
+                /// What the linked source last returned (columns and every row).  Runtime only, never saved.
+                /// The Data panel lists the columns; the Fill table maps them onto label fields.
+                const QStringList& sourceColumns() const;
+                const QList<QMap<QString,QString>>& sourceRows() const;
+                void setSourceData( const QStringList&                    columns,
+                                    const QList<QMap<QString,QString>>&   rows );
+                void clearSourceData();
+
+                /// The rows of the Fill table as field -> value, one per row (not repeated per quantity).
+                /// Runtime only.  The editor can show any of them on the label.
+                const QList<QMap<QString,QString>>& fillRows() const;
+                void setFillRows( const QList<QMap<QString,QString>>& rows );
 
 
                 /////////////////////////////////
@@ -256,6 +273,10 @@ namespace glabels::model
 
                 QSharedPointer<merge::Merge> mMerge;
                 ExternalDataSource           mExternalDataSource;
+
+                QStringList                  mSourceColumns;
+                QList<QMap<QString,QString>> mSourceRows;
+                QList<QMap<QString,QString>> mFillRows;
         };
 
 }

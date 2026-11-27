@@ -143,6 +143,9 @@ namespace glabels
                 connect( mModel, SIGNAL(variablesChanged()),
                          this, SLOT(onFieldsAvailableChanged()) );
 
+                connect( mModel, SIGNAL(sourceDataChanged()),
+                         this, SLOT(onFieldsAvailableChanged()) );
+
                 onLabelSizeChanged();
                 onSelectionChanged();
                 onFieldsAvailableChanged();
@@ -688,9 +691,9 @@ namespace glabels
                         barcodeColorButton->setKeys( mModel->merge(), mModel->variables() );
                         shadowColorButton->setKeys( mModel->merge(), mModel->variables() );
 
-                        textInsertFieldButton->setKeys( mModel->merge(), mModel->variables() );
-                        barcodeInsertFieldButton->setKeys( mModel->merge(), mModel->variables() );
-                        imageFieldButton->setKeys( mModel->merge(), mModel->variables() );
+                        textInsertFieldButton->setKeys( mModel->merge(), mModel->variables(), mModel->sourceColumns() );
+                        barcodeInsertFieldButton->setKeys( mModel->merge(), mModel->variables(), mModel->sourceColumns() );
+                        imageFieldButton->setKeys( mModel->merge(), mModel->variables(), mModel->sourceColumns() );
                 }
         }
 

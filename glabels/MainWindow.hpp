@@ -221,6 +221,7 @@ namespace glabels
                 void populateHomeTab();
                 void populateLabelTab();
                 void populateDataTab();
+                void connectDataPanel();
                 void populatePrintTab();
                 void populateDeployTab();
                 void populateViewTab();
@@ -322,6 +323,7 @@ namespace glabels
                 ribbon::RibbonButton*      mVarsEditRibbonBtn{ nullptr };
                 ribbon::RibbonButton*      mVarsDeleteRibbonBtn{ nullptr };
                 ribbon::RibbonButton*      mFillRefreshSourceRibbonBtn{ nullptr };
+                ribbon::RibbonButton*      mHomeRefreshSourceBtn{ nullptr };
                 ribbon::RibbonButton*      mFillPrintRibbonBtn{ nullptr };
                 ribbon::RibbonButton*      mFillSystemDialogRibbonBtn{ nullptr };
 

@@ -785,6 +785,19 @@ namespace glabels::model
                 src.refreshOnOpen      = XmlUtil::getBoolAttr( node, "refresh_on_open", true );
                 src.refreshBeforePrint = XmlUtil::getBoolAttr( node, "refresh_before_print", true );
 
+                for ( QDomNode child = node.firstChild(); !child.isNull(); child = child.nextSibling() )
+                {
+                        const QDomElement el = child.toElement();
+                        if ( el.tagName() == "Column" )
+                        {
+                                const QString field = XmlUtil::getStringAttr( el, "field", "" ).trimmed();
+                                if ( !field.isEmpty() )
+                                {
+                                        src.columnMap.insert( field, XmlUtil::getStringAttr( el, "source", "" ) );
+                                }
+                        }
+                }
+
                 if ( src.kind == ExternalSourceKind::Redash )
                 {
                         src.serverUrl      = ExternalDataSource::normalizeServerUrl( XmlUtil::getStringAttr( node, "server", "" ) );

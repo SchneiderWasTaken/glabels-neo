@@ -23,6 +23,7 @@
 
 #include "Cursors.hpp"
 #include "UndoRedoModel.hpp"
+#include "ribbon/ContentPanel.hpp"
 #include "theme/Theme.hpp"
 
 #include "model/FrameCd.hpp"
@@ -39,6 +40,8 @@
 #include "model/ModelTextObject.hpp"
 #include "model/Markup.hpp"
 #include "model/Settings.hpp"
+#include "model/Size.hpp"
+#include "model/TextNode.hpp"
 
 #include <QDebug>
 #include <QFontMetricsF>
@@ -46,6 +49,7 @@
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QPalette>
+#include <QRegularExpression>
 #include <QtMath>
 
 #include <algorithm>
@@ -199,6 +203,7 @@ namespace glabels
 
                         connect( model, SIGNAL(changed()), this, SLOT(update()) );
                         connect( model, SIGNAL(selectionChanged()), this, SLOT(update()) );
+                        connect( model, SIGNAL(fillRowsChanged()), this, SLOT(update()) );
                         connect( model, SIGNAL(sizeChanged()), this, SLOT(onModelSizeChanged()) );
 
                         update();
@@ -1494,6 +1499,7 @@ namespace glabels
                         drawObjectsLayer( &painter );
                         drawFgLayer( &painter );
                         drawHighlightLayer( &painter );
+                        drawDropTargetLayer( &painter );
                         drawSelectRegionLayer( &painter );
                         drawSnapGuidesLayer( &painter );
 
@@ -1510,7 +1516,11 @@ namespace glabels
         //
         void LabelEditor::dragEnterEvent( QDragEnterEvent *event )
         {
-                if ( event->mimeData()->hasUrls()   ||
+                if ( event->mimeData()->hasFormat( ribbon::ContentPanel::columnMimeType() ) )
+                {
+                        event->acceptProposedAction();
+                }
+                else if ( event->mimeData()->hasUrls()   ||
                      event->mimeData()->hasImage()  ||
                      event->mimeData()->hasText() )
                 {
@@ -1528,6 +1538,26 @@ namespace glabels
         //
         void LabelEditor::dragMoveEvent( QDragMoveEvent *event )
         {
+                // A data column or field being dragged: show which object the drop would bind.
+                QString field;
+                if ( fieldFromMime( event->mimeData(), field ) )
+                {
+                        QTransform transform;
+                        transform.scale( mScale, mScale );
+                        transform.translate( mX0.pt(), mY0.pt() );
+                        const QPointF pWorld = transform.inverted().map( event->position() );
+                        model::ModelObject* target = dropTargetAt(
+                                                                       model::Distance::pt( pWorld.x() ),
+                                                                       model::Distance::pt( pWorld.y() ) );
+                        if ( target != mDropTarget )
+                        {
+                                mDropTarget = target;
+                                update();
+                        }
+                        event->acceptProposedAction();
+                        return;
+                }
+
                 if ( event->mimeData()->hasUrls()   ||
                      event->mimeData()->hasImage()  ||
                      event->mimeData()->hasText() )
@@ -1559,6 +1589,20 @@ namespace glabels
                 auto yWorld = model::Distance::pt( pWorld.y() );
                 auto p = model::Point( xWorld, yWorld );
 
+                // A data column (or a ${field} chip): bind the object under the pointer, or
+                // place a new text object when the drop lands on empty label.
+                QString field;
+                if ( fieldFromMime( event->mimeData(), field ) )
+                {
+                        model::ModelObject* target = dropTargetAt( xWorld, yWorld );
+                        mDropTarget = nullptr;
+                        mUndoRedoModel->checkpoint( target ? tr("Bind field") : tr("Add field") );
+                        bindFieldAt( field, p, target );
+                        event->acceptProposedAction();
+                        update();
+                        return;
+                }
+
                 if ( event->mimeData()->hasUrls() )
                 {
                         mUndoRedoModel->checkpoint( tr("Drop") );
@@ -1580,6 +1624,173 @@ namespace glabels
                 else
                 {
                         event->ignore();
+                }
+        }
+
+
+        //
+        // Handle drag leave event
+        //
+        void LabelEditor::dragLeaveEvent( QDragLeaveEvent *event )
+        {
+                if ( mDropTarget )
+                {
+                        mDropTarget = nullptr;
+                        update();
+                }
+                QWidget::dragLeaveEvent( event );
+        }
+
+
+        ///
+        /// The topmost bindable object (text, barcode, or image) whose box contains the point.
+        /// Shapes and lines cannot hold a field, so dragging over a decorative border box still
+        /// drops onto the label as a new text object.
+        ///
+        model::ModelObject* LabelEditor::dropTargetAt( model::Distance x, model::Distance y ) const
+        {
+                const auto& objects = mModel->objectList();
+                for ( int i = static_cast<int>( objects.size() ) - 1; i >= 0; --i )
+                {
+                        model::ModelObject* object = objects.at( i );
+                        if ( !dynamic_cast<model::ModelTextObject*>( object ) &&
+                             !dynamic_cast<model::ModelBarcodeObject*>( object ) &&
+                             !dynamic_cast<model::ModelImageObject*>( object ) )
+                        {
+                                continue;
+                        }
+
+                        bool invertible = false;
+                        const QTransform inv = object->matrix().inverted( &invertible );
+                        if ( !invertible )
+                        {
+                                continue;
+                        }
+                        const QPointF local = inv.map( QPointF( x.pt() - object->x0().pt(), y.pt() - object->y0().pt() ) );
+                        if ( QRectF( 0, 0, object->w().pt(), object->h().pt() ).contains( local ) )
+                        {
+                                return object;
+                        }
+                }
+                return nullptr;
+        }
+
+
+        ///
+        /// Is this drag a data column, or a ${field} chip?  If so, which field.
+        ///
+        bool LabelEditor::fieldFromMime( const QMimeData* mime, QString& field )
+        {
+                const QString type = ribbon::ContentPanel::columnMimeType();
+                if ( mime->hasFormat( type ) )
+                {
+                        field = QString::fromUtf8( mime->data( type ) ).trimmed();
+                        return !field.isEmpty();
+                }
+
+                if ( mime->hasText() && !mime->hasUrls() && !mime->hasImage() )
+                {
+                        static const QRegularExpression re( QStringLiteral( R"(^\$\{([^}:]+)\}$)" ) );
+                        const auto m = re.match( mime->text().trimmed() );
+                        if ( m.hasMatch() )
+                        {
+                                field = m.captured( 1 ).trimmed();
+                                return !field.isEmpty();
+                        }
+                }
+                return false;
+        }
+
+
+        ///
+        /// Put a field on the label: into the object it was dropped on, or as a new text object.
+        ///
+        void LabelEditor::bindFieldAt( const QString& field, model::Point p, model::ModelObject* object )
+        {
+                const QString token = QStringLiteral( "${%1}" ).arg( field );
+
+                if ( auto* text = dynamic_cast<model::ModelTextObject*>( object ) )
+                {
+                        QString t = text->text();
+                        if ( !t.contains( token ) )
+                        {
+                                if ( !t.isEmpty() && !t.endsWith( QLatin1Char( ' ' ) ) && !t.endsWith( QLatin1Char( '\n' ) ) )
+                                {
+                                        t += QLatin1Char( ' ' );
+                                }
+                                text->setText( t + token );
+                        }
+                }
+                else if ( auto* barcode = dynamic_cast<model::ModelBarcodeObject*>( object ) )
+                {
+                        barcode->setBcData( token );
+                }
+                else if ( auto* image = dynamic_cast<model::ModelImageObject*>( object ) )
+                {
+                        image->setFilenameNode( model::TextNode( true, field ) );
+                }
+                else
+                {
+                        auto* newText = new model::ModelTextObject();
+                        newText->setText( token );
+                        newText->setSize( newText->naturalSize() );
+                        newText->setPosition( p.x(), p.y() );
+                        mModel->addObject( newText );
+                        object = newText;
+                }
+
+                mModel->unselectAll();
+                mModel->selectObject( object );
+        }
+
+
+        ///
+        /// Outline the object a dragged column would be bound to.
+        ///
+        void LabelEditor::drawDropTargetLayer( QPainter* painter )
+        {
+                if ( !mDropTarget || !mModel->objectList().contains( mDropTarget ) )
+                {
+                        return;
+                }
+
+                const auto& pal = theme::Theme::instance().palette();
+
+                painter->save();
+                painter->translate( mDropTarget->x0().pt(), mDropTarget->y0().pt() );
+                painter->setTransform( mDropTarget->matrix(), true );
+
+                QColor fill = pal.accent;
+                fill.setAlpha( 40 );
+                QPen pen( pal.accent, 2.5 );
+                pen.setCosmetic( true );
+                painter->setPen( pen );
+                painter->setBrush( fill );
+                painter->drawRect( QRectF( 0, 0, mDropTarget->w().pt(), mDropTarget->h().pt() ) );
+
+                painter->restore();
+        }
+
+
+        ///
+        /// Show the values of a Fill row on the label
+        ///
+        void LabelEditor::setShowRowData( bool on )
+        {
+                if ( on != mShowRowData )
+                {
+                        mShowRowData = on;
+                        update();
+                }
+        }
+
+
+        void LabelEditor::setPreviewRow( int row )
+        {
+                if ( row != mPreviewRow )
+                {
+                        mPreviewRow = row;
+                        update();
                 }
         }
 
@@ -1728,6 +1939,21 @@ namespace glabels
         void
         LabelEditor::drawObjectsLayer( QPainter* painter )
         {
+                // "Show row data": draw the label as it prints for one Fill row, not as ${field} placeholders.
+                const auto& rows = mModel->fillRows();
+                if ( mShowRowData && !rows.isEmpty() )
+                {
+                        const auto& row = rows.at( qBound( 0, mPreviewRow, static_cast<int>( rows.size() ) - 1 ) );
+                        merge::Record record;
+                        for ( auto it = row.constBegin(); it != row.constEnd(); ++it )
+                        {
+                                record[ it.key() ] = it.value();
+                        }
+                        record.setSelected( true );
+                        mModel->draw( painter, false, record, mModel->variables() );
+                        return;
+                }
+
                 mModel->draw( painter, true, merge::NullRecord(), model::Variables() );
         }
 

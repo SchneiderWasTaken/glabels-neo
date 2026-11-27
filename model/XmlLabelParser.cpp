@@ -302,6 +302,10 @@ namespace glabels::model
                         {
                                 parseMergeNode( child.toElement(), model );
                         }
+                        else if ( tagName == "ExternalDataSource" )
+                        {
+                                parseExternalDataSourceNode( child.toElement(), model );
+                        }
                         else if ( tagName == "Variables" )
                         {
                                 parseVariablesNode( child.toElement(), model );
@@ -768,6 +772,46 @@ namespace glabels::model
                 }
 
                 model->setMerge( merge );
+        }
+
+
+        void
+        XmlLabelParser::parseExternalDataSourceNode( const QDomElement& node, Model* model )
+        {
+                ExternalDataSource src;
+                src.kind               = ExternalDataSource::kindFromIdString( XmlUtil::getStringAttr( node, "type", "none" ) );
+                src.displayName        = XmlUtil::getStringAttr( node, "name", "" );
+                src.matchKeyField      = XmlUtil::getStringAttr( node, "match_key", "" );
+                src.refreshOnOpen      = XmlUtil::getBoolAttr( node, "refresh_on_open", true );
+                src.refreshBeforePrint = XmlUtil::getBoolAttr( node, "refresh_before_print", true );
+
+                if ( src.kind == ExternalSourceKind::Redash )
+                {
+                        src.serverUrl      = ExternalDataSource::normalizeServerUrl( XmlUtil::getStringAttr( node, "server", "" ) );
+                        src.queryId        = XmlUtil::getIntAttr( node, "query_id", 0 );
+                        src.redashAuthMode = ExternalDataSource::redashAuthModeFromString(
+                                XmlUtil::getStringAttr( node, "auth_mode", "user_key" ) );
+                        src.maxAgeSeconds  = XmlUtil::getIntAttr( node, "max_age", 0 );
+
+                        for ( QDomNode child = node.firstChild(); !child.isNull(); child = child.nextSibling() )
+                        {
+                                const QDomElement el = child.toElement();
+                                if ( el.tagName() == "Param" )
+                                {
+                                        const QString paramName = XmlUtil::getStringAttr( el, "name", "" );
+                                        const QString paramValue = XmlUtil::getStringAttr( el, "value", "" );
+                                        if ( !paramName.trimmed().isEmpty() )
+                                        {
+                                                src.parameters.insert( paramName, paramValue );
+                                        }
+                                }
+                        }
+                }
+
+                if ( src.isValid() )
+                {
+                        model->setExternalDataSource( src );
+                }
         }
 
 

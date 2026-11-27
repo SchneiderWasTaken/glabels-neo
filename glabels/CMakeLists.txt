@@ -93,6 +93,19 @@ set (glabels_qobject_headers
   ZplRenderer.hpp
 )
 
+# --- external data sources ---
+list (APPEND glabels_sources
+  datasource/ExternalDataSourceDialog.cpp
+  datasource/RedashClient.cpp
+  datasource/SecretStore.cpp
+)
+list (APPEND glabels_qobject_headers
+  datasource/ExternalDataFetcher.hpp
+  datasource/ExternalDataSourceDialog.hpp
+  datasource/RedashClient.hpp
+)
+# --- end external data sources ---
+
 # --- ribbon-ui: core ---
 list (APPEND glabels_sources
   ribbon/Backstage.cpp
@@ -228,7 +241,13 @@ target_link_libraries (glabels_lib
 )
 
 if(WIN32)
-  target_link_libraries(glabels_lib PUBLIC winspool)
+  target_link_libraries(glabels_lib PUBLIC winspool advapi32)
+endif()
+
+if(APPLE)
+  find_library(SECURITY_FRAMEWORK Security REQUIRED)
+  find_library(COREFOUNDATION_FRAMEWORK CoreFoundation REQUIRED)
+  target_link_libraries(glabels_lib PUBLIC ${SECURITY_FRAMEWORK} ${COREFOUNDATION_FRAMEWORK})
 endif()
 
 #=====================================

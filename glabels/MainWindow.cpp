@@ -1252,6 +1252,31 @@ namespace glabels
                 connect( fillClear, &QAbstractButton::clicked, mFillView->clearButton, &QAbstractButton::click );
                 mDataFillRowsGroup->addWidget( fillClear );
 
+                mDataFillLiveGroup = tab->addGroup( tr( "Live data" ), QStringLiteral( "database" ) );
+                auto* fillRedash = new Btn( Btn::Size::Large, Btn::Variant::Standard, mDataFillLiveGroup );
+                fillRedash->setText( tr( "Redash..." ) );
+                fillRedash->setIconName( QStringLiteral( "database" ) );
+                connect( fillRedash, &QAbstractButton::clicked,
+                         mFillView->linkExternalSourceButton, &QAbstractButton::click );
+                mDataFillLiveGroup->addWidget( fillRedash );
+
+                mFillRefreshSourceRibbonBtn = new Btn( Btn::Size::Large, Btn::Variant::Standard, mDataFillLiveGroup );
+                mFillRefreshSourceRibbonBtn->setText( tr( "Refresh" ) );
+                mFillRefreshSourceRibbonBtn->setIconName( QStringLiteral( "refresh-cw" ) );
+                mFillRefreshSourceRibbonBtn->setEnabled( false );
+                connect( mFillRefreshSourceRibbonBtn, &QAbstractButton::clicked,
+                         mFillView->refreshExternalSourceButton, &QAbstractButton::click );
+                mDataFillLiveGroup->addWidget( mFillRefreshSourceRibbonBtn );
+
+                connect( mFillView, &FillView::externalSourceStateChanged, this,
+                         [this]( bool hasSource, bool isRefreshing )
+                         {
+                                 if ( mFillRefreshSourceRibbonBtn )
+                                 {
+                                         mFillRefreshSourceRibbonBtn->setEnabled( hasSource && !isRefreshing );
+                                 }
+                         } );
+
                 mDataFillIoGroup = tab->addGroup( tr( "Import and export" ), QStringLiteral( "download" ) );
                 auto* impCsv = new Btn( Btn::Size::Large, Btn::Variant::Standard, mDataFillIoGroup );
                 impCsv->setText( tr( "Import CSV" ) );
@@ -2496,6 +2521,7 @@ namespace glabels
                 if ( mDataMergeRecordsGroup ) mDataMergeRecordsGroup->setVisible( isMerge );
                 if ( mDataVarsGroup )         mDataVarsGroup->setVisible( isVars );
                 if ( mDataFillRowsGroup )     mDataFillRowsGroup->setVisible( isFill );
+                if ( mDataFillLiveGroup )     mDataFillLiveGroup->setVisible( isFill );
                 if ( mDataFillIoGroup )       mDataFillIoGroup->setVisible( isFill );
                 if ( mDataFillOutputGroup )   mDataFillOutputGroup->setVisible( isFill );
 

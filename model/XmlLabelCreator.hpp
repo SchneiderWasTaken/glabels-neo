@@ -112,6 +112,9 @@ namespace glabels::model
                 static void createMergeNode( QDomElement& parent,
                                              const Model* model );
 
+                static void createExternalDataSourceNode( QDomElement& parent,
+                                                          const Model* model );
+
                 static void createVariablesNode( QDomElement& parent,
                                                  const Model* model );
 

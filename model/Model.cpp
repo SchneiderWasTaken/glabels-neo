@@ -116,6 +116,7 @@ namespace glabels::model
                 mVariables.copy( savedModel->mVariables );
 
                 mMerge = savedModel->mMerge;
+                mExternalDataSource = savedModel->mExternalDataSource;
 
                 // Emit signals based on potential changes
                 emit changed();
@@ -123,6 +124,7 @@ namespace glabels::model
                 emit modifiedChanged();
                 emit nameChanged();
                 emit sizeChanged();
+                emit externalDataSourceChanged();
         }
 
 
@@ -378,6 +380,41 @@ namespace glabels::model
                         emit mergeChanged();
                         emit mergeSourceChanged();
                 }
+        }
+
+
+        ///
+        /// Get linked external data source
+        ///
+        const ExternalDataSource& Model::externalDataSource() const
+        {
+                return mExternalDataSource;
+        }
+
+
+        ///
+        /// Set linked external data source
+        ///
+        void Model::setExternalDataSource( const ExternalDataSource& source )
+        {
+                if ( source != mExternalDataSource )
+                {
+                        mExternalDataSource = source;
+
+                        setModified();
+
+                        emit changed();
+                        emit externalDataSourceChanged();
+                }
+        }
+
+
+        ///
+        /// Clear linked external data source
+        ///
+        void Model::clearExternalDataSource()
+        {
+                setExternalDataSource( ExternalDataSource() );
         }
 
 

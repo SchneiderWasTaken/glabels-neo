@@ -88,6 +88,9 @@ namespace glabels::model
                 static void parseMergeNode( const QDomElement& node,
                                             Model*             model );
 
+                static void parseExternalDataSourceNode( const QDomElement& node,
+                                                         Model*             model );
+
                 static void parseVariablesNode( const QDomElement& node,
                                                 Model*             model );
 

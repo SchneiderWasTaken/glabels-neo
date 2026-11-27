@@ -137,6 +137,11 @@ namespace glabels::model
                 static void setSnapSafeArea( bool enabled );
                 // --- end snapping & guides ---
 
+                // --- external data sources ---
+                static QStringList recentRedashServers();
+                static void addRecentRedashServer( const QString& serverUrl );
+                // --- end external data sources ---
+
 
         private:
                 static std::unique_ptr<Settings> mInstance;

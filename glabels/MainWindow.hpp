@@ -316,10 +316,12 @@ namespace glabels
                 ribbon::RibbonGroup*       mDataMergeRecordsGroup{ nullptr };
                 ribbon::RibbonGroup*       mDataVarsGroup{ nullptr };
                 ribbon::RibbonGroup*       mDataFillRowsGroup{ nullptr };
+                ribbon::RibbonGroup*       mDataFillLiveGroup{ nullptr };
                 ribbon::RibbonGroup*       mDataFillIoGroup{ nullptr };
                 ribbon::RibbonGroup*       mDataFillOutputGroup{ nullptr };
                 ribbon::RibbonButton*      mVarsEditRibbonBtn{ nullptr };
                 ribbon::RibbonButton*      mVarsDeleteRibbonBtn{ nullptr };
+                ribbon::RibbonButton*      mFillRefreshSourceRibbonBtn{ nullptr };
                 ribbon::RibbonButton*      mFillPrintRibbonBtn{ nullptr };
                 ribbon::RibbonButton*      mFillSystemDialogRibbonBtn{ nullptr };
 

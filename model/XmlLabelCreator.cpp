@@ -127,6 +127,11 @@ namespace glabels::model
                         createMergeNode( root, model );
                 }
 
+                if ( model->externalDataSource().isValid() )
+                {
+                        createExternalDataSourceNode( root, model );
+                }
+
                 if ( model->constVariables().size() != 0 )
                 {
                         createVariablesNode( root, model );
@@ -487,6 +492,52 @@ namespace glabels::model
                 default:
                         qWarning() << "XmlLabelCreator::createMergeNode(): Should not be reached!";
                         break;
+                }
+        }
+
+
+        void XmlLabelCreator::createExternalDataSourceNode( QDomElement& parent, const Model* model )
+        {
+                const ExternalDataSource& src = model->externalDataSource();
+                if ( !src.isValid() )
+                {
+                        return;
+                }
+
+                QDomDocument doc = parent.ownerDocument();
+                QDomElement node = doc.createElement( "ExternalDataSource" );
+                parent.appendChild( node );
+
+                XmlUtil::setStringAttr( node, "type", ExternalDataSource::kindToIdString( src.kind ) );
+                if ( !src.displayName.isEmpty() )
+                {
+                        XmlUtil::setStringAttr( node, "name", src.displayName );
+                }
+                if ( !src.matchKeyField.isEmpty() )
+                {
+                        XmlUtil::setStringAttr( node, "match_key", src.matchKeyField );
+                }
+                XmlUtil::setBoolAttr( node, "refresh_on_open", src.refreshOnOpen );
+                XmlUtil::setBoolAttr( node, "refresh_before_print", src.refreshBeforePrint );
+
+                if ( src.kind == ExternalSourceKind::Redash )
+                {
+                        XmlUtil::setStringAttr( node, "server", ExternalDataSource::normalizeServerUrl( src.serverUrl ) );
+                        XmlUtil::setIntAttr( node, "query_id", src.queryId );
+                        XmlUtil::setStringAttr( node, "auth_mode",
+                                                ExternalDataSource::redashAuthModeToString( src.redashAuthMode ) );
+                        XmlUtil::setIntAttr( node, "max_age", src.maxAgeSeconds );
+
+                        for ( auto it = src.parameters.constBegin(); it != src.parameters.constEnd(); ++it )
+                        {
+                                if ( !it.key().trimmed().isEmpty() )
+                                {
+                                        QDomElement paramNode = doc.createElement( "Param" );
+                                        XmlUtil::setStringAttr( paramNode, "name", it.key() );
+                                        XmlUtil::setStringAttr( paramNode, "value", it.value() );
+                                        node.appendChild( paramNode );
+                                }
+                        }
                 }
         }
 

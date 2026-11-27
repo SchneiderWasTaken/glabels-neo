@@ -22,6 +22,8 @@
 #define datasource_ExternalDataSourceDialog_hpp
 
 
+#include "GoogleAuthManager.hpp"
+#include "GoogleSheetsClient.hpp"
 #include "RedashClient.hpp"
 
 #include "model/ExternalDataSource.hpp"
@@ -36,23 +38,29 @@ class QLabel;
 class QLineEdit;
 class QPushButton;
 class QSpinBox;
+class QTabWidget;
 class QTableWidget;
+class QWidget;
 
 
 namespace glabels::datasource
 {
 
         ///
-        /// Dialog for linking or editing a live Redash query for the Fill table.
+        /// Dialog for linking or editing a live external data source
+        /// (Redash query or Google Sheet) for the Fill table.
         ///
         class ExternalDataSourceDialog : public QDialog
         {
                 Q_OBJECT
 
         public:
-                explicit ExternalDataSourceDialog( const model::ExternalDataSource& initialSource,
-                                                   const QStringList&               labelFields,
-                                                   QWidget*                         parent = nullptr );
+                explicit ExternalDataSourceDialog(
+                        const model::ExternalDataSource& initialSource,
+                        const QStringList&               labelFields,
+                        QWidget*                         parent = nullptr,
+                        model::ExternalSourceKind        preferredKind = model::ExternalSourceKind::Redash,
+                        GoogleAuthManager*               googleAuth = nullptr );
 
                 model::ExternalDataSource source() const;
                 bool wasUnlinked() const { return mUnlinked; }
@@ -64,19 +72,36 @@ namespace glabels::datasource
                 const FetchResult& testedResult() const { return mTestedResult; }
 
         private slots:
+                void onProviderTabChanged( int index );
+
+                // Redash slots
                 void onQuickUrlChanged( const QString& text );
                 void onAuthModeChanged();
                 void onCredentialTargetChanged();
                 void onToggleShowKey( bool checked );
                 void onAddParameter();
                 void onRemoveParameter();
+
+                // Google Sheets slots
+                void onGoogleAuthModeChanged();
+                void onGoogleSignInClicked();
+                void onGoogleSignOutClicked();
+                void onPickGoogleSheetClicked();
+                void onGoogleUrlChanged( const QString& text );
+                void onLoadGoogleTabsClicked();
+                void updateGoogleAccountUi();
+
+                // Shared footer slots
                 void onTestConnection();
                 void onUnlinkClicked();
                 void onAcceptClicked();
 
         private:
+                QWidget* buildRedashTab();
+                QWidget* buildGoogleSheetsTab();
+
                 model::ExternalDataSource buildSourceFromForm() const;
-                QString effectiveApiKey( const model::ExternalDataSource& src ) const;
+                QString effectiveRedashApiKey( const model::ExternalDataSource& src ) const;
                 void setParametersInTable( const QMap<QString,QString>& params );
                 QMap<QString,QString> parametersFromTable() const;
                 void updateStatus( const QString& text, bool isError = false );
@@ -84,8 +109,13 @@ namespace glabels::datasource
         private:
                 model::ExternalDataSource mInitialSource;
                 QStringList               mLabelFields;
-                RedashClient              mClient;
+                GoogleAuthManager*        mGoogleAuth{ nullptr };
+                RedashClient              mRedashClient;
+                GoogleSheetsClient        mGoogleSheetsClient;
 
+                QTabWidget*   mProviderTabs{ nullptr };
+
+                // Redash controls
                 QLineEdit*    mQuickUrlEdit{ nullptr };
                 QComboBox*    mServerCombo{ nullptr };
                 QSpinBox*     mQueryIdSpin{ nullptr };
@@ -93,16 +123,30 @@ namespace glabels::datasource
                 QLineEdit*    mApiKeyEdit{ nullptr };
                 QPushButton*  mShowKeyBtn{ nullptr };
                 QLabel*       mKeyHintLabel{ nullptr };
-                QLineEdit*    mDisplayNameEdit{ nullptr };
-
+                QLineEdit*    mRedashDisplayNameEdit{ nullptr };
                 QTableWidget* mParamsTable{ nullptr };
                 QPushButton*  mAddParamBtn{ nullptr };
                 QPushButton*  mRemoveParamBtn{ nullptr };
 
+                // Google Sheets controls
+                QComboBox*    mGoogleAuthModeCombo{ nullptr };
+                QWidget*      mGoogleAccountBox{ nullptr };
+                QLabel*       mGoogleAccountLabel{ nullptr };
+                QPushButton*  mGoogleSignInBtn{ nullptr };
+                QPushButton*  mGoogleSignOutBtn{ nullptr };
+                QPushButton*  mGooglePickBtn{ nullptr };
+                QLineEdit*    mGoogleUrlEdit{ nullptr };
+                QComboBox*    mGoogleTabCombo{ nullptr };
+                QPushButton*  mGoogleLoadTabsBtn{ nullptr };
+                QLineEdit*    mGoogleRangeEdit{ nullptr };
+                QLineEdit*    mGoogleDisplayNameEdit{ nullptr };
+                QCheckBox*    mGoogleHeaderRowCheck{ nullptr };
+                QString       mParsedGoogleGid;
+
+                // Shared sync & footer controls
                 QCheckBox*    mRefreshOnOpenCheck{ nullptr };
                 QCheckBox*    mRefreshBeforePrintCheck{ nullptr };
                 QComboBox*    mMatchKeyCombo{ nullptr };
-
                 QPushButton*  mTestBtn{ nullptr };
                 QLabel*       mStatusLabel{ nullptr };
                 QPushButton*  mUnlinkBtn{ nullptr };

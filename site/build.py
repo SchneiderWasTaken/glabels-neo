@@ -608,6 +608,99 @@ def main():
                     .replace("{{DOWNLOAD}}", DOWNLOAD))
     write(out, "/index.html", page(meta["title"], meta["description"], "/", landing, ld, body_class="home"))
 
+    # Privacy policy (required for Google OAuth brand verification)
+    privacy_body = (
+        '<section class="wrap" style="max-width:760px;padding:48px 20px">'
+        '<h1>Privacy Policy</h1>'
+        '<p>gLabels Neo is a local desktop label designer. Your label files, templates, and spreadsheet rows '
+        'stay on your computer.</p>'
+        '<h2>Google Sheets Integration</h2>'
+        '<p>When you choose <strong>Sign in with Google</strong> in gLabels Neo to link a Google Sheet:</p>'
+        '<ul>'
+        '<li>gLabels Neo requests only the minimal permissions needed to identify your account '
+        '(<code>openid</code>, <code>email</code>) and read spreadsheets you explicitly pick '
+        '(<code>drive.file</code>).</li>'
+        '<li>Your OAuth refresh token is stored exclusively in your operating system&rsquo;s credential store '
+        '(Windows Credential Manager, macOS Keychain, or Linux Secret Service) on your own device and is '
+        'never written into <code>.glabels</code> project files.</li>'
+        '<li>Spreadsheet data is fetched directly from Google&rsquo;s servers to your desktop computer so you '
+        'can preview and print labels. gLabels Neo does not operate a cloud backend that collects, stores, '
+        'shares, or sells your Google user data.</li>'
+        '<li>You can disconnect your Google account at any time from gLabels Neo or from your '
+        '<a href="https://myaccount.google.com/permissions">Google Account permissions</a> page.</li>'
+        '</ul>'
+        '<p>gLabels Neo&rsquo;s use and transfer of information received from Google APIs adheres to the '
+        '<a href="https://developers.google.com/terms/api-services-user-data-policy">Google API Services '
+        'User Data Policy</a>, including the Limited Use requirements.</p>'
+        '<h2>Contact</h2>'
+        '<p>Questions or privacy requests can be filed at the '
+        '<a href="%s/issues">gLabels Neo GitHub repository</a>.</p>'
+        '</section>'
+    ) % esc(REPO)
+    write(out, "/privacy/index.html",
+          page("Privacy Policy | " + SITE_NAME,
+               "How gLabels Neo handles local data and Google Sheets OAuth permissions.",
+               "/privacy/", privacy_body))
+    sitemap.append("/privacy/")
+
+    # Google Picker bridge page for desktop drive.file OAuth flow
+    picker_body = (
+        '<section class="wrap" style="max-width:640px;padding:48px 20px">'
+        '<h1>Select a Google Sheet</h1>'
+        '<p id="picker-status">Loading Google Picker&hellip;</p>'
+        '<p><button id="picker-retry" type="button" style="display:none">Open Google Sheet Picker</button></p>'
+        '<script>'
+        '(function(){'
+        'var st=document.getElementById("picker-status");'
+        'var btn=document.getElementById("picker-retry");'
+        'var rawHash=(window.location.hash||"").replace(/^#/,"");'
+        'if(rawHash&&window.history&&window.history.replaceState){'
+        'window.history.replaceState(null,"",window.location.pathname+window.location.search);}'
+        'var p=new URLSearchParams(rawHash);'
+        'var token=p.get("access_token")||"";'
+        'var cb=p.get("callback")||"";'
+        'var state=p.get("state")||"";'
+        'var apiKey=p.get("api_key")||"";'
+        'var appId=p.get("app_id")||"";'
+        'function validCb(u){return /^http:\\/\\/127\\.0\\.0\\.1:\\d+\\/picked$/.test(u);}'
+        'function sendBack(params){'
+        'if(!validCb(cb)){st.textContent="Invalid desktop callback URL.";return;}'
+        'var q=new URLSearchParams(params);q.set("state",state);'
+        'window.location.replace(cb+"?"+q.toString());}'
+        'if(!token||!validCb(cb)||!state||!apiKey){'
+        'st.textContent="Open this page from gLabels Neo (Data > Fill > Google Sheets > Pick a Google Sheet).";return;}'
+        'function openPicker(){'
+        'var view=new google.picker.DocsView(google.picker.ViewId.SPREADSHEETS);'
+        'view.setIncludeFolders(true);'
+        'var builder=new google.picker.PickerBuilder()'
+        '.addView(view).setOAuthToken(token).setDeveloperKey(apiKey)'
+        '.setOrigin(window.location.origin)'
+        '.setCallback(function(data){'
+        'if(data.action===google.picker.Action.PICKED&&data.docs&&data.docs.length){'
+        'var d=data.docs[0];st.textContent="Linking "+d.name+"...";'
+        'sendBack({id:d.id,name:d.name||""});}'
+        'else if(data.action===google.picker.Action.CANCEL){'
+        'st.textContent="Selection canceled.";sendBack({error:"cancelled"});}});'
+        'if(appId){builder.setAppId(appId);}'
+        'builder.build().setVisible(true);}'
+        'btn.onclick=openPicker;'
+        'var s=document.createElement("script");'
+        's.src="https://apis.google.com/js/api.js";'
+        's.onload=function(){gapi.load("picker",{callback:function(){'
+        'st.textContent="Choose the Google Sheet you want to link to gLabels Neo.";'
+        'btn.style.display="inline-block";openPicker();}});};'
+        's.onerror=function(){st.textContent="Could not load Google Picker script.";};'
+        'document.head.appendChild(s);'
+        '})();'
+        '</script>'
+        '</section>'
+    )
+    write(out, "/picker/index.html",
+          page("Select a Google Sheet | " + SITE_NAME,
+               "Google Drive spreadsheet picker bridge for the gLabels Neo desktop app.",
+               "/picker/", picker_body))
+    sitemap.append("/picker/")
+
     write(out, "/404.html", page("Page not found | " + SITE_NAME, "Page not found.", "/404.html",
                                  '<section class="wrap"><h1>Page not found</h1><p>That page does not exist. Try the '
                                  '<a href="%s">label template search</a> or go <a href="%s">home</a>.</p></section>'

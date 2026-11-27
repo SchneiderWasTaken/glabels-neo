@@ -43,7 +43,7 @@ namespace glabels::model
                         return isAllowedServerUrl( normalizeServerUrl( serverUrl ) ) && queryId > 0;
 
                 case ExternalSourceKind::GoogleSheets:
-                        return false;
+                        return !spreadsheetId.trimmed().isEmpty();
 
                 case ExternalSourceKind::None:
                 default:
@@ -67,6 +67,12 @@ namespace glabels::model
                         }
                         return QStringLiteral( "redash:user:%1" ).arg( norm );
                 }
+                if ( kind == ExternalSourceKind::GoogleSheets )
+                {
+                        return ( googleAuthMode == GoogleAuthMode::OAuth )
+                                ? QStringLiteral( "google:oauth:refresh_token" )
+                                : QString();
+                }
                 return {};
         }
 
@@ -84,6 +90,24 @@ namespace glabels::model
                                         .arg( displayName.trimmed(), host );
                         }
                         return QStringLiteral( "Redash #%1 (%2)" ).arg( queryId ).arg( host );
+                }
+                if ( kind == ExternalSourceKind::GoogleSheets )
+                {
+                        const QString title = !displayName.trimmed().isEmpty()
+                                ? displayName.trimmed()
+                                : ( spreadsheetId.length() > 16
+                                            ? spreadsheetId.left( 14 ) + QStringLiteral( "..." )
+                                            : spreadsheetId );
+                        QString out = QStringLiteral( "Google Sheets · %1" ).arg( title );
+                        if ( !sheetName.trimmed().isEmpty() )
+                        {
+                                out += QStringLiteral( " (%1)" ).arg( sheetName.trimmed() );
+                        }
+                        if ( googleAuthMode == GoogleAuthMode::PublicLink )
+                        {
+                                out += QStringLiteral( " · Public" );
+                        }
+                        return out;
                 }
                 return {};
         }
@@ -134,6 +158,24 @@ namespace glabels::model
                         return RedashAuthMode::QueryApiKey;
                 }
                 return RedashAuthMode::UserApiKey;
+        }
+
+
+        QString ExternalDataSource::googleAuthModeToString( GoogleAuthMode mode )
+        {
+                return ( mode == GoogleAuthMode::PublicLink )
+                        ? QStringLiteral( "public" )
+                        : QStringLiteral( "oauth" );
+        }
+
+
+        GoogleAuthMode ExternalDataSource::googleAuthModeFromString( const QString& value )
+        {
+                if ( value.trimmed().toLower() == QStringLiteral( "public" ) )
+                {
+                        return GoogleAuthMode::PublicLink;
+                }
+                return GoogleAuthMode::OAuth;
         }
 
 
@@ -259,6 +301,51 @@ namespace glabels::model
                         ? RedashAuthMode::QueryApiKey
                         : RedashAuthMode::UserApiKey;
                 result.valid = true;
+                return result;
+        }
+
+
+        ParsedGoogleSheetsUrl ExternalDataSource::parseGoogleSheetsUrl( const QString& urlText )
+        {
+                ParsedGoogleSheetsUrl result;
+                const QString trimmed = urlText.trimmed();
+                if ( trimmed.isEmpty() )
+                {
+                        return result;
+                }
+
+                // Standard Google Sheets URL:
+                //   https://docs.google.com/spreadsheets/d/<id>/edit#gid=<gid>
+                //   https://docs.google.com/spreadsheets/u/0/d/<id>/edit?gid=<gid>#gid=<gid>
+                static const QRegularExpression urlRx(
+                        QStringLiteral( R"(https?://docs\.google\.com/spreadsheets/(?:u/\d+/)?d/([A-Za-z0-9_-]{10,}))" ),
+                        QRegularExpression::CaseInsensitiveOption );
+                if ( const auto m = urlRx.match( trimmed ); m.hasMatch() )
+                {
+                        result.spreadsheetId = m.captured( 1 );
+                        const QUrl url( trimmed );
+                        const QUrlQuery query( url );
+                        QString gid = query.queryItemValue( QStringLiteral( "gid" ) ).trimmed();
+                        if ( gid.isEmpty() )
+                        {
+                                static const QRegularExpression fragGidRx( QStringLiteral( R"((?:^|&)gid=(\d+))" ) );
+                                if ( const auto fm = fragGidRx.match( url.fragment() ); fm.hasMatch() )
+                                {
+                                        gid = fm.captured( 1 );
+                                }
+                        }
+                        result.gid = gid;
+                        result.valid = true;
+                        return result;
+                }
+
+                // Bare spreadsheet ID (alphanumeric, underscore, hyphen, >= 20 chars)
+                static const QRegularExpression bareIdRx( QStringLiteral( R"(^[A-Za-z0-9_-]{20,}$)" ) );
+                if ( bareIdRx.match( trimmed ).hasMatch() )
+                {
+                        result.spreadsheetId = trimmed;
+                        result.valid = true;
+                }
                 return result;
         }
 

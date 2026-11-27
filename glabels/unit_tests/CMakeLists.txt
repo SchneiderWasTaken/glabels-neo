@@ -89,6 +89,16 @@ target_link_libraries (TestRedashDataSource glabels_lib glabels_resources Model 
 add_test (NAME RedashDataSource COMMAND TestRedashDataSource)
 set_tests_properties (RedashDataSource PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 
+#=======================================
+# Test Google Sheets OAuth, Picker, Sheets API v4 & Public CSV against a mock server
+#=======================================
+qt6_wrap_cpp (TestGoogleSheetsDataSource_moc_sources TestGoogleSheetsDataSource.hpp)
+add_executable (TestGoogleSheetsDataSource TestGoogleSheetsDataSource.cpp ${TestGoogleSheetsDataSource_moc_sources})
+target_include_directories (TestGoogleSheetsDataSource PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/..)
+target_link_libraries (TestGoogleSheetsDataSource glabels_lib glabels_resources Model Qt6::Test Qt6::Widgets Qt6::Network)
+add_test (NAME GoogleSheetsDataSource COMMAND TestGoogleSheetsDataSource)
+set_tests_properties (GoogleSheetsDataSource PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
 # Pictures for the README and the website: skipped unless GLABELS_MARKETING_SHOTS=<dir> is set.
 qt6_wrap_cpp (TestMarketingShots_moc_sources TestMarketingShots.hpp)
 add_executable (TestMarketingShots TestMarketingShots.cpp ${TestMarketingShots_moc_sources})

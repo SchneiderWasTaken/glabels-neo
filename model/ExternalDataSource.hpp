@@ -69,6 +69,32 @@ namespace glabels::model
 
 
         ///
+        /// Authentication mode for Google Sheets.
+        ///
+        enum class GoogleAuthMode
+        {
+                /// Signed in via Google OAuth 2.0 (Sheets API v4, works for private
+                /// and Workspace spreadsheets).
+                OAuth,
+
+                /// No login required for spreadsheets shared as "Anyone with the link
+                /// can view" (reads CSV export via gviz endpoint).
+                PublicLink
+        };
+
+
+        ///
+        /// Result of parsing a pasted Google Sheets URL or bare spreadsheet ID.
+        ///
+        struct ParsedGoogleSheetsUrl
+        {
+                QString spreadsheetId;
+                QString gid;
+                bool    valid{ false };
+        };
+
+
+        ///
         /// Non-secret configuration describing a live external data source
         /// stored inside a .glabels project.
         ///
@@ -85,6 +111,14 @@ namespace glabels::model
                 RedashAuthMode        redashAuthMode{ RedashAuthMode::UserApiKey };
                 int                   maxAgeSeconds{ 0 };
                 QMap<QString,QString> parameters;
+
+                // Google Sheets fields
+                QString               spreadsheetId;
+                QString               sheetName;
+                QString               sheetGid;
+                QString               cellRange;
+                GoogleAuthMode        googleAuthMode{ GoogleAuthMode::OAuth };
+                bool                  hasHeaderRow{ true };
 
                 // Common display & sync options
                 QString               displayName;
@@ -106,9 +140,13 @@ namespace glabels::model
                 static QString redashAuthModeToString( RedashAuthMode mode );
                 static RedashAuthMode redashAuthModeFromString( const QString& value );
 
+                static QString googleAuthModeToString( GoogleAuthMode mode );
+                static GoogleAuthMode googleAuthModeFromString( const QString& value );
+
                 static QString normalizeServerUrl( const QString& rawUrl );
                 static bool isAllowedServerUrl( const QString& url );
                 static ParsedRedashUrl parseRedashUrl( const QString& urlText );
+                static ParsedGoogleSheetsUrl parseGoogleSheetsUrl( const QString& urlText );
         };
 
 }

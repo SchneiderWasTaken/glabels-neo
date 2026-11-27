@@ -140,6 +140,8 @@ namespace glabels::model
                 // --- external data sources ---
                 static QStringList recentRedashServers();
                 static void addRecentRedashServer( const QString& serverUrl );
+                static QString googleAccountEmail();
+                static void setGoogleAccountEmail( const QString& email );
                 // --- end external data sources ---
 
 

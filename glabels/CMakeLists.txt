@@ -96,12 +96,16 @@ set (glabels_qobject_headers
 # --- external data sources ---
 list (APPEND glabels_sources
   datasource/ExternalDataSourceDialog.cpp
+  datasource/GoogleAuthManager.cpp
+  datasource/GoogleSheetsClient.cpp
   datasource/RedashClient.cpp
   datasource/SecretStore.cpp
 )
 list (APPEND glabels_qobject_headers
   datasource/ExternalDataFetcher.hpp
   datasource/ExternalDataSourceDialog.hpp
+  datasource/GoogleAuthManager.hpp
+  datasource/GoogleSheetsClient.hpp
   datasource/RedashClient.hpp
 )
 # --- end external data sources ---

@@ -344,8 +344,9 @@ void TestUpdateUi::aboutDialogShowsReleaseVersionAndAttribution()
         }
         else if ( model::Version::IS_DEV_BUILD )
         {
-                // built from the dev branch: says so, links to the rolling "dev" prerelease, never updates itself
-                QVERIFY( text.contains( "/releases/tag/dev" ) );
+                // built from the dev branch: says so and names the commit, has no release page to link to,
+                // never updates itself
+                QVERIFY( !text.contains( "/releases/tag/" ) );
                 QVERIFY( text.contains( update::Config::COMMIT.left( 7 ) ) );
                 QVERIFY( text.contains( "Development build" ) );
                 QVERIFY( update::Config::CHANNEL.isEmpty() );

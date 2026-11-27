@@ -17,9 +17,10 @@
 //  You should have received a copy of the GNU General Public License
 //  along with gLabels Neo.  If not, see <http://www.gnu.org/licenses/>.
 //
-
-
-//  ZplRenderer.cpp
+//  Printer detection, profiles, ZPL packing and the raw transports live in the
+//  printing library (printing/ZplPrinter), shared with the glabelsneo command line
+//  tool so both drive Zebra printers identically.  This file keeps the GUI parts:
+//  the preview dialog and the entry point the Fill page calls.
 //
 
 #include "ZplRenderer.hpp"
@@ -38,16 +39,9 @@
 #include <QPushButton>
 #include <QRadioButton>
 #include <QScrollArea>
-#include <QSettings>
 #include <QSpinBox>
-#include <QTcpSocket>
 #include <QVBoxLayout>
 #include <QDebug>
-
-#ifdef Q_OS_WIN
-#include <windows.h>
-#include <winspool.h>
-#endif
 
 
 namespace glabels
@@ -60,66 +54,13 @@ namespace glabels
 
         bool ZplRenderer::isZebraPrinter( const QString& printerName )
         {
-                if ( printerName.isEmpty() ) return false;
-                QString name = printerName.toLower();
-
-                // Name-based detection — covers current and historical Zebra models.
-                static const QStringList patterns = {
-                        "zebra", "zdesigner", "zpl", "gk420", "gk888", "gk", "zd4",
-                        "zd6", "zt2", "zt4", "zt5", "zp5", "imx", "tc", "rx",
-                        "203dpi", "300dpi", "600dpi"
-                };
-                for ( const auto& p : patterns )
-                {
-                        if ( name.contains( p ) ) return true;
-                }
-
-                // Driver-based detection via QPrinterInfo.
-                auto info = QPrinterInfo::printerInfo( printerName );
-                if ( !info.isNull() )
-                {
-                        QString make = info.makeAndModel().toLower();
-                        if ( make.contains( "zebra" ) || make.contains( "zdesigner" ) ||
-                             make.contains( "zpl" ) )
-                        {
-                                return true;
-                        }
-
-                        // Zebra drivers report exactly 1 page size and specific DPIs.
-                        if ( info.supportedPageSizes().size() == 1 )
-                        {
-                                int dpi = detectDpi(printerName);
-                                if ( dpi == 203 || dpi == 300 || dpi == 600 )
-                                {
-                                        // Likely a thermal printer with a fixed DPI.
-                                        QString pageSizeName =
-                                                info.supportedPageSizes().first().name().toLower();
-                                        if ( pageSizeName.contains( "user" ) ||
-                                             pageSizeName.contains( "custom" ) )
-                                        {
-                                                return true;
-                                        }
-                                }
-                        }
-                }
-                return false;
+                return printing::ZplPrinter::isZebraPrinter( printerName );
         }
 
 
         int ZplRenderer::detectDpi( const QString& printerName )
         {
-                // Try QPrinterInfo's resolution.
-                auto info = QPrinterInfo::printerInfo( printerName );
-                if ( !info.isNull() )
-                {
-                        // QPrinterInfo doesn't expose resolution directly, but
-                        // constructing a QPrinter and reading resolution() works.
-                        QPrinter printer( info, QPrinter::HighResolution );
-                        int dpi = printer.resolution();
-                        if ( dpi > 0 ) return dpi;
-                }
-                // Default: 203 dpi is the most common for entry-level Zebra.
-                return 203;
+                return printing::ZplPrinter::detectDpi( printerName );
         }
 
 
@@ -129,44 +70,19 @@ namespace glabels
 
         PrinterProfile ZplRenderer::loadProfile( const QString& printerName )
         {
-                QSettings s;
-                s.beginGroup( "ThermalPrinters" );
-                s.beginGroup( printerName );
-                PrinterProfile p;
-                p.name      = printerName;
-                p.dpi       = s.value( "dpi", 0 ).toInt();
-                p.transport = s.value( "transport", "auto" ).toString();
-                p.tcpHost   = s.value( "tcpHost" ).toString();
-                p.tcpPort   = s.value( "tcpPort", 9100 ).toInt();
-                s.endGroup();
-                s.endGroup();
-                return p;
+                return printing::ZplPrinter::loadProfile( printerName );
         }
 
 
         void ZplRenderer::saveProfile( const PrinterProfile& profile )
         {
-                QSettings s;
-                s.beginGroup( "ThermalPrinters" );
-                s.beginGroup( profile.name );
-                s.setValue( "dpi", profile.dpi );
-                s.setValue( "transport", profile.transport );
-                s.setValue( "tcpHost", profile.tcpHost );
-                s.setValue( "tcpPort", profile.tcpPort );
-                s.endGroup();
-                s.endGroup();
+                printing::ZplPrinter::saveProfile( profile );
         }
 
 
         PrinterProfile ZplRenderer::ensureProfile( const QString& printerName )
         {
-                PrinterProfile p = loadProfile( printerName );
-                if ( p.dpi == 0 )
-                {
-                        p.dpi = detectDpi( printerName );
-                        saveProfile( p );
-                }
-                return p;
+                return printing::ZplPrinter::ensureProfile( printerName );
         }
 
 
@@ -193,30 +109,16 @@ namespace glabels
                         return previewDialog( model, profile, copies );
                 }
 
-                // No preview — just send.
+                // No preview -- just send.
                 QByteArray zpl = renderZpl( model, profile.dpi, copies );
                 if ( zpl.isEmpty() ) return false;
 
-                if ( profile.transport == "tcp" || profile.transport == "auto" )
+                if ( printing::ZplPrinter::send( zpl, profile ) )
                 {
-                        if ( !profile.tcpHost.isEmpty() )
-                        {
-                                if ( sendTcp( zpl, profile.tcpHost, profile.tcpPort ) )
-                                {
-                                        return true;
-                                }
-                        }
+                        return true;
                 }
 
-                if ( profile.transport == "usb" || profile.transport == "auto" )
-                {
-                        if ( sendUsb( zpl, printerName ) )
-                        {
-                                return true;
-                        }
-                }
-
-                // ZPL failed — fall back to QPrinter.
+                // ZPL failed -- fall back to QPrinter.
                 qWarning() << "ZplRenderer: ZPL failed, falling back to QPrinter";
                 return sendViaQPrinter( model, printerName, copies );
         }
@@ -255,59 +157,8 @@ namespace glabels
                 model->draw( &painter, false, glabels::merge::Record(), variables );
                 painter.end();
 
-                // Threshold to monochrome and pack for ZPL (1 = black, MSB-first).
-                int bytesPerRow = ( widthDots + 7 ) / 8;
-                QByteArray packed( heightDots * bytesPerRow, 0 );
-
-                for ( int y = 0; y < heightDots; ++y )
-                {
-                        const QRgb* scanline =
-                                reinterpret_cast<const QRgb*>( image.constScanLine( y ) );
-                        for ( int x = 0; x < widthDots; ++x )
-                        {
-                                QRgb px = scanline[x];
-                                int lum = ( qRed(px)*30 + qGreen(px)*59 + qBlue(px)*11 ) / 100;
-                                if ( lum < 128 )
-                                {
-                                        int byteIdx = y * bytesPerRow + x / 8;
-                                        int bitIdx  = 7 - ( x % 8 );
-                                        packed[byteIdx] |= ( 1 << bitIdx );
-                                }
-                        }
-                }
-
-                // Hex-encode.
-                int totalBytes = heightDots * bytesPerRow;
-                static const char hex[] = "0123456789ABCDEF";
-                QByteArray hexData;
-                hexData.reserve( totalBytes * 2 );
-                for ( int i = 0; i < totalBytes; ++i )
-                {
-                        unsigned char b = static_cast<unsigned char>( packed[i] );
-                        hexData.append( hex[(b >> 4) & 0x0F] );
-                        hexData.append( hex[b & 0x0F] );
-                }
-
-                // Build ZPL.
-                QByteArray zpl;
-                zpl.reserve( hexData.size() + 128 );
-                for ( int i = 0; i < copies; ++i )
-                {
-                        zpl.append( "^XA" );
-                        zpl.append( "^MNN" );
-                        zpl.append( "^MTD" );
-                        zpl.append( "^PW" + QByteArray::number(widthDots) );
-                        zpl.append( "^LL" + QByteArray::number(heightDots) );
-                        zpl.append( "^FO0,0" );
-                        zpl.append( "^GFA," );
-                        zpl.append( QByteArray::number(totalBytes) + "," );
-                        zpl.append( QByteArray::number(totalBytes) + "," );
-                        zpl.append( QByteArray::number(bytesPerRow) + "," );
-                        zpl.append( hexData );
-                        zpl.append( "^FS" );
-                        zpl.append( "^XZ" );
-                }
-                return zpl;
+                // Threshold to monochrome, pack and wrap in ZPL (shared with the command line tool).
+                return printing::ZplPrinter::imageToZpl( image, copies );
         }
 
 
@@ -461,61 +312,14 @@ namespace glabels
         bool ZplRenderer::sendTcp( const QByteArray& data,
                                    const QString& host, int port )
         {
-                QTcpSocket socket;
-                socket.connectToHost( host, port );
-                if ( !socket.waitForConnected( 5000 ) )
-                {
-                        qWarning() << "ZPL TCP connect failed:" << socket.errorString();
-                        return false;
-                }
-                socket.write( data );
-                if ( !socket.waitForBytesWritten( 10000 ) )
-                {
-                        qWarning() << "ZPL TCP write failed:" << socket.errorString();
-                        return false;
-                }
-                socket.disconnectFromHost();
-                return true;
+                return printing::ZplPrinter::sendTcp( data, host, port );
         }
 
 
         bool ZplRenderer::sendUsb( const QByteArray& data,
                                    const QString& printerName )
         {
-#ifdef Q_OS_WIN
-                HANDLE hPrinter = nullptr;
-                if ( !OpenPrinterA( const_cast<char*>(printerName.toLocal8Bit().constData()),
-                                    &hPrinter, nullptr ) )
-                {
-                        qWarning() << "ZPL OpenPrinter failed for" << printerName;
-                        return false;
-                }
-
-                DOC_INFO_1A docInfo = {};
-                docInfo.pDocName = const_cast<char*>("gLabels Neo ZPL");
-                docInfo.pDatatype = const_cast<char*>("RAW");
-
-                if ( !StartDocPrinterA(hPrinter, 1, reinterpret_cast<BYTE*>(&docInfo)) )
-                {
-                        ClosePrinter(hPrinter);
-                        return false;
-                }
-                StartPagePrinter(hPrinter);
-
-                DWORD written = 0;
-                bool ok = WritePrinter(hPrinter,
-                                       const_cast<char*>(data.constData()),
-                                       data.size(), &written) != 0;
-                ok = ok && (int)written == data.size();
-
-                EndPagePrinter(hPrinter);
-                EndDocPrinter(hPrinter);
-                ClosePrinter(hPrinter);
-                return ok;
-#else
-                Q_UNUSED(data); Q_UNUSED(printerName);
-                return false;
-#endif
+                return printing::ZplPrinter::sendUsb( data, printerName );
         }
 
 

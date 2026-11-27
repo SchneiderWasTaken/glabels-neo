@@ -36,7 +36,8 @@ on:
       - 'cmake/**'
       - 'CMakeLists.txt'
       - 'glabels/CMakeLists.txt'
-      - 'glabels-batch/CMakeLists.txt'
+      - 'glabelsneo/**'
+      - 'printing/CMakeLists.txt'
       - 'glabels-fill/**'
       - 'LICENSE'
       - 'CREDITS.md'
@@ -139,7 +140,7 @@ jobs:
           tar -xzf glabels-neo-linux-x86_64.tar.gz -C smoke
           cd smoke/glabels-neo
 
-          for f in LICENSE THIRD-PARTY-NOTICES.md CREDITS.md licenses/GPL-3.0.txt licenses/LGPL-3.0.txt licenses/templates-MIT.txt licenses/libzint-BSD-3-Clause.txt licenses/LGPL-2.1.txt licenses/zlib.txt licenses/ICU-Unicode-3.0.txt licenses/qt/MIT.txt VERSIONS.txt bin/glabels-updater glabels-batch-qt; do
+          for f in LICENSE THIRD-PARTY-NOTICES.md CREDITS.md licenses/GPL-3.0.txt licenses/LGPL-3.0.txt licenses/templates-MIT.txt licenses/libzint-BSD-3-Clause.txt licenses/LGPL-2.1.txt licenses/zlib.txt licenses/ICU-Unicode-3.0.txt licenses/qt/MIT.txt VERSIONS.txt bin/glabels-updater glabelsneo glabels-batch-qt; do
             test -f "$f" || { echo "missing from package: $f"; exit 1; }
           done
 
@@ -170,12 +171,23 @@ jobs:
           done < <(find plugins -type f -name '*.so' -print0)
 
           export QT_QPA_PLATFORM=offscreen
-          ./glabels-batch-qt --Version | tee version.txt
+          ./glabelsneo --Version | tee version.txt
           grep 'GLABELS NEO' version.txt >/dev/null
 
-          ./glabels-batch-qt -o "$PWD/out.pdf" "$GITHUB_WORKSPACE/test-data/simple-shapes.glabels"
+          ./glabelsneo print "$GITHUB_WORKSPACE/test-data/simple-shapes.glabels" --output "$PWD/out.pdf"
           test "$(head -c 4 out.pdf)" = "%PDF"
           test "$(stat -c %s out.pdf)" -gt 1000
+
+          # The previous tool still ships for one release: installed copies' self-updater requires it and
+          # smoke-tests every update with "--Version", so that must keep working.
+          ./glabels-batch-qt --Version | grep 'GLABELS NEO' >/dev/null
+
+          # Batch input: JSON records rendered to PDF through the real tool.
+          printf '[{"a":"one"},{"a":"two","_copies":2}]' > records.json
+          ./glabelsneo print "$GITHUB_WORKSPACE/test-data/simple-text-liberation-sans.glabels" --data records.json --output "$PWD/batch.pdf" --format json | tee batch.json
+          grep '"ok":true' batch.json >/dev/null
+          test "$(head -c 4 batch.pdf)" = "%PDF"
+          ./glabelsneo printers --format json >/dev/null
 
       - name: Report system libraries missing on a bare Ubuntu 22.04 (informational)
         continue-on-error: true
@@ -198,7 +210,7 @@ jobs:
         run: |
           docker run --rm -e QT_QPA_PLATFORM=offscreen \
             -v "$PWD/smoke/glabels-neo:/app:ro" ubuntu:22.04 \
-            bash -c 'apt-get update -qq && apt-get install -y -qq libfontconfig1 libfreetype6 libglib2.0-0 libxkbcommon0 libdbus-1-3 >/dev/null && /app/glabels-batch-qt --Version'
+            bash -c 'apt-get update -qq && apt-get install -y -qq libfontconfig1 libfreetype6 libglib2.0-0 libxkbcommon0 libdbus-1-3 >/dev/null && /app/glabelsneo --Version'
 
       - name: Upload package
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -249,7 +261,7 @@ jobs:
         env:
           QT_ASSUME_STDERR_HAS_CONSOLE: 1
         run: |
-          ./glabels-batch/Release/glabels-batch-qt --Version
+          ./glabelsneo/Release/glabelsneo --Version
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ctest --build-config Release --output-on-failure
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
@@ -266,7 +278,7 @@ jobs:
           if (Test-Path $dir) { Remove-Item -Recurse -Force $dir }
           Expand-Archive glabels-neo-windows-x64.zip -DestinationPath $dir
 
-          foreach ($f in 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'CREDITS.md', 'licenses\GPL-3.0.txt', 'licenses\LGPL-3.0.txt', 'licenses\templates-MIT.txt', 'licenses\libzint-BSD-3-Clause.txt', 'licenses\LGPL-2.1.txt', 'licenses\zlib.txt', 'licenses\ICU-Unicode-3.0.txt', 'licenses\qt\MIT.txt', 'VERSIONS.txt', 'bin\glabels-updater.exe', 'bin\glabels-batch-qt.exe', 'bin\translations\glabels_de.qm') {
+          foreach ($f in 'LICENSE', 'THIRD-PARTY-NOTICES.md', 'CREDITS.md', 'licenses\GPL-3.0.txt', 'licenses\LGPL-3.0.txt', 'licenses\templates-MIT.txt', 'licenses\libzint-BSD-3-Clause.txt', 'licenses\LGPL-2.1.txt', 'licenses\zlib.txt', 'licenses\ICU-Unicode-3.0.txt', 'licenses\qt\MIT.txt', 'VERSIONS.txt', 'bin\glabels-updater.exe', 'bin\glabelsneo.exe', 'bin\glabels-batch-qt.exe', 'bin\translations\glabels_de.qm') {
             if (-not (Test-Path (Join-Path $dir $f))) { throw "missing from package: $f" }
           }
 
@@ -276,7 +288,8 @@ jobs:
           foreach ($v in 'QT_PLUGIN_PATH', 'QT_ROOT_DIR', 'QML2_IMPORT_PATH', 'QT_QPA_PLATFORM_PLUGIN_PATH') {
             Remove-Item "Env:$v" -ErrorAction SilentlyContinue
           }
-          $exe = Join-Path $dir 'bin\glabels-batch-qt.exe'
+          $exe = Join-Path $dir 'bin\glabelsneo.exe'
+          $legacyExe = Join-Path $dir 'bin\glabels-batch-qt.exe'
 
           $out = & $exe --Version
           if ($LASTEXITCODE -ne 0) { throw "--Version exited with $LASTEXITCODE" }
@@ -284,11 +297,27 @@ jobs:
           if (-not (($out -join "`n") -match 'GLABELS NEO')) { throw 'version output lacks the gLabels Neo header' }
 
           $pdf = Join-Path $dir 'out.pdf'
-          & $exe -o $pdf (Join-Path $env:GITHUB_WORKSPACE 'test-data\simple-shapes.glabels')
+          & $exe print (Join-Path $env:GITHUB_WORKSPACE 'test-data\simple-shapes.glabels') --output $pdf
           if ($LASTEXITCODE -ne 0) { throw "render exited with $LASTEXITCODE" }
           $bytes = [System.IO.File]::ReadAllBytes($pdf)
           if ($bytes.Length -lt 1000) { throw "PDF too small: $($bytes.Length) bytes" }
           if ([System.Text.Encoding]::ASCII.GetString($bytes, 0, 4) -ne '%PDF') { throw 'output is not a PDF' }
+
+          # The previous tool still ships for one release: installed copies' self-updater requires it and
+          # smoke-tests every update with "--Version", so that must keep working.
+          $legacyOut = & $legacyExe --Version
+          if ($LASTEXITCODE -ne 0) { throw "glabels-batch-qt --Version exited with $LASTEXITCODE" }
+          if (-not (($legacyOut -join "`n") -match 'GLABELS NEO')) { throw 'glabels-batch-qt version output lacks the gLabels Neo header' }
+
+          # Batch input: JSON records, a field set, and a job document, all rendered to PDF through the real tool.
+          $json = Join-Path $dir 'records.json'
+          '[{"a":"one"},{"a":"two","_copies":2}]' | Out-File -Encoding ascii $json
+          $pdf2 = Join-Path $dir 'batch.pdf'
+          $summary = & $exe print (Join-Path $env:GITHUB_WORKSPACE 'test-data\simple-text-liberation-sans.glabels') --data $json --output $pdf2 --format json
+          if ($LASTEXITCODE -ne 0) { throw "batch render exited with $LASTEXITCODE" }
+          if (-not (($summary -join "`n") -match '"ok":true')) { throw "batch render did not report ok: $summary" }
+          $printers = & $exe printers --format json
+          if ($LASTEXITCODE -ne 0) { throw "printers exited with $LASTEXITCODE" }
 
       - name: Upload package
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -95,7 +95,7 @@ jobs:
         env:
           QT_ASSUME_STDERR_HAS_CONSOLE: 1
         run: |
-          ./glabels-batch/Release/glabels-batch-qt --Version
+          ./glabelsneo/Release/glabelsneo --Version
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           ctest --build-config Release --output-on-failure
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }

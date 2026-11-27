@@ -24,6 +24,7 @@ set (Model_sources
   Db.cpp
   Distance.cpp
   ExternalDataSource.cpp
+  FieldScan.cpp
   FileUtil.cpp
   Frame.cpp
   FrameCd.cpp

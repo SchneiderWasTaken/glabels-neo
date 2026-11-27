@@ -34,7 +34,9 @@ namespace glabels::model::Branding
         ///
         /// NOTE: these are display strings only.  Identity strings (QSettings paths, binary names,
         /// file formats, MIME types, namespaces) deliberately remain "glabels" - see
-        /// docs/CHANGES-FROM-UPSTREAM.md.
+        /// docs/CHANGES-FROM-UPSTREAM.md.  The one exception is the command line tool, which is
+        /// called "glabelsneo" (docs/CLI-SPEC.md); the older "glabels-batch-qt" remains for one
+        /// release because the self-updater of installed copies depends on it.
         ///
         inline const QString DISPLAY_NAME       = QStringLiteral( "gLabels Neo" );
         inline const QString ATTRIBUTION        = QStringLiteral( "Based on gLabels by Jaye Evins and contributors" );

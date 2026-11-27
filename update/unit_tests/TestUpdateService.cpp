@@ -142,7 +142,7 @@ namespace
 
         QString smokeFile( const QString& tree )
         {
-                return currentOs() == Os::Windows ? tree + "/bin/glabels-batch-qt.exe" : tree + "/glabels-batch-qt";
+                return currentOs() == Os::Windows ? tree + "/bin/glabelsneo.exe" : tree + "/glabelsneo";
         }
 
 

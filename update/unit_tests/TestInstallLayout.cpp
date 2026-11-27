@@ -61,7 +61,7 @@ void TestInstallLayout::windowsPackage()
         QCOMPARE( l.helperPath, root + "/bin/glabels-updater.exe" );
         QCOMPARE( l.relaunchPath, root + "/bin/glabels-qt.exe" );
         QCOMPARE( l.mainRel, QString( "bin/glabels-qt.exe" ) );
-        QCOMPARE( l.smokeRel, QString( "bin/glabels-batch-qt.exe" ) );
+        QCOMPARE( l.smokeRel, QString( "bin/glabelsneo.exe" ) );
 }
 
 
@@ -76,7 +76,7 @@ void TestInstallLayout::linuxPackage()
         QVERIFY2( l.supported, qPrintable( l.reason ) );
         QCOMPARE( l.units[0].installed, root );
         QCOMPARE( l.relaunchPath, root + "/bin/glabels-qt" );      // no launcher script: the binary itself
-        QCOMPARE( l.smokeRel, QString( "glabels-batch-qt" ) );
+        QCOMPARE( l.smokeRel, QString( "glabelsneo" ) );
 }
 
 
@@ -191,9 +191,9 @@ void TestInstallLayout::validateStaged()
         // incomplete: the smoke-test program is missing
         touch( l.units[0].staged + "/bin/glabels-qt.exe" );
         touch( l.units[0].staged + "/bin/glabels-updater.exe" );
-        QVERIFY( l.validateStaged().contains( "glabels-batch-qt.exe" ) );
+        QVERIFY( l.validateStaged().contains( "glabelsneo.exe" ) );
 
-        touch( l.units[0].staged + "/bin/glabels-batch-qt.exe" );
+        touch( l.units[0].staged + "/bin/glabelsneo.exe" );
         QCOMPARE( l.validateStaged(), QString() );
 }
 
@@ -213,7 +213,7 @@ void TestInstallLayout::validateStagedRejectsEscapingLinks()
 
         touch( l.units[0].staged + "/bin/glabels-qt" );
         touch( l.units[0].staged + "/bin/glabels-updater" );
-        touch( l.units[0].staged + "/glabels-batch-qt" );
+        touch( l.units[0].staged + "/glabelsneo" );
         touch( l.units[0].staged + "/lib/libreal.so.1" );
 
         // a relative link inside the tree is fine (this is what shared libraries look like) ...

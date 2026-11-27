@@ -238,6 +238,7 @@ endif()
 target_link_libraries (glabels_lib
   PUBLIC
   Model
+  Printing
   Update
   Qt6::Concurrent
   Qt6::Widgets

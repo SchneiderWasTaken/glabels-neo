@@ -164,6 +164,14 @@ int main( int argc, char **argv )
 
 
         //
+        // glabels-batch-qt is superseded by glabelsneo.  It stays for one release because the
+        // self-updater of installed copies still depends on it.  (--Version, above, stays silent:
+        // the updater runs it.)
+        //
+        QTextStream(stderr) << "glabels-batch-qt is deprecated and will be removed in a future release; "
+                               "use 'glabelsneo print' instead.\n";
+
+        //
         // Parse variable definitions from command line, if any
         //
         QMap<QString,QString> variableDefinitions;

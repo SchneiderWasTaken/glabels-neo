@@ -30,6 +30,7 @@
 #include "TextColonKeys.hpp"
 #include "TextSemicolon.hpp"
 #include "TextSemicolonKeys.hpp"
+#include "JsonMerge.hpp"
 
 
 namespace glabels::merge
@@ -92,6 +93,16 @@ namespace glabels::merge
                                  tr("Text: Semicolon Separated Values, keys on line 1"),
                                  FILE,
                                  &TextSemicolonKeys::create );
+
+                registerBackend( Json::id(),
+                                 tr("JSON: array of records"),
+                                 FILE,
+                                 &Json::create );
+
+                registerBackend( JsonLines::id(),
+                                 tr("JSON Lines: one record per line"),
+                                 FILE,
+                                 &JsonLines::create );
         }
 
 

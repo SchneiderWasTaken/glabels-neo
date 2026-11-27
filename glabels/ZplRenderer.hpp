@@ -33,6 +33,7 @@
 
 
 #include "model/Model.hpp"
+#include "printing/ZplPrinter.hpp"
 
 #include <QByteArray>
 #include <QImage>
@@ -43,17 +44,9 @@ namespace glabels
 {
 
 
-        ///
-        /// A thermal printer profile, persisted in QSettings.
-        ///
-        struct PrinterProfile
-        {
-                QString  name;          // Windows printer name
-                int      dpi{ 0 };     // 0 = auto-detect from driver
-                QString  transport;    // "auto" | "usb" | "tcp"
-                QString  tcpHost;      // for "tcp" transport
-                int      tcpPort{ 9100 };
-        };
+        /// The thermal printer profile now lives in the shared printing library (also used by the
+        /// glabelsneo command line tool); the name stays here for the GUI.
+        using PrinterProfile = printing::PrinterProfile;
 
 
         class ZplRenderer

@@ -138,6 +138,7 @@ namespace glabels::datasource
 
                 // Dialog footer
                 auto* footer = new QHBoxLayout();
+                footer->setContentsMargins( 0, 12, 0, 0 );
                 mUnlinkBtn = new QPushButton( tr( "Unlink source" ), this );
                 mUnlinkBtn->setVisible( initialSource.isValid() );
                 footer->addWidget( mUnlinkBtn );

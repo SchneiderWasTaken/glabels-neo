@@ -56,6 +56,7 @@ namespace glabels
                 : QDialog(parent)
         {
                 setupUi( this );
+                buttonBox->setContentsMargins( 0, 12, 0, 0 );
 
                 QRegularExpression reIdentifier( "[a-zA-Z_][a-zA-Z_0-9]*" );
                 nameEdit->setValidator( new QRegularExpressionValidator( reIdentifier ) );

@@ -95,9 +95,7 @@ namespace glabels::model
                 {
                         const QString title = !displayName.trimmed().isEmpty()
                                 ? displayName.trimmed()
-                                : ( spreadsheetId.length() > 16
-                                            ? spreadsheetId.left( 14 ) + QStringLiteral( "..." )
-                                            : spreadsheetId );
+                                : QStringLiteral( "Untitled sheet" );
                         QString out = QStringLiteral( "Google Sheets · %1" ).arg( title );
                         if ( !sheetName.trimmed().isEmpty() )
                         {

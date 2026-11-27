@@ -193,7 +193,14 @@ namespace glabels::datasource
                                 initialSource.googleAuthMode == model::GoogleAuthMode::PublicLink
                                         ? GOOGLE_PUBLIC_LINK
                                         : GOOGLE_OAUTH );
-                        mGoogleUrlEdit->setText( initialSource.spreadsheetId );
+                        // Show a normal sheet link rather than the bare ID.
+                        QString link = QStringLiteral( "https://docs.google.com/spreadsheets/d/%1/edit" )
+                                               .arg( initialSource.spreadsheetId );
+                        if ( !initialSource.sheetGid.isEmpty() )
+                        {
+                                link += QStringLiteral( "#gid=" ) + initialSource.sheetGid;
+                        }
+                        mGoogleUrlEdit->setText( link );
                         mParsedGoogleGid = initialSource.sheetGid;
                         if ( !initialSource.sheetName.isEmpty() )
                         {
@@ -292,7 +299,7 @@ namespace glabels::datasource
                                  }
                                  updateStatus(
                                          tr( "Loaded \"%1\" (%2 tab(s))." )
-                                                 .arg( info.title.isEmpty() ? info.spreadsheetId : info.title )
+                                                 .arg( info.title.isEmpty() ? tr( "the sheet" ) : info.title )
                                                  .arg( info.tabs.size() ),
                                          false );
                          } );
@@ -320,14 +327,15 @@ namespace glabels::datasource
                 } );
                 connect( mGoogleAuth, &GoogleAuthManager::spreadsheetPicked, this,
                          [this]( const QString& id, const QString& title ) {
-                                 mGoogleUrlEdit->setText( id );
+                                 mGoogleUrlEdit->setText(
+                                         QStringLiteral( "https://docs.google.com/spreadsheets/d/%1/edit" ).arg( id ) );
                                  if ( !title.isEmpty() )
                                  {
                                          mGoogleDisplayNameEdit->setText( title );
                                  }
                                  mParsedGoogleGid.clear();
                                  mHasTestedResult = false;
-                                 updateStatus( tr( "Selected \"%1\". Loading tabs..." ).arg( title.isEmpty() ? id : title ), false );
+                                 updateStatus( tr( "Selected \"%1\". Loading tabs..." ).arg( title.isEmpty() ? tr( "the sheet" ) : title ), false );
                                  onLoadGoogleTabsClicked();
                          } );
                 connect( mGoogleAuth, &GoogleAuthManager::pickerFailed, this, [this]( const QString& err ) {
@@ -460,10 +468,17 @@ namespace glabels::datasource
                 acctLayout->addWidget( mGoogleSignOutBtn );
                 form->addRow( tr( "Google account:" ), mGoogleAccountBox );
 
+                // Signed-in users choose a sheet with the picker and see its name;
+                // public-link users paste the sheet's link.  The raw spreadsheet ID
+                // only shows under "Show debug details".
+                mGoogleSheetNameLabel = new QLabel( page );
+                mGoogleSheetNameLabel->setWordWrap( true );
+                form->addRow( tr( "Sheet:" ), mGoogleSheetNameLabel );
+
                 mGoogleUrlEdit = new QLineEdit( page );
                 mGoogleUrlEdit->setPlaceholderText(
-                        tr( "Paste Google Sheet URL (https://docs.google.com/spreadsheets/d/...) or spreadsheet ID" ) );
-                form->addRow( tr( "Sheet URL / ID:" ), mGoogleUrlEdit );
+                        tr( "Paste the sheet's link (https://docs.google.com/spreadsheets/d/...)" ) );
+                form->addRow( tr( "Sheet link:" ), mGoogleUrlEdit );
 
                 auto* tabRow = new QHBoxLayout();
                 tabRow->setSpacing( 6 );
@@ -478,20 +493,42 @@ namespace glabels::datasource
                 tabRow->addWidget( mGoogleLoadTabsBtn );
                 form->addRow( tr( "Worksheet tab:" ), tabRow );
 
-                mGoogleRangeEdit = new QLineEdit( page );
-                mGoogleRangeEdit->setPlaceholderText( tr( "(optional A1 range, e.g. A1:F — blank = whole tab)" ) );
-                form->addRow( tr( "Cell range:" ), mGoogleRangeEdit );
-
                 mGoogleDisplayNameEdit = new QLineEdit( page );
                 mGoogleDisplayNameEdit->setPlaceholderText( tr( "(optional — auto-filled when picked or loaded)" ) );
                 form->addRow( tr( "Label / name:" ), mGoogleDisplayNameEdit );
 
-                mGoogleHeaderRowCheck = new QCheckBox( tr( "First row contains column headers" ), page );
-                mGoogleHeaderRowCheck->setChecked( true );
-                form->addRow( QString(), mGoogleHeaderRowCheck );
-
                 layout->addLayout( form );
+                mGoogleForm = form;
+
+                // Debug details: spreadsheet ID, cell range and header-row option.
+                // Defaults (whole tab, first row = column names) suit nearly everyone.
+                mGoogleDebugCheck = new QCheckBox( tr( "Show debug details" ), page );
+                layout->addWidget( mGoogleDebugCheck );
+
+                mGoogleDebugBox = new QWidget( page );
+                auto* debugForm = new QFormLayout( mGoogleDebugBox );
+                debugForm->setContentsMargins( 0, 0, 0, 0 );
+                debugForm->setSpacing( 8 );
+
+                mGoogleIdEdit = new QLineEdit( mGoogleDebugBox );
+                mGoogleIdEdit->setReadOnly( true );
+                debugForm->addRow( tr( "Spreadsheet ID:" ), mGoogleIdEdit );
+
+                mGoogleRangeEdit = new QLineEdit( mGoogleDebugBox );
+                mGoogleRangeEdit->setPlaceholderText( tr( "(optional A1 range, e.g. A1:F — blank = whole tab)" ) );
+                debugForm->addRow( tr( "Cell range:" ), mGoogleRangeEdit );
+
+                mGoogleHeaderRowCheck = new QCheckBox( tr( "First row contains column headers" ), mGoogleDebugBox );
+                mGoogleHeaderRowCheck->setChecked( true );
+                debugForm->addRow( QString(), mGoogleHeaderRowCheck );
+
+                mGoogleDebugBox->setVisible( false );
+                layout->addWidget( mGoogleDebugBox );
                 layout->addStretch( 1 );
+
+                connect( mGoogleDebugCheck, &QCheckBox::toggled, mGoogleDebugBox, &QWidget::setVisible );
+                connect( mGoogleDisplayNameEdit, &QLineEdit::textChanged,
+                         this, [this]() { updateGoogleSheetUi(); } );
 
                 connect( mGoogleAuthModeCombo, qOverload<int>( &QComboBox::currentIndexChanged ),
                          this, &ExternalDataSourceDialog::onGoogleAuthModeChanged );
@@ -634,6 +671,41 @@ namespace glabels::datasource
                 mGoogleAccountBox->setVisible( isOAuth );
                 mGoogleLoadTabsBtn->setVisible( isOAuth );
                 updateGoogleAccountUi();
+                updateGoogleSheetUi();
+        }
+
+
+        ///
+        /// Signed-in mode shows the picked sheet's name; public-link mode shows
+        /// the link box.  The bare spreadsheet ID is only in the debug details.
+        ///
+        void ExternalDataSourceDialog::updateGoogleSheetUi()
+        {
+                if ( !mGoogleForm || !mGoogleSheetNameLabel || !mGoogleUrlEdit || !mGoogleAuthModeCombo )
+                {
+                        return;
+                }
+                const bool isOAuth = ( mGoogleAuthModeCombo->currentData().toInt() == GOOGLE_OAUTH );
+                const auto parsed = model::ExternalDataSource::parseGoogleSheetsUrl( mGoogleUrlEdit->text() );
+
+                QString name = mGoogleDisplayNameEdit->text().trimmed();
+                if ( !parsed.valid )
+                {
+                        name = tr( "None chosen yet. Click \"Pick a Google Sheet...\"." );
+                }
+                else if ( name.isEmpty() )
+                {
+                        name = tr( "Google Sheet (name not loaded yet)" );
+                }
+                mGoogleSheetNameLabel->setText( name );
+
+                mGoogleForm->setRowVisible( mGoogleSheetNameLabel, isOAuth );
+                mGoogleForm->setRowVisible( mGoogleUrlEdit, !isOAuth );
+
+                if ( mGoogleIdEdit )
+                {
+                        mGoogleIdEdit->setText( parsed.valid ? parsed.spreadsheetId : QString() );
+                }
         }
 
 
@@ -711,6 +783,7 @@ namespace glabels::datasource
                 {
                         mParsedGoogleGid = parsed.gid;
                 }
+                updateGoogleSheetUi();
         }
 
 
@@ -719,7 +792,7 @@ namespace glabels::datasource
                 const auto parsed = model::ExternalDataSource::parseGoogleSheetsUrl( mGoogleUrlEdit->text() );
                 if ( !parsed.valid )
                 {
-                        updateStatus( tr( "Paste a valid Google Sheets URL or spreadsheet ID first." ), true );
+                        updateStatus( tr( "Pick a Google Sheet or paste its link first." ), true );
                         return;
                 }
                 mGoogleLoadTabsBtn->setEnabled( false );
@@ -761,7 +834,7 @@ namespace glabels::datasource
                 {
                         if ( !draft.isValid() )
                         {
-                                updateStatus( tr( "Paste a valid Google Sheets URL or spreadsheet ID first." ), true );
+                                updateStatus( tr( "Pick a Google Sheet or paste its link first." ), true );
                                 return;
                         }
                         if ( draft.googleAuthMode == model::GoogleAuthMode::OAuth && !mGoogleAuth->isSignedIn() )
@@ -834,7 +907,7 @@ namespace glabels::datasource
                                 QMessageBox::warning(
                                         this,
                                         tr( "Invalid Google Sheet" ),
-                                        tr( "Please pick a Google Sheet or paste a valid Google Sheets URL / spreadsheet ID." ) );
+                                        tr( "Please pick a Google Sheet or paste its link." ) );
                                 return;
                         }
                         if ( draft.googleAuthMode == model::GoogleAuthMode::OAuth && !mGoogleAuth->isSignedIn() )

@@ -34,6 +34,7 @@
 
 class QCheckBox;
 class QComboBox;
+class QFormLayout;
 class QLabel;
 class QLineEdit;
 class QPushButton;
@@ -144,7 +145,14 @@ namespace glabels::datasource
                 QLineEdit*    mGoogleRangeEdit{ nullptr };
                 QLineEdit*    mGoogleDisplayNameEdit{ nullptr };
                 QCheckBox*    mGoogleHeaderRowCheck{ nullptr };
+                QFormLayout*  mGoogleForm{ nullptr };
+                QLabel*       mGoogleSheetNameLabel{ nullptr };
+                QCheckBox*    mGoogleDebugCheck{ nullptr };
+                QWidget*      mGoogleDebugBox{ nullptr };
+                QLineEdit*    mGoogleIdEdit{ nullptr };
                 QString       mParsedGoogleGid;
+
+                void updateGoogleSheetUi();
 
                 // Shared sync & footer controls
                 QCheckBox*    mRefreshOnOpenCheck{ nullptr };

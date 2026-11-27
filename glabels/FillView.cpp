@@ -1377,6 +1377,14 @@ namespace glabels
                 mLastExternalRowCount = result.rows.size();
                 mLastExternalError.clear();
 
+                // Google Sheets: every column is a label variable, so the
+                // Insert Field drop-downs list the sheet's columns and the
+                // Fill table shows them all, even before the label uses them.
+                if ( mModel && mModel->externalDataSource().kind == model::ExternalSourceKind::GoogleSheets )
+                {
+                        ensureColumnVariables( result.headers );
+                }
+
                 const QString matchKeySetting = mModel ? mModel->externalDataSource().matchKeyField : QString();
                 mergeExternalRows( result.rows, result.headers, matchKeySetting );
                 updateExternalSourceBanner();
@@ -1387,6 +1395,57 @@ namespace glabels
         {
                 mLastExternalError = error;
                 updateExternalSourceBanner();
+        }
+
+
+        ///
+        /// Add a blank string variable for each source column the label does not
+        /// already know (case-insensitively).  Qty and Print stay control columns.
+        /// The row's value wins over the variable's blank initial value when merging.
+        ///
+        void FillView::ensureColumnVariables( const QStringList& header )
+        {
+                if ( !mModel )
+                {
+                        return;
+                }
+
+                QStringList known = collectFieldNames();
+                QList<model::Variable> toAdd;
+                for ( const QString& raw : header )
+                {
+                        const QString name = raw.trimmed();
+                        if ( name.isEmpty()
+                             || name.compare( QStringLiteral( "Qty" ), Qt::CaseInsensitive ) == 0
+                             || name.compare( QStringLiteral( "Print" ), Qt::CaseInsensitive ) == 0
+                             || name.contains( QLatin1Char( '}' ) )
+                             || name.contains( QLatin1Char( ':' ) ) )
+                        {
+                                continue; // control column, or a name ${...} cannot reference
+                        }
+                        if ( known.contains( name, Qt::CaseInsensitive ) )
+                        {
+                                continue;
+                        }
+                        known.append( name );
+                        toAdd.append( model::Variable( model::Variable::Type::STRING, name, QString() ) );
+                }
+
+                if ( toAdd.isEmpty() )
+                {
+                        return;
+                }
+
+                // Each add emits Model::changed (and so onModelChanged); block our
+                // form refresh until all are in, then rebuild once.
+                const bool wasBlocked = mBlocked;
+                mBlocked = true;
+                for ( const auto& v : toAdd )
+                {
+                        mModel->variables().addVariable( v );
+                }
+                mBlocked = wasBlocked;
+                refreshFields();
         }
 
 

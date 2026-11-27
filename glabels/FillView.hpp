@@ -181,6 +181,7 @@ namespace glabels
                 void mergeExternalRows( const QList<QMap<QString,QString>>& rows,
                                         const QStringList&                  header,
                                         const QString&                      matchKeySetting );
+                void ensureColumnVariables( const QStringList& header );
                 bool ensureFreshExternalDataBeforePrint();
                 void updateExternalSourceBanner();
                 datasource::ExternalDataFetcher* activeFetcher();

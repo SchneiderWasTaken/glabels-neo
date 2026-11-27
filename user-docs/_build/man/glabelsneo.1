@@ -1,0 +1,432 @@
+.\" Man page generated from reStructuredText
+.\" by the Docutils 0.22.4 manpage writer.
+.
+.
+.nr rst2man-indent-level 0
+.
+.de1 rstReportMargin
+\\$1 \\n[an-margin]
+level \\n[rst2man-indent-level]
+level margin: \\n[rst2man-indent\\n[rst2man-indent-level]]
+-
+\\n[rst2man-indent0]
+\\n[rst2man-indent1]
+\\n[rst2man-indent2]
+..
+.de1 INDENT
+.\" .rstReportMargin pre:
+. RS \\$1
+. nr rst2man-indent\\n[rst2man-indent-level] \\n[an-margin]
+. nr rst2man-indent-level +1
+.\" .rstReportMargin post:
+..
+.de UNINDENT
+. RE
+.\" indent \\n[an-margin]
+.\" old: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.nr rst2man-indent-level -1
+.\" new: \\n[rst2man-indent\\n[rst2man-indent-level]]
+.in \\n[rst2man-indent\\n[rst2man-indent-level]]u
+..
+.TH "GLABELSNEO" "1" "Nov 27, 2026" "" "gLabels"
+.SH NAME
+glabelsneo \- print gLabels label files from the command line
+.SH SYNOPSIS
+.sp
+\fBglabelsneo\fP \fIcommand\fP [\fIoptions\fP] [\fIarguments\fP]
+.sp
+\fBglabelsneo print\fP [\fIoptions\fP] [\fIFILE\fP]
+.sp
+\fBglabelsneo inspect\fP [\fIoptions\fP] \fIFILE\fP
+.sp
+\fBglabelsneo printers\fP [\fIoptions\fP]
+.SH DESCRIPTION
+.sp
+\fBglabelsneo\fP prints gLabels label files from the command line, so that labels can be
+produced from scripts, services and other programs as well as by hand.  It works without
+prompting (for scripts), with prompts (for a person at a terminal), and in batches described by
+JSON.  It supersedes \fBglabels\-batch\-qt(1)\fP\&.
+.sp
+Results go to standard output and diagnostics to standard error.  With \fB\-\-format json\fP standard
+output carries exactly one JSON object describing the run, which is the interface intended for
+other programs.
+.SH COMMANDS
+.INDENT 0.0
+.TP
+\fBprint\fP
+Print a label file on a printer, or to a PDF or PNG files.  \fB\-\-printer\fP or \fB\-\-output\fP is
+required.
+.TP
+\fBinspect\fP
+Show the template, label size, merge source, user variables, and the fields a label file
+expects to be filled in.
+.TP
+\fBprinters\fP
+List the installed printers.  The default printer is marked.  \fB\-\-check NAME\fP tests whether a
+name resolves.
+.TP
+\fBversion\fP
+Show the version (\fB\-\-verbose\fP for build and system details).
+.TP
+\fBhelp\fP [\fIcommand\fP]
+Show help.
+.UNINDENT
+.SH PRINT
+.sp
+Print one label by naming each field the label uses:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+glabelsneo print jeans.glabels \-\-printer default \-\-field price=29.99 \-\-field \(dqname=Blue Jeans\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Values containing spaces need ordinary shell quoting.  \fB\-\-printer default\fP is the system default
+printer; any other name must match an installed printer exactly (or, failing that,
+case\-insensitively and uniquely).  A name is never guessed from a prefix.
+.INDENT 0.0
+.TP
+.B \-p <name>, \-\-printer <name>
+Print on this printer.  Either \fB\-\-printer\fP or \fB\-\-output\fP is required.  Zebra printers are
+driven with ZPL automatically, exactly as the graphical program does; see \fB\-\-driver\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-o <file>, \-\-output <file>
+Write a PDF instead of printing.  \fB\-\fP writes the PDF to standard output.  If the name ends in
+\fB\&.png\fP the pages are written as PNG images instead (\fBlabel.png\fP for one page, \fBlabel\-1.png\fP,
+\fBlabel\-2.png\fP and so on for several), which is a quick way to see what a job will look like.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-F <NAME=VALUE>, \-\-field <NAME=VALUE>
+Set the merge field \fINAME\fP for the label.  May be repeated.  The value is everything after the
+first \fB=\fP\&.  Formatting and default modifiers in the label (\fB${price:%.2f}\fP,
+\fB${note:=none}\fP) work as usual.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-var <NAME=VALUE>
+Set the initial value of a user variable (serial numbers and the like).  If the label also has a
+merge field of the same name, the field wins.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-data <source>
+Records for a batch: one label per record.  A file name, or \fB\-\fP for standard input.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-data\-format <format>
+The format of \fB\-\-data\fP: \fBjson\fP, \fBjsonl\fP, \fBcsv\fP, \fBtsv\fP, \fBcolon\fP or \fBsemicolon\fP\&.  The
+text formats read field names from the first line; add \fB\-nokeys\fP (for example \fBcsv\-nokeys\fP)
+for files without a header, whose fields are then named \fB1\fP, \fB2\fP, and so on.  By default the
+format is chosen from the file name (\fB\&.json\fP, \fB\&.jsonl\fP, \fB\&.ndjson\fP, \fB\&.csv\fP, \fB\&.tsv\fP);
+it is required for \fB\-\-data \-\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-job <file>
+Run a JSON job document (see below).  \fB\-\fP reads it from standard input.  Options given on the
+command line override the document: a \fB\-\-printer\fP or \fB\-\-output\fP replaces the destination
+of every job, \fB\-\-field\fP and \fB\-\-var\fP are added, and \fB\-\-data\fP replaces the inline labels.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-n <n>, \-\-copies <n>
+Copies of each label.  Default 1.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-sheets <n>
+Full sheets of a label that has no fields or data.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-first <n>
+Start at position \fIn\fP on the first sheet.  Default 1.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-collate
+Collate copies of merged labels (A B A B instead of A A B B).
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-group
+Start each merge group on a new page.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-outlines, \-\-crop\-marks, \-\-reverse
+Print label outlines, crop marks, or a mirror image.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-i, \-\-interactive
+Prompt for every field (the current value is shown in brackets; Enter keeps it) and ask for
+confirmation before sending.  Afterwards it offers to print another label with different values.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-y, \-\-yes
+Do not ask for confirmation.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-dry\-run
+Check everything, report what would be printed, and print nothing.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-force\-fields
+Make \fB\-\-field\fP values override the data file\(aqs values.  Without it the data file wins and
+\fB\-\-field\fP supplies defaults for records that lack the field.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-strict
+Treat warnings (below) as errors.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-max\-labels <n>
+Refuse to print more than \fIn\fP labels, to catch runaway batches before they use up label stock.
+Default 1000; \fB0\fP removes the limit.  At a terminal it asks instead of refusing.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-continue\-on\-error
+In a run of several jobs, keep going after a job fails to print.  Without it the run stops at the
+first failure.  Problems found while checking the jobs always stop the run before anything is sent.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-driver <auto|system|zpl>
+How to talk to the printer.  \fBauto\fP (the default) uses ZPL for printers recognised as Zebra
+printers and the operating system\(aqs driver for everything else.  Use \fBsystem\fP or \fBzpl\fP to
+override a wrong guess.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-dpi <n>
+Resolution of PNG output.  Default 150.
+.UNINDENT
+.SS Global options (accepted by every command)
+.INDENT 0.0
+.TP
+.B \-\-format <text|json>
+Output format on standard output.  Default \fBtext\fP\&.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-q, \-\-quiet
+Errors only.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-v, \-\-verbose
+Show library diagnostics on standard error.
+.UNINDENT
+.INDENT 0.0
+.TP
+.B \-\-no\-input
+Never prompt, even at a terminal.  The environment variable \fBGLABELSNEO_NO_INPUT=1\fP does the
+same.  Prompts only ever happen when standard input is a terminal.
+.UNINDENT
+.SH FIELDS AND WARNINGS
+.sp
+Fields a label uses but nobody supplies print blank, and values supplied for fields the label does
+not use are ignored; neither is an error.  Both produce a warning (on standard error, or in the
+\fBwarnings\fP list of the JSON result) so that a typo does not go unnoticed:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+warning: field \(aqprise\(aq is not used by the label; did you mean \(aqprice\(aq?
+warning: the label uses field \(aqprice\(aq but no value was supplied; it will print blank
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Use \fBglabelsneo inspect\fP to see which fields a file expects, and \fB\-\-strict\fP to make warnings
+fail the run.
+.SH BATCHES
+.sp
+JSON records (\fB\-\-data records.json\fP) are an array of flat objects, or JSON Lines with one object per
+line:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+[ {\(dqname\(dq: \(dqBlue Jeans\(dq, \(dqprice\(dq: 29.99},
+  {\(dqname\(dq: \(dqCorduroy Pants\(dq, \(dqprice\(dq: 49.5, \(dq_copies\(dq: 2} ]
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Values become text: numbers in their shortest exact form (\fB29.99\fP), booleans as \fBtrue\fP or
+\fBfalse\fP, \fBnull\fP as nothing.  Numbers are exact up to 2 to the 53rd power, so send longer
+identifiers (tracking numbers, barcodes) as strings.  Nested objects and arrays are an error.  A key
+starting with an underscore is reserved: \fB_copies\fP asks for that many copies of the record.  The
+input must be UTF\-8 (Windows PowerShell 5.1 writes UTF\-16 for \fB>\fP; use \fBOut\-File \-Encoding utf8\fP).
+.sp
+A job document describes whole runs, including which file, which printer, and the data, so another
+program needs nothing else:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{
+  \(dqversion\(dq: 1,
+  \(dqjobs\(dq: [
+    { \(dqid\(dq: \(dqorder\-1041\-line\-1\(dq,
+      \(dqfile\(dq: \(dqtemplates/jeans.glabels\(dq,
+      \(dqprinter\(dq: \(dqBrother QL\-800\(dq,
+      \(dqoptions\(dq: { \(dqcopies\(dq: 1, \(dqfirst\(dq: 1, \(dqcollate\(dq: false },
+      \(dqvariables\(dq: { \(dqbatch\(dq: \(dqA7\(dq },
+      \(dqdefaults\(dq: { \(dqcurrency\(dq: \(dqUSD\(dq },
+      \(dqlabels\(dq: [ { \(dqfields\(dq: { \(dqprice\(dq: \(dq29.99\(dq, \(dqname\(dq: \(dqBlue Jeans\(dq }, \(dqcopies\(dq: 2 },
+                  { \(dqfields\(dq: { \(dqprice\(dq: \(dq49.50\(dq, \(dqname\(dq: \(dqCorduroy Pants\(dq } } ] },
+    { \(dqid\(dq: \(dqorder\-1041\-shipping\(dq,
+      \(dqfile\(dq: \(dqtemplates/ship.glabels\(dq,
+      \(dqoutput\(dq: \(dqout/ship\-1041.pdf\(dq,
+      \(dqdata\(dq: \(dqship\-1041.jsonl\(dq }
+  ]
+}
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+A document with \fBlabels\fP or \fBdata\fP at the top level and no \fBjobs\fP describes a single job.
+Relative paths in a document are resolved against the document\(aqs own directory.  Each job needs
+exactly one of \fBprinter\fP or \fBoutput\fP (they may come from the command line instead).  Unknown
+keys are errors.  Within a label a field\(aqs value is, from lowest to highest priority, the job\(aqs
+\fBdefaults\fP, then \fB\-\-field\fP, then the label\(aqs own \fBfields\fP (\fB\-\-force\-fields\fP puts \fB\-\-field\fP
+last).  \fBid\fP is copied to the results so callers can match them up.
+.sp
+Every job is checked before anything is sent: if any job has a bad file, bad data or an unknown
+printer, nothing is printed at all.
+.SH RESULT FORMAT
+.sp
+With \fB\-\-format json\fP standard output is one object:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+{ \(dqok\(dq: true, \(dqdryRun\(dq: false, \(dqexitCode\(dq: 0,
+  \(dqwarnings\(dq: [ { \(dqcode\(dq: \(dqfield.unused\(dq, \(dqmessage\(dq: \(dq...\(dq, \(dqjob\(dq: \(dq...\(dq } ],
+  \(dqjobs\(dq: [ { \(dqid\(dq: \(dq...\(dq, \(dqindex\(dq: 0, \(dqstatus\(dq: \(dqprinted\(dq, \(dqfile\(dq: \(dq...\(dq,
+              \(dqprinter\(dq: \(dqBrother QL\-800\(dq, \(dqlabels\(dq: 3, \(dqpages\(dq: 3 } ],
+  \(dqerrors\(dq: [] }
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+\fBstatus\fP is \fBprinted\fP, \fBpdf\fP, \fBimage\fP, \fBchecked\fP (dry run), \fBfailed\fP or \fBskipped\fP\&.
+Codes are stable and part of the interface; messages are for people and may change.  Warning codes
+are \fBfield.missing\fP, \fBfield.unused\fP, \fBoption.ignored\fP and \fBprinter.fallback\fP\&.  Error codes
+include \fBusage\fP, \fBinput.missing\fP, \fBinput.invalid\fP, \fBdata.invalid\fP, \fBdata.missing\fP,
+\fBdata.empty\fP, \fBdata.limit\fP, \fBdata.strict\fP, \fBprinter.notfound\fP, \fBprinter.ambiguous\fP,
+\fBprinter.failed\fP and \fBcancelled\fP\&.
+.SH EXIT STATUS
+.INDENT 0.0
+.TP
+.B 0
+Success: the job was handed to the printer system, or the file was written.  With
+\fB\-\-dry\-run\fP, all checks passed.  This does not mean paper has come out.
+.TP
+.B 1
+Unexpected internal error.
+.TP
+.B 2
+Usage error: bad, unknown or conflicting options, or no \fB\-\-printer\fP/\fB\-\-output\fP\&.
+.TP
+.B 3
+The label file was not found, is unreadable, or is not a gLabels file.
+.TP
+.B 4
+Data error: malformed JSON or records, over the \fB\-\-max\-labels\fP limit, or warnings under
+\fB\-\-strict\fP\&.
+.TP
+.B 5
+Printer error: not found, ambiguous, or the job could not be sent.
+.TP
+.B 6
+Some jobs printed and some failed (\fB\-\-continue\-on\-error\fP).
+.TP
+.B 130
+Cancelled at a prompt.
+.UNINDENT
+.SH EXAMPLES
+.sp
+Print one label, naming each field:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+glabelsneo print price\-tag.glabels \-p default \-F price=9.99 \-F \(dqname=Blue Jeans\(dq
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Check first, then print a batch from a spreadsheet export:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+glabelsneo print tags.glabels \-p \(dqBrother QL\-800\(dq \-\-data items.csv \-\-dry\-run
+glabelsneo print tags.glabels \-p \(dqBrother QL\-800\(dq \-\-data items.csv
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Be asked for the values:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+glabelsneo print price\-tag.glabels \-p default \-i
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Pipe records from another program, and read the result:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+producer | glabelsneo print tags.glabels \-p default \-\-data \- \-\-data\-format jsonl \-\-format json
+.EE
+.UNINDENT
+.UNINDENT
+.sp
+Look at a job without a printer:
+.INDENT 0.0
+.INDENT 3.5
+.sp
+.EX
+glabelsneo print price\-tag.glabels \-F price=9.99 \-F name=Jeans \-o preview.png
+.EE
+.UNINDENT
+.UNINDENT
+.SH FILES
+.sp
+The command line tool shares its settings, user templates and thermal printer connection profiles
+with the graphical program.
+.SH KNOWN ISSUES
+.sp
+\fBglabelsneo\fP prints through the operating system, so success means the job was spooled.  It cannot
+tell whether the printer was out of labels.
+.sp
+The macOS disk image does not yet include the command line tool.
+.SH SEE ALSO
+.sp
+\fBglabels\-qt(1)\fP, \fBglabels\-batch\-qt(1)\fP
+.sp
+The gLabels Neo homepage at <\%<https://\:github\:.com/\:SchneiderWasTaken/\:glabels-neo>>.
+.SH Copyright
+2020, Jaye Evins <evins@snaught.com>
+.\" End of generated man page.
